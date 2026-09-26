@@ -2,6 +2,7 @@
 // Server core: owns the transport and the player registry and routes packets to the registered
 // handlers (Registry.h). Single-threaded: everything runs inside Tick().
 #include "AccessLists.h"
+#include "GiftManager.h"
 #include "Logger.h"
 #include "PlayerRegistry.h"
 #include "ServerConfig.h"
@@ -42,6 +43,9 @@ class Server {
     AccessLists& Access() {
         return mAccess;
     }
+    GiftManager& Gifts() {
+        return mGifts;
+    }
     const ServerConfig& Config() const {
         return mConfig;
     }
@@ -61,6 +65,7 @@ class Server {
     Logger& mLog;
     Transport mTransport;
     PlayerRegistry mPlayers;
+    GiftManager mGifts;
     bool mRunning = false;
     bool mStopping = false;
     int64_t mStopDeadlineMs = 0;
