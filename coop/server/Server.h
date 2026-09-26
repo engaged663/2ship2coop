@@ -22,8 +22,9 @@ class Server {
     bool Start(std::string* err);
     void Tick(int timeoutMs);
     void ExecuteConsoleLine(const std::string& line);
+    // Graceful: says goodbye, then keeps ticking until every client acknowledged (max 1 s).
     void Stop(const std::string& reason);
-    bool IsRunning() const;
+    bool IsRunning() const; // true until the graceful stop has finished
 
     void SendEvent(RemoteClient& to, const json& ev);
     void Broadcast(const json& ev, const RemoteClient* except = nullptr); // welcomed players only
@@ -53,6 +54,7 @@ class Server {
     void HandleReceive(NetEvent& ev);
     void HandleDisconnect(uint32_t peer);
     void CheckHandshakeTimeouts();
+    void TickStopping(std::vector<NetEvent>& events);
 
     ServerConfig mConfig;
     AccessLists& mAccess;
@@ -60,6 +62,8 @@ class Server {
     Transport mTransport;
     PlayerRegistry mPlayers;
     bool mRunning = false;
+    bool mStopping = false;
+    int64_t mStopDeadlineMs = 0;
     std::chrono::steady_clock::time_point mStartTime;
 };
 

@@ -1,5 +1,6 @@
 #include "Server.h"
 
+#include "CommandRegistry.h"
 #include "Registry.h"
 
 #include <thread>
@@ -50,6 +51,10 @@ void Server::Tick(int timeoutMs) {
     }
     std::vector<NetEvent> events;
     mTransport.Service(timeoutMs, events);
+    if (mStopping) {
+        TickStopping(events);
+        return;
+    }
     for (auto& ev : events) {
         if (ev.type == NetEvent::Connect) {
             RemoteClient& c = mPlayers.Add(ev.peer, mTransport.PeerIp(ev.peer), NowMs());
@@ -170,6 +175,16 @@ void Server::Kick(RemoteClient& client, const std::string& reason) {
 }
 
 bool Server::AllowMessage(RemoteClient& client) {
+    int64_t now = NowMs();
+    auto& recent = client.recentMessagesMs;
+    while (!recent.empty() && now - recent.front() > kRateLimitWindowMs) {
+        recent.pop_front();
+    }
+    if ((int)recent.size() >= kRateLimitCount) {
+        SendSystem(&client, "Estás enviando mensajes demasiado rápido. Espera un momento.", level::kWarn);
+        return false;
+    }
+    recent.push_back(now);
     return true;
 }
 
@@ -178,10 +193,11 @@ bool Server::IsOp(const RemoteClient& client) const {
 }
 
 void Server::ExecuteConsoleLine(const std::string& line) {
+    ExecuteCommandLine(*this, nullptr, line);
 }
 
 void Server::Stop(const std::string& reason) {
-    if (!mRunning) {
+    if (!mRunning || mStopping) {
         return;
     }
     mLog.Info("Deteniendo el servidor: " + reason);
@@ -190,22 +206,25 @@ void Server::Stop(const std::string& reason) {
     }
     for (RemoteClient* c : mPlayers.All()) {
         c->closing = true;
-        mTransport.Disconnect(c->peer);
+        mTransport.Disconnect(c->peer); // delivered after the goodbye above
     }
-    // Give ENet up to half a second to deliver the goodbye before closing the socket.
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    std::vector<NetEvent> events;
-    while (!mPlayers.All().empty() && std::chrono::steady_clock::now() < deadline) {
-        events.clear();
-        mTransport.Service(10, events);
-        for (auto& e : events) {
-            if (e.type == NetEvent::Disconnect) {
-                mPlayers.Remove(e.peer);
-            }
+    mStopping = true;
+    mStopDeadlineMs = NowMs() + 1000;
+}
+
+// While stopping, Tick only waits for the clients to acknowledge (or the deadline) and then closes.
+void Server::TickStopping(std::vector<NetEvent>& events) {
+    for (auto& ev : events) {
+        if (ev.type == NetEvent::Disconnect) {
+            mPlayers.Remove(ev.peer);
         }
     }
-    mTransport.Close();
-    mRunning = false;
+    if (mPlayers.All().empty() || NowMs() > mStopDeadlineMs) {
+        mTransport.Close();
+        mRunning = false;
+        mStopping = false;
+        mLog.Info("Servidor detenido.");
+    }
 }
 
 } // namespace coop::server
