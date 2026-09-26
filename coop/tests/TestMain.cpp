@@ -4,6 +4,11 @@
 #include <cstring>
 #include <exception>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <timeapi.h>
+#endif
+
 void coop_test::Fail(const char* file, int line, const std::string& what) {
     std::printf("    FAIL %s:%d: %s\n", file, line, what.c_str());
     throw Failure{};
@@ -11,6 +16,9 @@ void coop_test::Fail(const char* file, int line, const std::string& what) {
 
 // Usage: coop-tests [substring]  -> runs every test whose name contains the substring.
 int main(int argc, char** argv) {
+#ifdef _WIN32
+    timeBeginPeriod(1); // 1 ms sleeps keep the network tests fast
+#endif
     const char* filter = argc > 1 ? argv[1] : nullptr;
     int run = 0;
     int failed = 0;
