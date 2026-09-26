@@ -49,7 +49,7 @@ struct PlayerState {
     float unk_B10 = 0.f; // unk_B10[0]
     int16_t actionVar1 = 0; // av1.actionVar1
     int16_t unk_B8E = 0;
-    uint8_t unk_B62 = 0;
+    int16_t unk_B62 = 0;
     Vec3s16 joints[kPoseJoints]; // PlayerAnimationFrame.frameTable
     int16_t appearance = 0;      // PlayerAnimationFrame.appearanceInfo (face + hands)
 };

@@ -41,7 +41,7 @@ template <class IO> bool VisitFields(IO& io, PlayerState& s) {
               Vec(io, s.upperLimbRot) && io.S16(s.upperLimbYawSecondary) && io.F32(s.unk_AB8) &&
               io.S16(s.unk_AAA) && io.F32(s.unk_ABC) && io.S16(s.unk_B86[0]) && io.S16(s.unk_B86[1]) &&
               io.S16(s.unk_B28) && io.F32(s.unk_B10) && io.S16(s.actionVar1) && io.S16(s.unk_B8E) &&
-              io.U8(s.unk_B62);
+              io.S16(s.unk_B62);
     for (int i = 0; ok && i < kPoseJoints; i++) {
         ok = Vec(io, s.joints[i]);
     }

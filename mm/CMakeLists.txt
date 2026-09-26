@@ -650,6 +650,8 @@ else()
     target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
 endif()
 
+target_link_libraries(${PROJECT_NAME} PRIVATE coop_common) # [COOP] co-op networking (coop/common)
+
 if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch")
 
 nx_generate_nacp(2s2h.nacp

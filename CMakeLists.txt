@@ -206,6 +206,7 @@ endif()
 
 add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
 add_subdirectory(OTRExporter)
+add_subdirectory(coop) # [COOP] co-op mod: shared lib, server, bot, tests
 add_subdirectory(mm)
 
 set_property(TARGET 2ship PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
