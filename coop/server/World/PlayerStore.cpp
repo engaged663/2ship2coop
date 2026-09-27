@@ -39,13 +39,35 @@ void AddWarning(std::string* warnings, const std::string& text) {
     }
 }
 
+// Windows devices (con, nul, com1...) can never be file names, whatever the extension.
+bool IsDeviceName(const std::string& key) {
+    if (key == "con" || key == "prn" || key == "aux" || key == "nul") {
+        return true;
+    }
+    return key.size() == 4 && (key.compare(0, 3, "com") == 0 || key.compare(0, 3, "lpt") == 0) && key[3] >= '0' &&
+           key[3] <= '9';
+}
+
+// File name (without .json) of a player: the lowercase nick, or "<nick>-" for a device name ('-' is not allowed in
+// nicks, so no other player can have that file).
+std::string StemOf(const std::string& key) {
+    return IsDeviceName(key) ? key + "-" : key;
+}
+
+std::string KeyOf(const std::string& stem) {
+    if (!stem.empty() && stem.back() == '-' && IsDeviceName(stem.substr(0, stem.size() - 1))) {
+        return stem.substr(0, stem.size() - 1);
+    }
+    return stem;
+}
+
 } // namespace
 
 PlayerStore::PlayerStore(std::string dir) : mDir(std::move(dir)) {
 }
 
 std::string PlayerStore::PathOf(const std::string& key) const {
-    return (std::filesystem::path(mDir) / (key + ".json")).string();
+    return (std::filesystem::path(mDir) / (StemOf(key) + ".json")).string();
 }
 
 void PlayerStore::LoadAll(std::string* warnings) {
@@ -67,7 +89,7 @@ void PlayerStore::LoadAll(std::string* warnings) {
             AddWarning(warnings, "players/" + entry.path().filename().string() + " no es válido; se ignora");
             continue;
         }
-        std::string key = ToLower(entry.path().stem().string());
+        std::string key = KeyOf(ToLower(entry.path().stem().string()));
         if (record.nick.empty()) {
             record.nick = key;
         }

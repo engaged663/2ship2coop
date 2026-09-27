@@ -54,6 +54,7 @@ struct RemoteClient {
     bool timeStopped = false; // in a scene where the original game stops time (from "loc"): the clock waits
     TokenBucket wopsBudget{ kWopsBurst, kWopsPerSecond };
     TokenBucket invBudget{ kInvBurst, kInvPerSecond };
+    TokenBucket worldEntryBudget{ kWorldEntryBurst, kWorldEntryPerSecond };
 };
 
 class PlayerRegistry {

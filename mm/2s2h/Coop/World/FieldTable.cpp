@@ -2,6 +2,7 @@
 
 #include "common/Hex.h"
 #include "common/WorldFields.h"
+#include "common/WorldRules.h"
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -32,6 +33,12 @@ static_assert(kCodesSize == 20, "lotteryCodes, spiderHouseMaskOrder and bomberCo
 static_assert(offsetof(SaveInfo, pictoFlags1) == offsetof(SaveInfo, pictoFlags0) + 4, "pictoFlags");
 static_assert(offsetof(SaveInfo, scarecrowSpawnSong) + 128 - offsetof(SaveInfo, unk_F40) == 130, "scarecrow");
 static_assert(offsetof(SaveInfo, bombersCaughtOrder) + 5 - offsetof(SaveInfo, bombersCaughtNum) == 6, "bombers");
+// coop/common/WorldRules.h mirrors these (the sword is the low nibble of equipment: gEquipShifts[EQUIP_TYPE_SWORD] 0)
+static_assert(world::kItemSwordGreatFairy == ITEM_SWORD_GREAT_FAIRY && world::kItemSwordGilded == ITEM_SWORD_GILDED &&
+                  world::kSlotSwordGreatFairy == SLOT_SWORD_GREAT_FAIRY &&
+                  world::kEquipSwordRazor == EQUIP_VALUE_SWORD_RAZOR &&
+                  world::kEquipSwordGilded == EQUIP_VALUE_SWORD_GILDED,
+              "WorldRules.h");
 
 SaveInfo& Info() {
     return gSaveContext.save.saveInfo;

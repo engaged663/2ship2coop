@@ -7,6 +7,7 @@
 #include "common/Protocol.h"
 #include "common/WorldFields.h"
 #include "common/WorldOps.h"
+#include "common/WorldRules.h"
 
 #include <string>
 #include <vector>
@@ -218,4 +219,29 @@ TEST_CASE(EventSizeLimitsDependOnDirection) {
     CHECK(!GetBool(json{ { "b", 1 } }, "b"));
     CHECK(GetBool(json{ { "b", 1 } }, "c", true));
     CHECK_EQ(kProtocolVersion, 2u);
+}
+
+TEST_CASE(StolenSwordsComeBackToTheWorld) {
+    // The world computed by another game after Takkuri stole them: Kokiri Sword + Mirror Shield, no Great
+    // Fairy's Sword. The robbed player had the Gilded Sword and the Great Fairy's Sword in stolenItems.
+    uint8_t equipment[2] = { 0x21, 0x00 };
+    std::vector<uint8_t> items(18, 0xFF);
+    CHECK(world::ReturnStolenSwords(0x4F100000u, equipment, items.data()));
+    CHECK_EQ(equipment[0], (uint8_t)0x23); // Gilded Sword, the shield kept
+    CHECK_EQ(items[world::kSlotSwordGreatFairy], world::kItemSwordGreatFairy);
+    CHECK(!world::ReturnStolenSwords(0x4F100000u, equipment, items.data())); // already back
+    // The Kokiri or Razor Sword and bottles come back with the rules of any game: nothing to do here.
+    uint8_t kokiri[2] = { 0x11, 0x00 };
+    std::vector<uint8_t> none(18, 0xFF);
+    CHECK(!world::ReturnStolenSwords(0x4E120000u, kokiri, none.data()));
+    CHECK_EQ(kokiri[0], (uint8_t)0x11);
+    CHECK(!world::ReturnStolenSwords(0, kokiri, none.data()));
+    CHECK_EQ(none[world::kSlotSwordGreatFairy], (uint8_t)0xFF);
+    // A sword better than a Razor Sword stays as it is (the rules only replace a Razor or Kokiri Sword, or none).
+    uint8_t gilded[2] = { 0x13, 0x00 };
+    CHECK(!world::ReturnStolenSwords(0x004F0000u, gilded, none.data()));
+    // The second stolen item counts too.
+    uint8_t second[2] = { 0x10, 0x00 };
+    CHECK(world::ReturnStolenSwords(0x124F0000u, second, none.data()));
+    CHECK_EQ(second[0], (uint8_t)0x13);
 }

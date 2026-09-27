@@ -7,12 +7,26 @@ namespace coop::server {
 
 namespace {
 
+// Entering sends the whole world back and both tell everyone in the world: a client toggling them in a loop is
+// cut off (and each extra request counts as invalid, so a flood gets it kicked).
+bool TakeEntry(Server& server, RemoteClient& client) {
+    if (client.worldEntryBudget.Take(server.NowMs())) {
+        return true;
+    }
+    server.NoteInvalid(client, "demasiadas entradas y salidas de la partida del servidor");
+    return false;
+}
+
 void OnEnter(Server& server, RemoteClient& client, const json&) {
-    server.World().Enter(client);
+    if (TakeEntry(server, client)) {
+        server.World().Enter(client);
+    }
 }
 
 void OnLeave(Server& server, RemoteClient& client, const json&) {
-    server.World().Leave(client, false);
+    if (TakeEntry(server, client)) {
+        server.World().Leave(client, false);
+    }
 }
 
 void OnInit(Server& server, RemoteClient& client, const json& ev) {

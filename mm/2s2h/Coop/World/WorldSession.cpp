@@ -14,6 +14,8 @@
 
 #include "common/Protocol.h"
 #include "common/Text.h"
+#include "common/WorldFields.h"
+#include "common/WorldRules.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
@@ -80,6 +82,7 @@ int sCycle = 0;
 bool sBuildOnDestroy = false; // the running scene ends first (it saves its flags), then the world is built
 bool sResetOnDestroy = false; // the same, then the save is emptied for the file select
 bool sStale = false;          // own data from an earlier cycle: the end-of-cycle rules run on entering
+uint32_t sStolen = 0;         // what Takkuri had stolen from this player before those rules gave it back
 bool sComputePending = false; // the server asked this game to compute the new cycle
 bool sAutoEnterPending = false;
 bool sCVarsForced = false;
@@ -241,6 +244,7 @@ void LeaveWorld(const std::string& message, bool toFileSelect) {
     sBuild = nullptr;
     sComputePending = false;
     sStale = false;
+    sStolen = 0;
     sHaveSpot = false;
     sLastUpload.clear();
     WorldSync_Reset();
@@ -322,8 +326,10 @@ void ProcessFull() {
     }
     json inv = Member(Member(ev, "you"), "inv");
     bool stale = GetBool(Member(ev, "you"), "stale");
+    sStolen = 0;
     if (keepLive && fields::PlayLive()) {
         // Keep what this game has now (the last upload can be 5 s old), after the end-of-cycle rules
+        sStolen = gSaveContext.save.saveInfo.stolenItems;
         json live = { { "v", 1 } };
         SaveBuilder_EndOfCycleOnCopy([&live] { live["fields"] = fields::ReadPlayer(); });
         inv = live;
@@ -340,6 +346,27 @@ void ProcessFull() {
     StartBuild();
 }
 
+// The end-of-cycle rules gave this player's stolen swords back only in its own copy, and the new world can come
+// from another game: they go back into the world now, and WorldSync sends them to everyone.
+void ReturnStolenSwords() {
+    uint32_t stolen = sStolen;
+    sStolen = 0;
+    if (stolen == 0) {
+        return;
+    }
+    static const int kEquipment = world::FindField("equipment");
+    static const int kItems = world::FindField("items");
+    std::vector<uint8_t> equipment(world::kFields[kEquipment].size);
+    std::vector<uint8_t> items(world::kFields[kItems].size);
+    fields::Read(kEquipment, equipment.data());
+    fields::Read(kItems, items.data());
+    if (world::ReturnStolenSwords(stolen, equipment.data(), items.data())) {
+        fields::Write(kEquipment, equipment.data());
+        fields::Write(kItems, items.data());
+        Chat_Add(ChatKind::Info, "La Canción del Tiempo ha devuelto a la partida la espada que robó Takkuri.");
+    }
+}
+
 void TryActivate() {
     if (sBuildOnDestroy || !PoseCapture_InGameplay() || !fields::PlayLive() || !gGameState->running ||
         gPlayState->transitionTrigger != TRANS_TRIGGER_OFF || gPlayState->transitionMode != TRANS_MODE_OFF) {
@@ -347,6 +374,7 @@ void TryActivate() {
     }
     if (sStale) {
         // Own data from an earlier cycle: the Song of Time rules, as if this player had been there
+        sStolen = gSaveContext.save.saveInfo.stolenItems;
         json own;
         SaveBuilder_EndOfCycleOnCopy([&own] { own = fields::ReadPlayer(); });
         fields::WritePlayer(own);
@@ -358,6 +386,7 @@ void TryActivate() {
     }
     sState = WorldState::Active;
     WorldSync_SetActive(true);
+    ReturnStolenSwords();
     static bool sHeartGranted = false; // once per run: every reset builds the world and activates again
     if (!sHeartGranted && CVarGetInteger("gCoop.Debug.GrantHeartOnEnter", 0)) {
         // Test aid: a change of the shared world to watch in the other games (one more heart container)

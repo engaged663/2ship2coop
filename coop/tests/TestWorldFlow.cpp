@@ -88,7 +88,9 @@ TEST_CASE(WorldOpsRelayedOnlyToPlayersInTheWorld) {
     CHECK_EQ((*relayed)["bits"][0], Arr(Field("weekEventReg"), 12, 0x20, 0));
     CHECK_EQ((*relayed)["bytes"][0], Arr(Field("masks"), 0, 0x3A));
     CHECK(!c->WaitFor("wops", s, 200).has_value());
-    CHECK(!a->TakeEvent("wops").has_value()); // never echoed to the sender
+    auto echo = a->WaitFor("wops", s); // the sender gets its bits and bytes back: every game ends in the server's order
+    CHECK(echo.has_value());
+    CHECK_EQ((*echo)["bytes"][0], Arr(Field("masks"), 0, 0x3A));
     a->Send({ { "t", "wops" }, { "cycle", 0 }, { "bits", json::array({ Arr(Field("weekEventReg"), 13, 0x01, 0) }) } });
     CHECK(!b->WaitFor("wops", s, 200).has_value()); // from an older cycle: dropped, not invalid
     CHECK_EQ(s.server->Players().ByNick("Alice")->invalidMessages, 0u);
@@ -246,4 +248,104 @@ TEST_CASE(ClockRunsOnlyWithSomeoneInTheWorld) {
     s.PumpFor(300);
     CHECK_EQ(s.server->World().ClockAbs(), before); // nobody inside: stopped
     CHECK(s.server->World().TimeText().find("nadie") != std::string::npos);
+}
+
+namespace {
+
+// What a game ends with: its own value first (it is in its save before anything arrives), then every change it
+// receives, in arrival order, applied as WorldSync's Merge does.
+uint8_t GameEndsWith(TestClient& c, uint16_t field, uint16_t offset, uint8_t local) {
+    while (auto ev = c.TakeEvent("wops")) {
+        for (const json& op : ev->value("bits", json::array())) {
+            if (op[0] == field && op[1] == offset) {
+                local = (uint8_t)((local | op[2].get<int>()) & ~op[3].get<int>());
+            }
+        }
+        for (const json& op : ev->value("bytes", json::array())) {
+            if (op[0] == field && op[1] == offset) {
+                local = op[2].get<uint8_t>();
+            }
+        }
+    }
+    return local;
+}
+
+} // namespace
+
+TEST_CASE(ConcurrentByteWritesConverge) {
+    TestServer s;
+    auto a = Join(s, "Alice");
+    auto b = Join(s, "Bob");
+    CreateWorld(s, *a, 0x11); // Kokiri Sword + Hero's Shield in the equipment byte
+    EnterWorld(s, *b);
+    Drain(s, { a.get(), b.get() });
+    uint16_t equipment = Field("equipment");
+    auto serverByte = [&] { return s.server->World().Store().Fields()[equipment][0]; };
+    // Sword and shield share a byte. Alice gets the Razor Sword and Bob the Mirror Shield at the same moment: the
+    // server takes Alice's change first, and Bob's arrives before Alice's reaches him.
+    a->Send({ { "t", "wops" }, { "cycle", 1 }, { "bytes", json::array({ Arr(equipment, 0, 0x12) }) } });
+    CHECK(a->WaitUntil(s, 2000, [&] { return serverByte() == 0x12; }));
+    b->Send({ { "t", "wops" }, { "cycle", 1 }, { "bytes", json::array({ Arr(equipment, 0, 0x21) }) } });
+    CHECK(b->WaitUntil(s, 2000, [&] { return serverByte() == 0x21; }));
+    s.PumpFor(200);
+    CHECK_EQ(GameEndsWith(*a, equipment, 0, 0x12), serverByte());
+    CHECK_EQ(GameEndsWith(*b, equipment, 0, 0x21), serverByte());
+}
+
+TEST_CASE(ConcurrentBitTogglesConverge) {
+    TestServer s;
+    auto a = Join(s, "Alice");
+    auto b = Join(s, "Bob");
+    CreateWorld(s, *a);
+    EnterWorld(s, *b);
+    Drain(s, { a.get(), b.get() });
+    uint16_t week = Field("weekEventReg");
+    auto serverByte = [&] { return s.server->World().Store().Fields()[week][5]; };
+    // Bob sets a flag; before his change reaches Alice, she sets the same flag and clears it again.
+    b->Send({ { "t", "wops" }, { "cycle", 1 }, { "bits", json::array({ Arr(week, 5, 0x04, 0) }) } });
+    CHECK(b->WaitUntil(s, 2000, [&] { return serverByte() == 0x04; }));
+    a->Send({ { "t", "wops" }, { "cycle", 1 }, { "bits", json::array({ Arr(week, 5, 0x04, 0) }) } });
+    a->Send({ { "t", "wops" }, { "cycle", 1 }, { "bits", json::array({ Arr(week, 5, 0, 0x04) }) } });
+    CHECK(a->WaitUntil(s, 2000, [&] { return serverByte() == 0x00; }));
+    s.PumpFor(200);
+    CHECK_EQ(GameEndsWith(*a, week, 5, 0x00), serverByte());
+    CHECK_EQ(GameEndsWith(*b, week, 5, 0x04), serverByte());
+}
+
+TEST_CASE(DeeplyNestedInventoryRejected) {
+    TestServer s;
+    auto a = Join(s, "Alice");
+    CreateWorld(s, *a);
+    json inv = { { "v", 1 }, { "fields", { { "rupees", "6300" } } } };
+    a->Send({ { "t", "inv" }, { "inv", inv }, { "cycle", 1 } });
+    // Small, but nested far deeper than any game sends: written with indentation it would take megabytes.
+    json deep = json::array();
+    for (int i = 0; i < 40; i++) {
+        deep = json::array({ deep });
+    }
+    a->Send({ { "t", "inv" }, { "inv", { { "v", 1 }, { "deep", deep } } }, { "cycle", 1 } });
+    s.PumpFor(200);
+    CHECK_EQ(s.server->Players().ByNick("Alice")->invalidMessages, 1u);
+    a->Send({ { "t", "world_leave" } });
+    s.PumpFor(100);
+    CHECK_EQ(EnterWorld(s, *a)["you"]["inv"], inv); // the last valid one
+}
+
+TEST_CASE(WorldEnterLeaveFloodIsLimited) {
+    TestServer s;
+    auto a = Join(s, "Alice");
+    auto b = Join(s, "Bob");
+    CreateWorld(s, *a);
+    Drain(s, { a.get(), b.get() });
+    // Each enter/leave sends the whole world to Bob and a line to everyone in the world.
+    for (int i = 0; i < 20; i++) {
+        b->Send({ { "t", i % 2 == 0 ? "world_enter" : "world_leave" } });
+    }
+    s.PumpFor(300);
+    int announced = 0;
+    while (a->TakeEvent("sys").has_value()) {
+        announced++;
+    }
+    CHECK(announced <= kWorldEntryBurst);
+    CHECK(s.server->Players().ByNick("Bob")->invalidMessages >= 10u);
 }

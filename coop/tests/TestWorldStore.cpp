@@ -2,6 +2,7 @@
 #include "TestWorld.h"
 
 #include "common/Clock.h"
+#include "common/Text.h"
 #include "server/World/JsonFile.h"
 #include "server/World/PlayerStore.h"
 #include "server/World/SotVote.h"
@@ -196,4 +197,28 @@ TEST_CASE(SotVoteNeedsMoreThanHalf) {
     CHECK_EQ(vote.SecondsLeft(10000), 20);
     vote.Cancel();
     CHECK(!vote.Active());
+}
+
+TEST_CASE(PlayerStoreHandlesReservedNames) {
+    // "nul", "con", "com1"... are devices on Windows whatever the extension: such a nick needs another file name.
+    TempDir dir("coop_test_players_reserved");
+    std::string err;
+    {
+        PlayerStore players(dir.path.string());
+        players.LoadAll(nullptr);
+        players.Upload("Nul", json{ { "r", 1 } }, 1);
+        players.Upload("Alice", json{ { "r", 2 } }, 1);
+        CHECK(players.SaveAll(&err));
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(dir.path)) {
+        CHECK(ToLower(entry.path().stem().string()) != "nul");
+    }
+    PlayerStore again(dir.path.string());
+    again.LoadAll(nullptr);
+    CHECK_EQ(again.Count(), (size_t)2);
+    CHECK(again.Get("NUL") != nullptr);
+    if (again.Get("nul") != nullptr) {
+        CHECK_EQ(again.Get("nul")->inv, (json{ { "r", 1 } }));
+    }
+    CHECK_EQ(again.Get("alice")->inv, (json{ { "r", 2 } }));
 }

@@ -33,6 +33,7 @@ en tiempo real, cambios en el motor). Diseño de B: docs/superpowers/specs/2026-
 | `WorldFields.*` | esquema del mundo: nombre, tamaño y tipo de cada campo |
 | `WorldOps.*` | cambios del mundo: diferencias, aplicar validado, JSON; servidor y juego |
 | `Clock.*` | reloj de 3 días: abs ↔ día/hora, formato, regla de seguimiento del juego |
+| `WorldRules.*` | reglas del juego original que el mundo aplica fuera de él (espadas que robó Takkuri) |
 
 ### `coop/server/`
 | Archivo | Responsabilidad |
@@ -138,7 +139,7 @@ cmake --build build/x64 --config Release --parallel
 # Solo servidor/bot/tests (rápido, también en Linux)
 cmake -S coop -B build/coop -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build/coop --config Release --parallel
-build/coop/Release/coop-tests.exe          # 115 tests
+build/coop/Release/coop-tests.exe          # 121 tests
 ```
 
 ## Probar sin amigos
@@ -153,15 +154,19 @@ En Git Bash, los argumentos que empiezan por `/` se convierten en rutas: usa `MS
 ## Mundo compartido (B)
 
 - Archivos del servidor: `world.json` (campos en hex, reloj, ciclo, copia del inicio del ciclo; si está dañado se
-  aparta como `world.json.bad`) y `players/<nick>.json` (inventario propio, posición; al crear un mundo nuevo se
-  renombran a `.old`). Se guardan cada 10 s y al parar.
+  aparta como `world.json.bad`) y `players/<nick>.json` (inventario propio, posición; un nick que es un dispositivo
+  de Windows, como `con` o `nul`, usa `con-.json`; al crear un mundo nuevo se renombran a `.old`). Se guardan cada
+  10 s y al parar.
 - Comandos: `/tiempo`, `/si`, `/no` (todos); `/settime <día 1-3> <hh:mm>`, `/mundo`, `/reiniciar` (admins y consola).
 - Eventos: `world_enter/world_leave/world_full/world_init/wops/inv/clock/clock_jump/clock_speed/sot_propose/`
-  `cycle_compute/cycle_result` (campos en `Protocol.h`).
+  `cycle_compute/cycle_result` (campos en `Protocol.h`). Los `wops` que cambian el mundo vuelven a todos, también
+  a quien los envió (bits y bytes; los contadores se corrigen aparte): así todos aplican los cambios de un byte en el
+  orden del servidor y acaban con el mismo valor.
 - En el juego: `fileNum = 0xFF` (jugar en el servidor **nunca** escribe en los archivos de guardado del jugador); CVars
   forzadas mientras se juega en el servidor (la lista de `kForcedCVars` en `WorldSession.cpp`). Sus valores
   anteriores se guardan en `gCoop.World.RestoreCVars` y vuelven al salir, o al arrancar si el juego se cerró dentro.
-- Límites: `wops` ≤ 30/s, `inv` ≤ 2/s y ≤ 6 KB; protocolo v2.
+- Límites: `wops` ≤ 30/s, `inv` ≤ 2/s, ≤ 6 KB y ≤ 8 niveles de anidación, `world_enter`/`world_leave` ≤ 1 cada
+  2 s (ráfaga 6); protocolo v2.
 
 ## CVars del cliente (`2ship2harkinian.json` → `CVars.gCoop`)
 `Nick`, `Host`, `Port`, `Password`, `AutoConnect`, `AutoEnter` (entrar en el mundo del servidor al conectar),

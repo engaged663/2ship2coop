@@ -12,6 +12,27 @@
 
 namespace coop::server {
 
+namespace {
+
+// More than `levels` objects/arrays inside each other (the value itself counts). Stops at that depth, so a hostile
+// inventory never makes it recurse further: saved with indentation, deep nesting would take megabytes.
+bool NestedDeeperThan(const json& value, int levels) {
+    if (!value.is_structured()) {
+        return false;
+    }
+    if (levels <= 0) {
+        return true;
+    }
+    for (const json& child : value) {
+        if (NestedDeeperThan(child, levels - 1)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
 SharedWorld::SharedWorld(Server& server, std::string worldPath, std::string playersDir)
     : mServer(server), mWorldPath(std::move(worldPath)), mPlayers(std::move(playersDir)) {
 }
@@ -264,9 +285,19 @@ void SharedWorld::ApplyOps(RemoteClient& c, const json& ev) {
         json out = world::ToJson(relay);
         out["t"] = ev::kWops;
         out["from"] = c.id;
+        // The sender gets its bits and bytes back too: every game then applies the changes of a byte in the
+        // server's order, so two players writing the same byte at once end with the same value. Its counters are
+        // already settled by the correction above.
+        world::Ops echo = relay;
+        echo.adds.clear();
+        json back = world::ToJson(echo);
+        back["t"] = ev::kWops;
+        back["from"] = c.id;
         for (RemoteClient* p : InWorld()) {
             if (p != &c) {
                 mServer.SendEvent(*p, out);
+            } else if (!echo.Empty()) {
+                mServer.SendEvent(*p, back);
             }
         }
     }
@@ -281,7 +312,8 @@ void SharedWorld::Upload(RemoteClient& c, const json& ev) {
         return;
     }
     auto inv = ev.find("inv");
-    if (inv == ev.end() || !inv->is_object() || SerializeEvent(*inv).size() > kMaxInventoryBytes) {
+    if (inv == ev.end() || !inv->is_object() || SerializeEvent(*inv).size() > kMaxInventoryBytes ||
+        NestedDeeperThan(*inv, kMaxInventoryDepth)) {
         mServer.NoteInvalid(c, "inventario inválido o demasiado grande");
         return;
     }

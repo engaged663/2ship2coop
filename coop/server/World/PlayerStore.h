@@ -1,6 +1,7 @@
 #pragma once
-// players/<nick in lowercase>.json: each player's own data, opaque to the server (inventory, position...), the
-// world cycle it belongs to and a copy of it from the start of the cycle (the moon brings it back).
+// players/<nick in lowercase>.json (a Windows device name such as "con" gets "con-.json"): each player's own data,
+// opaque to the server (inventory, position...), the world cycle it belongs to and a copy of it from the start of
+// the cycle (the moon brings it back).
 #include "common/Events.h"
 
 #include <map>
