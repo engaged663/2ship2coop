@@ -1,9 +1,17 @@
-// Test aid (gCoop.Debug.BootToClockTown): boots straight into South Clock Town with the debug file
-// (every item and mask, never written to disk), so the co-op features can be tried in seconds.
+// Test aids:
+// - gCoop.Debug.BootToClockTown: boots straight into South Clock Town with the debug file (every item and mask,
+//   never written to disk), so the co-op features can be tried in seconds.
+// - gCoop.Debug.FieldSelfTest: once in gameplay, writes every shared-world and player field back to the save and
+//   checks that nothing changed (the result goes to the chat and the log).
+#include "2s2h/Coop/Chat/ChatModel.h"
+#include "2s2h/Coop/Puppet/PoseCapture.h"
+#include "2s2h/Coop/World/FieldTable.h"
+
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
 
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <spdlog/spdlog.h>
 
 extern "C" {
 #include "functions.h"
@@ -14,6 +22,7 @@ extern "C" {
 #define CVAR_NAME "gCoop.Debug.BootToClockTown"
 // Optional: another entrance id to boot into (e.g. 54784 = North Clock Town). Default: South Clock Town.
 #define CVAR_ENTRANCE "gCoop.Debug.BootEntrance"
+#define CVAR_SELF_TEST "gCoop.Debug.FieldSelfTest"
 
 static void RegisterDebugBoot() {
     COND_HOOK(OnConsoleLogoUpdate, CVarGetInteger(CVAR_NAME, 0), []() {
@@ -25,6 +34,22 @@ static void RegisterDebugBoot() {
         u16 entrance = (u16)CVarGetInteger(CVAR_ENTRANCE, ENTRANCE(SOUTH_CLOCK_TOWN, 0));
         MapSelect_LoadGame((MapSelectState*)gGameState, entrance, 0);
     });
+
+    COND_HOOK(OnGameStateMainFinish, CVarGetInteger(CVAR_SELF_TEST, 0), []() {
+        static bool sDone = false;
+        if (sDone || !PoseCapture_InGameplay() || !coop::client::fields::PlayLive()) {
+            return;
+        }
+        sDone = true;
+        std::string err = coop::client::fields::SelfTest();
+        if (err.empty()) {
+            SPDLOG_INFO("[Coop] Field self-test OK");
+            coop::client::Chat_Add(coop::client::ChatKind::Ok, "Prueba de campos del mundo: correcta.");
+        } else {
+            SPDLOG_ERROR("[Coop] Field self-test failed: {}", err);
+            coop::client::Chat_Add(coop::client::ChatKind::Error, "Prueba de campos del mundo: " + err);
+        }
+    });
 }
 
-static RegisterShipInitFunc sDebugBootInit(RegisterDebugBoot, { CVAR_NAME });
+static RegisterShipInitFunc sDebugBootInit(RegisterDebugBoot, { CVAR_NAME, CVAR_SELF_TEST });
