@@ -115,6 +115,13 @@ void DrawOptions() {
     ImGui::TextColored(kGray, "Chat: Enter para escribir, / para comandos (/help), Esc para cerrar. "
                               "Los otros Links solo se ven cuando estáis en el mismo escenario.");
     ImGui::PopTextWrapPos();
+
+    ImGui::SeparatorText("Pruebas");
+    UIWidgets::CVarCheckbox(
+        "Arrancar directamente en Ciudad Reloj (partida de prueba)", "gCoop.Debug.BootToClockTown",
+        UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(
+            "Al abrir el juego entra en Ciudad Reloj Sur con la partida de depuración (todos los objetos y "
+            "máscaras). Esa partida nunca se guarda. Desactívalo para jugar con tus archivos normales."));
 }
 
 void RegisterCoopMenu() {
