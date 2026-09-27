@@ -16,10 +16,24 @@ extern "C" {
 }
 
 static_assert(coop::kPoseJoints == PLAYER_LIMB_MAX, "PlayerState joints must match the Player skeleton");
+// coop/common validates received poses with these limits: they must match the engine tables.
+namespace limits = coop::pose_limits;
+static_assert(limits::kFormCount == PLAYER_FORM_MAX && limits::kMaskCount == PLAYER_MASK_MAX &&
+              limits::kShieldCount == PLAYER_SHIELD_MAX && limits::kModelGroupCount == PLAYER_MODELGROUP_MAX &&
+              limits::kFaceCount == PLAYER_FACE_MAX && limits::kSwordMaxDrawn == EQUIP_VALUE_SWORD_GILDED &&
+              limits::kItemActionMin == PLAYER_IA_MINUS1 && limits::kItemActionCount == PLAYER_IA_MAX &&
+              limits::kEntranceScenes == ENTR_SCENE_MAX,
+              "coop::pose_limits out of date with the engine enums");
+static_assert(limits::kStateFlags1 ==
+                  (u32)(PLAYER_STATE1_8000000 | PLAYER_STATE1_400000 | PLAYER_STATE1_ZORA_BOOMERANG_THROWN) &&
+                  limits::kStateFlags2 == (u32)PLAYER_STATE2_20000000 &&
+                  limits::kStateFlags3 == (u32)(PLAYER_STATE3_1000 | PLAYER_STATE3_8000),
+              "coop::pose_limits state masks out of date");
 
 namespace {
 
 // Only state bits whose draw code is safe on a puppet (nothing that dereferences held actors etc.).
+// The same masks are re-applied on receive (coop::SanitizePlayerState).
 constexpr u32 kSyncedStateFlags1 =
     PLAYER_STATE1_8000000 /* swimming */ | PLAYER_STATE1_400000 /* shield up */ | PLAYER_STATE1_ZORA_BOOMERANG_THROWN;
 constexpr u32 kSyncedStateFlags2 = PLAYER_STATE2_20000000; // not drawn

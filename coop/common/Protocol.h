@@ -20,6 +20,14 @@ constexpr int kRateLimitWindowMs = 3000; // ...per window
 constexpr int kHandshakeTimeoutMs = 5000;
 constexpr int kGiftTimeoutMs = 10000;
 constexpr int kGiftMaxAmount = 999;
+constexpr int kGiftOrphanMs = 60000;    // an unpaid gift that was cancelled still refunds a late payment
+constexpr int kInvalidLogCount = 3;     // invalid packets logged per connection...
+constexpr int kInvalidKickCount = 50;   // ...and how many get it kicked
+constexpr size_t kMaxPacketBytes = 16384; // ENet refuses to reassemble anything bigger (server)
+constexpr int kStreamBurst = 40;        // pose packets relayed per player: burst...
+constexpr int kStreamPerSecond = 30;    // ...and sustained rate (clients send 20/s)
+constexpr int kLocBurst = 10;           // location broadcasts per player: burst...
+constexpr int kLocPerSecond = 5;        // ...and sustained rate
 
 enum Channel : uint8_t {
     kChannelEvents = 0, // reliable + ordered, JSON events

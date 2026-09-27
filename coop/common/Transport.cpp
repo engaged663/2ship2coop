@@ -65,6 +65,7 @@ bool Transport::Listen(uint16_t port, size_t maxPeers, std::string* err) {
         Close();
         return false;
     }
+    mHost->maximumPacketSize = kMaxPacketBytes; // nothing legitimate is bigger; don't reassemble floods
     return true;
 }
 

@@ -2,7 +2,9 @@
 // Timestamped log to the console and (optionally) a file.
 #include <fstream>
 #include <mutex>
+#include <deque>
 #include <string>
+#include <vector>
 
 namespace coop::server {
 
@@ -14,13 +16,15 @@ class Logger {
     void Info(const std::string& message);
     void Warn(const std::string& message);
     void Error(const std::string& message);
+    std::vector<std::string> Lines() const; // the most recent lines (tests, diagnostics)
 
   private:
     void Write(const char* level, const std::string& message);
 
     bool mEcho;
     std::ofstream mFile;
-    std::mutex mMutex;
+    mutable std::mutex mMutex;
+    std::deque<std::string> mRecent;
 };
 
 } // namespace coop::server

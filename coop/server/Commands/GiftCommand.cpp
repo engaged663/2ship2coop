@@ -30,7 +30,8 @@ static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
         ctx.Reply("La cantidad debe estar entre 1 y " + std::to_string(kGiftMaxAmount) + ".", level::kError);
         return;
     }
-    PendingGift& gift = ctx.server.Gifts().Create(ctx.sender->id, target->id, amount, ctx.server.NowMs());
+    PendingGift& gift = ctx.server.Gifts().Create(ctx.sender->peer, target->peer, ctx.sender->nick, target->nick, amount,
+                                                  ctx.server.NowMs());
     json debit = MakeEvent(ev::kGiftDebit);
     debit["gid"] = gift.gid;
     debit["to"] = target->nick;

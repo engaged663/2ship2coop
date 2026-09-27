@@ -4,8 +4,9 @@
 //   --mode front: stands still 80 units in front of the target, facing it (easy to spot on screen).
 // It also answers "!ping" in the chat, pays every /gift it makes and accepts every gift.
 // --cmd "/gift Nick 20" sends that line 3 s after joining (handy to test commands without typing in-game).
+// --room N reports room N instead of the target's (the puppet must then vanish: body, shadow and nick).
 // Usage: 2ship-coop-bot [--host 127.0.0.1] [--port 7780] [--nick Bot] [--pass X] [--target Nick]
-//                       [--mode mirror|circle|front] [--cmd "/comando ..."]
+//                       [--mode mirror|circle|front] [--cmd "/comando ..."] [--room N]
 #include "common/Events.h"
 #include "common/PlayerState.h"
 #include "common/Protocol.h"
@@ -35,6 +36,7 @@ struct Options {
     std::string target;
     std::string mode = "mirror";
     std::string cmd;
+    int room = -1; // >= 0: pretend to be in that room (tests hiding puppets in other rooms)
 };
 
 struct Known {
@@ -58,9 +60,10 @@ Options ParseArgs(int argc, char** argv) {
         else if (a == "--target") { o.target = v; i++; }
         else if (a == "--mode") { o.mode = v; i++; }
         else if (a == "--cmd") { o.cmd = v; i++; }
+        else if (a == "--room") { o.room = std::atoi(v.c_str()); i++; }
         else {
             std::printf("Uso: 2ship-coop-bot [--host IP] [--port N] [--nick Bot] [--pass X] [--target Nick] "
-                        "[--mode mirror|circle|front] [--cmd \"/comando ...\"]\n");
+                        "[--mode mirror|circle|front] [--cmd \"/comando ...\"] [--room N]\n");
             std::exit(0);
         }
     }
@@ -230,6 +233,9 @@ class Bot {
         out.playerId = 0;
         out.seq = ++mSeq;
         out.sceneId = (int16_t)mScene;
+        if (mOpt.room >= 0) {
+            out.roomNum = (int8_t)mOpt.room;
+        }
         auto bytes = EncodePlayerState(out);
         mNet.Send(mPeer, kChannelStream, bytes.data(), bytes.size());
     }

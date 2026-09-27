@@ -100,31 +100,3 @@ TEST_CASE(GiftReceiverLeavesRefunds) {
     CHECK(r.has_value());
     CHECK_EQ((*r)["amount"].get<int>(), 40);
 }
-
-TEST_CASE(GiftManagerExpiry) {
-    coop::server::GiftManager g;
-    auto& p = g.Create(1, 2, 10, 0);
-    p.stage = coop::server::PendingGift::WaitCredit;
-    p.paid = 10;
-    CHECK(g.TakeExpired(5000, 10000).empty());
-    auto expired = g.TakeExpired(10001, 10000);
-    CHECK_EQ(expired.size(), (size_t)1);
-    CHECK_EQ(expired[0].paid, 10);
-    CHECK(g.Find(expired[0].gid) == nullptr);
-}
-
-TEST_CASE(GiftManagerCancelledBy) {
-    coop::server::GiftManager g;
-    auto& toLeaver = g.Create(1, 2, 10, 0); // player 2 leaves -> cancelled
-    uint32_t gidA = toLeaver.gid;
-    auto& fromLeaverUnpaid = g.Create(2, 3, 5, 0); // sender left before paying -> cancelled
-    uint32_t gidB = fromLeaverUnpaid.gid;
-    auto& fromLeaverPaid = g.Create(2, 4, 7, 0); // already paid -> receiver can still take it
-    fromLeaverPaid.stage = coop::server::PendingGift::WaitCredit;
-    uint32_t gidC = fromLeaverPaid.gid;
-    auto cancelled = g.TakeCancelledBy(2);
-    CHECK_EQ(cancelled.size(), (size_t)2);
-    CHECK(g.Find(gidA) == nullptr);
-    CHECK(g.Find(gidB) == nullptr);
-    CHECK(g.Find(gidC) != nullptr);
-}

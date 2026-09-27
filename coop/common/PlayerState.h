@@ -54,6 +54,30 @@ struct PlayerState {
     int16_t appearance = 0;      // PlayerAnimationFrame.appearanceInfo (face + hands)
 };
 
+// Limits of the engine values a puppet uses as table indexes (checked against the game headers by
+// static_asserts in PoseCapture.cpp). Anything outside them would draw garbage or crash.
+namespace pose_limits {
+constexpr uint8_t kFormCount = 5;          // PLAYER_FORM_MAX
+constexpr uint8_t kMaskCount = 0x19;       // PLAYER_MASK_MAX
+constexpr uint8_t kShieldCount = 3;        // PLAYER_SHIELD_MAX
+constexpr uint8_t kModelGroupCount = 15;   // PLAYER_MODELGROUP_MAX
+constexpr uint8_t kFaceCount = 16;         // PLAYER_FACE_MAX
+constexpr uint8_t kSwordMaxDrawn = 3;      // EQUIP_VALUE_SWORD_GILDED: the human sword models end there
+constexpr int8_t kItemActionMin = -1;      // PLAYER_IA_MINUS1
+constexpr int8_t kItemActionCount = 0x53;  // PLAYER_IA_MAX
+constexpr uint16_t kEntranceScenes = 0x6E; // ENTR_SCENE_MAX (entrance >> 9)
+constexpr float kWorldLimit = 60000.f;     // no map is this big
+constexpr float kValueLimit = 1.0e6f;      // speed and the raw float fields
+// State bits a puppet may use (everything else could make the draw code touch actors it lacks).
+constexpr uint32_t kStateFlags1 = (1u << 27) | (1u << 22) | (1u << 25); // swimming, shield up, Zora boomerang
+constexpr uint32_t kStateFlags2 = 1u << 29;                             // not drawn
+constexpr uint32_t kStateFlags3 = (1u << 12) | (1u << 15);              // Goron ball, Zora fast swim
+} // namespace pose_limits
+
+// False when a value is impossible (enum out of range, non-finite or absurd float): drop the packet.
+// Otherwise clears the state bits a puppet must not use and turns an undrawable sword into none.
+bool SanitizePlayerState(PlayerState& state);
+
 std::vector<uint8_t> EncodePlayerState(const PlayerState& state);
 // False when the buffer is not exactly one well-formed PlayerState.
 bool DecodePlayerState(const uint8_t* data, size_t size, PlayerState& out);

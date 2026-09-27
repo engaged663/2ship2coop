@@ -6,6 +6,8 @@
 #include "server/Server.h"
 #include "server/ServerConfig.h"
 
+#include "common/Text.h"
+
 #include <atomic>
 #include <csignal>
 #include <deque>
@@ -20,6 +22,7 @@
 #endif
 
 using namespace coop::server;
+using coop::ParseInt;
 
 namespace {
 
@@ -71,14 +74,26 @@ int main(int argc, char** argv) {
         log.Error(err);
         return 1;
     }
+    if (!err.empty()) {
+        log.Warn(err);
+    }
     for (int i = 1; i + 1 < argc; i++) {
         if (std::string(argv[i]) == "--port") {
-            config.port = (uint16_t)std::stoi(argv[i + 1]);
+            int port = 0;
+            if (ParseInt(argv[i + 1], port) && port > 0 && port <= 65535) {
+                config.port = (uint16_t)port;
+            } else {
+                log.Warn(std::string("--port inválido: ") + argv[i + 1]);
+            }
         }
     }
 
     AccessLists access("bans.json", "ops.json");
-    access.Load();
+    std::string accessWarnings;
+    access.Load(&accessWarnings);
+    if (!accessWarnings.empty()) {
+        log.Warn(accessWarnings);
+    }
 
     Server server(config, access, log);
     if (!server.Start(&err)) {

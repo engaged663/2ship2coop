@@ -1,5 +1,7 @@
 #include "PlayerState.h"
 
+#include <cmath>
+
 #include "ByteStream.h"
 
 namespace coop {
@@ -49,6 +51,29 @@ template <class IO> bool VisitFields(IO& io, PlayerState& s) {
 }
 
 } // namespace
+
+bool SanitizePlayerState(PlayerState& s) {
+    using namespace pose_limits;
+    auto finite = [](float v, float limit) { return std::isfinite(v) && std::fabs(v) <= limit; };
+    bool inRange = s.form < kFormCount && s.mask < kMaskCount && s.shield < kShieldCount &&
+                   s.modelGroup < kModelGroupCount && s.face < kFaceCount && s.itemAction >= kItemActionMin &&
+                   s.itemAction < kItemActionCount && s.heldItemAction >= kItemActionMin &&
+                   s.heldItemAction < kItemActionCount && (s.entrance >> 9) < kEntranceScenes;
+    bool plausible = finite(s.pos[0], kWorldLimit) && finite(s.pos[1], kWorldLimit) &&
+                     finite(s.pos[2], kWorldLimit) && finite(s.speed, kValueLimit) &&
+                     finite(s.unk_AB8, kValueLimit) && finite(s.unk_ABC, kValueLimit) &&
+                     finite(s.unk_B10, kValueLimit);
+    if (!inRange || !plausible) {
+        return false;
+    }
+    s.stateFlags1 &= kStateFlags1;
+    s.stateFlags2 &= kStateFlags2;
+    s.stateFlags3 &= kStateFlags3;
+    if (s.sword > kSwordMaxDrawn) {
+        s.sword = 0;
+    }
+    return true;
+}
 
 std::vector<uint8_t> EncodePlayerState(const PlayerState& state) {
     WriteIO io;

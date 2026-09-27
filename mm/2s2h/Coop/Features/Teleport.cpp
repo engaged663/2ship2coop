@@ -5,11 +5,15 @@
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 
+#include "common/PlayerState.h"
 #include "common/Protocol.h"
+
+#include <cmath>
 
 extern "C" {
 #include "functions.h"
 #include "variables.h"
+extern SceneEntranceTableEntry sSceneEntranceTable[]; // z_scene_table.c
 }
 
 using coop::client::Chat_Add;
@@ -51,12 +55,19 @@ bool ReadPos(const coop::json& ev, Vec3f& out) {
         return false;
     }
     for (const auto& v : *it) {
-        if (!v.is_number()) {
+        if (!v.is_number() || !std::isfinite(v.get<float>()) ||
+            std::fabs(v.get<float>()) > coop::pose_limits::kWorldLimit) {
             return false;
         }
     }
     out = { (*it)[0].get<float>(), (*it)[1].get<float>(), (*it)[2].get<float>() };
     return true;
+}
+
+// The entrance comes from another client: only warp to scenes the game has.
+bool IsWarpable(u16 entrance, s8 room) {
+    u32 sceneIndex = entrance >> 9;
+    return sceneIndex < ENTR_SCENE_MAX && sSceneEntranceTable[sceneIndex].table != nullptr && room >= 0;
 }
 
 void MoveInsideRoom(Player* player, const Vec3f& pos, s16 rot) {
@@ -71,7 +82,8 @@ void MoveInsideRoom(Player* player, const Vec3f& pos, s16 rot) {
 
 void WarpToScene(u16 entrance, s8 room, const Vec3f& pos, s16 rot) {
     PlayState* play = gPlayState;
-    u16 target = Entrance_Create(entrance >> 9, 0, entrance & 0xF);
+    // Spawn 0 / layer 0 of the target's scene always exist; the respawn data then places Link exactly.
+    u16 target = Entrance_Create(entrance >> 9, 0, 0);
     play->nextEntrance = target;
     play->transitionTrigger = TRANS_TRIGGER_START;
     play->transitionType = TRANS_TYPE_INSTANT;
@@ -93,12 +105,17 @@ void OnTp(const coop::json& ev) {
     }
     Vec3f pos;
     if (!ReadPos(ev, pos)) {
+        Chat_Add(ChatKind::Error, "El destino de " + target + " no es válido.");
         return;
     }
     s16 scene = (s16)coop::GetInt(ev, "scene", -1);
     s8 room = (s8)coop::GetInt(ev, "room", 0);
     u16 entrance = (u16)coop::GetInt(ev, "entrance", 0);
     s16 rot = (s16)coop::GetInt(ev, "rot", 0);
+    if (!IsWarpable(entrance, room)) {
+        Chat_Add(ChatKind::Error, "El destino de " + target + " no es válido.");
+        return;
+    }
 
     if (scene == gPlayState->sceneId && room == gPlayState->roomCtx.curRoom.num) {
         MoveInsideRoom(GET_PLAYER(gPlayState), pos, rot);

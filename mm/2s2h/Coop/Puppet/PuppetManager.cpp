@@ -52,7 +52,8 @@ void KillActor(RemoteBody& body) {
 
 void OnPose(const uint8_t* data, size_t size) {
     coop::PlayerState state;
-    if (!coop::DecodePlayerState(data, size, state) || state.playerId == 0 ||
+    // Sanitize: a pose the engine cannot draw (hostile or corrupt) would crash Player_Draw.
+    if (!coop::DecodePlayerState(data, size, state) || !coop::SanitizePlayerState(state) || state.playerId == 0 ||
         state.playerId == coop::client::Session_LocalId()) {
         return;
     }

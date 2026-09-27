@@ -1,9 +1,15 @@
 #pragma once
-// bans.json and ops.json. Empty paths keep everything in memory (tests).
+// bans.json and ops.json (created empty on first run). Empty paths keep everything in memory (tests).
+// An op is a nick AND the IP it was granted from: nicks are not authenticated, so anyone could take one.
 #include <string>
 #include <vector>
 
 namespace coop::server {
+
+struct OpEntry {
+    std::string nick; // matched case-insensitively
+    std::string ip;   // matched exactly
+};
 
 struct BanEntry {
     std::string nick; // matched case-insensitively
@@ -16,7 +22,8 @@ class AccessLists {
   public:
     AccessLists(std::string bansPath = "", std::string opsPath = "");
 
-    void Load();
+    // Entries with wrong types are skipped; warnings (if given) says which.
+    void Load(std::string* warnings = nullptr);
 
     bool IsBanned(const std::string& nick, const std::string& ip, std::string* reason) const;
     void Ban(const std::string& nick, const std::string& ip, const std::string& reason);
@@ -24,9 +31,9 @@ class AccessLists {
     bool Unban(const std::string& nickOrIp);
     const std::vector<BanEntry>& Bans() const;
 
-    bool IsOp(const std::string& nick) const;
-    bool AddOp(const std::string& nick);    // false if already op
-    bool RemoveOp(const std::string& nick); // false if not op
+    bool IsOp(const std::string& nick, const std::string& ip) const;
+    bool AddOp(const std::string& nick, const std::string& ip); // re-binds the IP; false if nothing changed
+    bool RemoveOp(const std::string& nick);                     // false if not op
 
   private:
     void SaveBans() const;
@@ -35,7 +42,7 @@ class AccessLists {
     std::string mBansPath;
     std::string mOpsPath;
     std::vector<BanEntry> mBans;
-    std::vector<std::string> mOps;
+    std::vector<OpEntry> mOps;
 };
 
 } // namespace coop::server

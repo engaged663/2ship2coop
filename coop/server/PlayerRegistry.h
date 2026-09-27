@@ -1,5 +1,7 @@
 #pragma once
 // Every connected peer, from the moment ENet connects (handshaking) until it disconnects.
+#include "common/Protocol.h"
+
 #include <cstdint>
 #include <deque>
 #include <memory>
@@ -7,6 +9,18 @@
 #include <vector>
 
 namespace coop::server {
+
+// Refills perSecond tokens per second up to burst; Take() spends one.
+struct TokenBucket {
+    double tokens;
+    double burst;
+    double perSecond;
+    int64_t lastMs = 0;
+
+    TokenBucket(double burstSize, double rate) : tokens(burstSize), burst(burstSize), perSecond(rate) {
+    }
+    bool Take(int64_t nowMs);
+};
 
 struct RemoteClient {
     uint32_t peer = 0;
@@ -28,8 +42,12 @@ struct RemoteClient {
     bool hasState = false;
     uint32_t streamsIn = 0;      // pose packets received (stats command)
     uint32_t streamsRelayed = 0; // pose packets forwarded to others
+    uint32_t invalidMessages = 0; // malformed/unknown packets (kicked at kInvalidKickCount)
 
-    std::deque<int64_t> recentMessagesMs; // rate limiting
+    std::deque<int64_t> recentMessagesMs; // rate limiting (chat and commands)
+    TokenBucket streamBudget{ kStreamBurst, kStreamPerSecond };
+    TokenBucket locBudget{ kLocBurst, kLocPerSecond };
+    bool locDirty = false; // a location change is waiting for locBudget to be broadcast
 };
 
 class PlayerRegistry {

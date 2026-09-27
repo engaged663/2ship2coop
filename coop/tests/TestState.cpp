@@ -90,7 +90,7 @@ TEST_CASE(AdminTpMovesAnotherPlayer) {
     TestServer s;
     auto a = Join(s, "Alice");
     auto b = Join(s, "Bob");
-    b->SendState(0x6E, 1, 0xDC00, 5.f, 6.f, 7.f);
+    b->SendState(0x6E, 1, 0xD800, 5.f, 6.f, 7.f); // South Clock Town entrance (0x6C << 9)
     s.PumpFor(100);
     s.server->ExecuteConsoleLine("tp Alice Bob");
     auto t = a->WaitFor("tp", s);

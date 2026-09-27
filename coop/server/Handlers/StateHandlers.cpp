@@ -1,4 +1,5 @@
 // Pose stream relay (only to players in the same scene) and "loc" (scene changes, shown in /list).
+// Both are rate limited per player (Protocol.h) and poses the game could not draw are dropped.
 #include "server/Registry.h"
 #include "server/Server.h"
 
@@ -10,9 +11,13 @@ namespace coop::server {
 namespace {
 
 void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t size) {
+    if (!client.streamBudget.Take(server.NowMs())) {
+        return; // faster than any real client: drop
+    }
     PlayerState state;
-    if (!DecodePlayerState(data, size, state)) {
-        return; // malformed or from another protocol version
+    if (!DecodePlayerState(data, size, state) || !SanitizePlayerState(state)) {
+        server.NoteInvalid(client, "pose inválida");
+        return;
     }
     client.scene = state.sceneId;
     client.room = state.roomNum;
@@ -33,20 +38,37 @@ void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t s
     }
 }
 
+void FlushLoc(Server& server, RemoteClient& client) {
+    if (!client.locDirty || client.closing || !client.locBudget.Take(server.NowMs())) {
+        return;
+    }
+    client.locDirty = false;
+    json out = MakeEvent(ev::kLoc);
+    out["id"] = client.id;
+    out["scene"] = client.scene;
+    out["sceneName"] = client.sceneName;
+    server.Broadcast(out, &client);
+}
+
 void OnLoc(Server& server, RemoteClient& client, const json& ev) {
     int16_t scene = (int16_t)GetInt(ev, "scene", -1);
     std::string sceneName = SanitizeChat(GetString(ev, "sceneName"), 64);
     bool changed = scene != client.scene || sceneName != client.sceneName;
     client.scene = scene;
     client.room = (int8_t)GetInt(ev, "room", client.room);
-    client.entrance = (uint16_t)GetInt(ev, "entrance", client.entrance);
+    uint16_t entrance = (uint16_t)GetInt(ev, "entrance", client.entrance);
+    if ((entrance >> 9) < pose_limits::kEntranceScenes) {
+        client.entrance = entrance; // used by /tp: never store an entrance the game lacks
+    }
     client.sceneName = sceneName;
-    if (changed) {
-        json out = MakeEvent(ev::kLoc);
-        out["id"] = client.id;
-        out["scene"] = client.scene;
-        out["sceneName"] = client.sceneName;
-        server.Broadcast(out, &client);
+    client.locDirty = client.locDirty || changed;
+    FlushLoc(server, client);
+}
+
+// Location changes that exceeded the budget go out as soon as it refills (only the latest one).
+void FlushPendingLocs(Server& server) {
+    for (RemoteClient* client : server.Players().Welcomed()) {
+        FlushLoc(server, *client);
     }
 }
 
@@ -54,5 +76,6 @@ void OnLoc(Server& server, RemoteClient& client, const json& ev) {
 
 COOP_SERVER_STREAM(statePose, kStreamPlayerState, OnPlayerState);
 COOP_SERVER_EVENT(stateLoc, ev::kLoc, true, OnLoc);
+COOP_SERVER_ON_TICK(stateLocFlush, FlushPendingLocs);
 
 } // namespace coop::server

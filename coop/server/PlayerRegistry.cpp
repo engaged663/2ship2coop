@@ -3,7 +3,19 @@
 #include "common/Protocol.h"
 #include "common/Text.h"
 
+#include <algorithm>
+
 namespace coop::server {
+
+bool TokenBucket::Take(int64_t nowMs) {
+    tokens = std::min(burst, tokens + (double)(nowMs - lastMs) * perSecond / 1000.0);
+    lastMs = nowMs;
+    if (tokens < 1.0) {
+        return false;
+    }
+    tokens -= 1.0;
+    return true;
+}
 
 RemoteClient& PlayerRegistry::Add(uint32_t peer, const std::string& ip, int64_t nowMs) {
     auto client = std::make_unique<RemoteClient>();

@@ -79,7 +79,7 @@ void ExecuteCommandLine(Server& server, RemoteClient* sender, const std::string&
         return;
     }
     if (sender != nullptr) {
-        server.Log().Info(sender->nick + " usó: " + line);
+        server.Log().Info(sender->nick + " usó: " + SanitizeChat(line, 120));
     }
     def->fn(ctx, args);
 }

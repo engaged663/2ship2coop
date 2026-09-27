@@ -36,6 +36,8 @@ class Server {
     void Kick(RemoteClient& client, const std::string& reason);
     bool AllowMessage(RemoteClient& client); // chat/cmd rate limit
     bool IsOp(const RemoteClient& client) const;
+    // A malformed/unknown/impossible packet: logged (cleaned) the first few times, kicked when it keeps on.
+    void NoteInvalid(RemoteClient& client, const std::string& what);
 
     PlayerRegistry& Players() {
         return mPlayers;

@@ -152,12 +152,17 @@ static void EnCoopPuppet_Destroy(Actor* thisx, PlayState* play) {
     ZeldaArena_Free(p->maskObjectSegment);
 }
 
+static void EnCoopPuppet_Draw(Actor* thisx, PlayState* play);
+
 static void EnCoopPuppet_Update(Actor* thisx, PlayState* play) {
     EnCoopPuppet* self = (EnCoopPuppet*)thisx;
     coop::PlayerState state;
     if (PuppetManager_GetCurrent(self->playerId, state)) {
         ApplyState(self, state, play);
     }
+    // No draw function = no body, no shadow and no nametag (NameTag only follows drawn actors).
+    bool visible = self->hasState && !self->hidden && !(self->player.stateFlags2 & PLAYER_STATE2_20000000);
+    thisx->draw = visible ? EnCoopPuppet_Draw : nullptr;
 }
 
 static void EnCoopPuppet_Draw(Actor* thisx, PlayState* play) {

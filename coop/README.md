@@ -37,13 +37,13 @@ Estado: Sub-proyecto **A (núcleo online)** terminado. Pendientes: **B** (mundo 
 | `Registry.h/.cpp` | tablas de handlers + macros `COOP_SERVER_EVENT/STREAM/ON_DISCONNECT/ON_TICK` |
 | `CommandRegistry.h/.cpp` | comandos `/...` + macro `COOP_COMMAND` + permisos (`Perm::Player/Op/Console`) |
 | `PlayerRegistry.*` | clientes conectados (`RemoteClient`: nick, ip, escena, posición...) |
-| `AccessLists.*` | `bans.json` / `ops.json` |
+| `AccessLists.*` | `bans.json` / `ops.json` (un admin = nick + la IP que tenía al darle `op`) |
 | `ServerConfig.*` | `server.json` (se crea con valores por defecto) |
-| `GiftManager.*` | regalos de rupias en curso |
+| `GiftManager.*` | regalos de rupias en curso (por conexión; un pago tardío se reembolsa) |
 | `Logger.*` | log a consola + `logs/server.log` |
 | `Handlers/SessionHandlers.cpp` | `hello` → `welcome`/`reject`, `leave` |
 | `Handlers/ChatHandlers.cpp` | `chat`, `cmd` |
-| `Handlers/StateHandlers.cpp` | reenvío de poses solo a la misma escena, `loc` |
+| `Handlers/StateHandlers.cpp` | reenvío de poses solo a la misma escena (con límite de ritmo y poses imposibles descartadas), `loc` |
 | `Handlers/GiftHandlers.cpp` | `gift_paid`, `gift_recv`, reembolsos, caducidad |
 | `Commands/*.cpp` | un archivo por comando o grupo: help, list, pm, tp, gift, kick/ban/unban/banlist, op/deop, say/stop, stats |
 
@@ -105,7 +105,7 @@ cmake --build build/x64 --config Release --parallel
 # Solo servidor/bot/tests (rápido, también en Linux)
 cmake -S coop -B build/coop -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build/coop --config Release --parallel
-build/coop/Release/coop-tests.exe          # 57 tests
+build/coop/Release/coop-tests.exe          # 76 tests
 ```
 
 ## Probar sin amigos
@@ -120,6 +120,13 @@ En Git Bash, los argumentos que empiezan por `/` se convierten en rutas: usa `MS
 ## CVars del cliente (`2ship2harkinian.json` → `CVars.gCoop`)
 `Nick`, `Host`, `Port`, `Password`, `AutoConnect`, `ShowOwnNameTag`, `Chat.Scale`, `Chat.Opacity`,
 `Debug.BootToClockTown`, `Debug.BootEntrance` (entrada; 55296 = Ciudad Reloj Sur, 54784 = Norte).
+
+## Seguridad del servidor
+- Los paquetes malformados o desconocidos se registran (limpios, solo los 3 primeros) y a los 50 se expulsa al cliente.
+- Poses: ≤30/s por jugador (ráfaga 40); `loc`: ≤5/s (ráfaga 10; el último cambio siempre llega). ENet no reensambla
+  paquetes de más de 16 KB. Límites en `common/Protocol.h`.
+- Las poses con valores que el juego no puede dibujar se descartan en el servidor y otra vez en el cliente
+  (`SanitizePlayerState`, límites comprobados contra el motor con `static_assert` en `PoseCapture.cpp`).
 
 ## Diagnóstico
 - Juego: líneas `[Coop]` en `logs/2 Ship 2 Harkinian.log` (envío de pose, marionetas creadas/eliminadas y por qué).

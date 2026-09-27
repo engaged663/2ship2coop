@@ -3,6 +3,8 @@
 #include "CommandRegistry.h"
 #include "Registry.h"
 
+#include "common/Text.h"
+
 #include <thread>
 
 namespace coop::server {
@@ -77,10 +79,12 @@ void Server::HandleReceive(NetEvent& ev) {
         return;
     }
     if (ev.channel == kChannelStream) {
-        if (c->welcomed && !ev.data.empty()) {
-            if (StreamHandlerFn fn = FindStreamHandler(ev.data[0])) {
-                fn(*this, *c, ev.data.data(), ev.data.size());
-            }
+        if (!c->welcomed || ev.data.empty()) {
+            NoteInvalid(*c, "stream antes del saludo");
+        } else if (StreamHandlerFn fn = FindStreamHandler(ev.data[0])) {
+            fn(*this, *c, ev.data.data(), ev.data.size());
+        } else {
+            NoteInvalid(*c, "stream desconocido");
         }
         return;
     }
@@ -88,13 +92,13 @@ void Server::HandleReceive(NetEvent& ev) {
     json parsed;
     std::string error;
     if (!ParseEvent(ev.data.data(), ev.data.size(), parsed, &error)) {
-        mLog.Warn("Evento inválido de " + Describe(*c) + ": " + error);
+        NoteInvalid(*c, "evento inválido (" + error + ")");
         return;
     }
     std::string type = EventType(parsed);
     const EventHandlerEntry* handler = FindEventHandler(type);
     if (handler == nullptr) {
-        mLog.Warn("Evento desconocido '" + type + "' de " + Describe(*c));
+        NoteInvalid(*c, "evento desconocido '" + SanitizeChat(type, 40) + "'");
         return;
     }
     if (handler->requiresWelcome && !c->welcomed) {
@@ -189,7 +193,21 @@ bool Server::AllowMessage(RemoteClient& client) {
 }
 
 bool Server::IsOp(const RemoteClient& client) const {
-    return mAccess.IsOp(client.nick);
+    return mAccess.IsOp(client.nick, client.ip);
+}
+
+void Server::NoteInvalid(RemoteClient& client, const std::string& what) {
+    client.invalidMessages++;
+    if (client.invalidMessages <= (uint32_t)kInvalidLogCount) {
+        mLog.Warn(SanitizeChat(what, 120) + " de " + Describe(client));
+    }
+    if (client.invalidMessages == (uint32_t)kInvalidKickCount) {
+        if (client.welcomed) {
+            Kick(client, "demasiados paquetes inválidos");
+        } else {
+            Reject(client, "demasiados paquetes inválidos");
+        }
+    }
 }
 
 void Server::ExecuteConsoleLine(const std::string& line) {
