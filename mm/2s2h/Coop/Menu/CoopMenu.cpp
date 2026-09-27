@@ -2,6 +2,7 @@
 
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/World/WorldSession.h"
 
 #include "common/Protocol.h"
 
@@ -98,6 +99,33 @@ void DrawPlayers() {
     }
 }
 
+void DrawWorld() {
+    ImGui::SeparatorText("Partida del servidor");
+    WorldState state = WorldSession_State();
+    if (state == WorldState::Outside) {
+        ImGui::BeginDisabled(!Session_IsConnected());
+        if (UIWidgets::Button("Entrar en la partida del servidor",
+                              UIWidgets::ButtonOptions().Color(THEME_COLOR).Tooltip(
+                                  "Deja la partida que tengas abierta (sin guardarla) y entra en el mundo compartido "
+                                  "del servidor."))) {
+            WorldSession_RequestEnter();
+        }
+        ImGui::EndDisabled();
+    } else if (UIWidgets::Button("Salir de la partida del servidor",
+                                 UIWidgets::ButtonOptions().Color(THEME_COLOR).Tooltip(
+                                     "Tu progreso queda en el servidor. Vuelves a la selección de archivo."))) {
+        WorldSession_RequestLeave();
+    }
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::TextColored(state == WorldState::Active ? kGreen : kGray, "%s", WorldSession_StatusText().c_str());
+    ImGui::PopTextWrapPos();
+    UIWidgets::CVarCheckbox("Entrar automáticamente al conectar", "gCoop.AutoEnter",
+                            UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(
+                                "Al conectarte desde la pantalla de título o la selección de archivo entras directamente "
+                                "en la partida del servidor. Allí tu progreso se guarda en el servidor, nunca en tus "
+                                "archivos de guardado."));
+}
+
 void DrawOptions() {
     ImGui::SeparatorText("Opciones");
     UIWidgets::CVarCheckbox("Conectar automáticamente al abrir el juego", "gCoop.AutoConnect",
@@ -137,6 +165,7 @@ void CoopMenu_Draw() {
     ImGui::SeparatorText("Conexión");
     DrawConnection();
     DrawPlayers();
+    DrawWorld();
     DrawOptions();
 }
 

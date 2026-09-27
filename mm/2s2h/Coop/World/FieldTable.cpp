@@ -3,6 +3,8 @@
 #include "common/Hex.h"
 #include "common/WorldFields.h"
 
+#include <libultraship/bridge/consolevariablebridge.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
@@ -519,6 +521,14 @@ void SetBottleCount(int count) {
     }
 }
 
+// As Interface_Init: only buttons that hold an item. For an empty D-pad button Interface_Dpad_LoadItemIconImpl
+// writes the empty icon over a B / C button's.
+static void LoadDpadIcon(int btn) {
+    if (CVarGetInteger("gEnhancements.Dpad.DpadEquips", 0) && DPAD_BUTTON_ITEM_EQUIP(0, btn) < ITEM_F0) {
+        Interface_Dpad_LoadItemIconImpl(gPlayState, btn);
+    }
+}
+
 void RefreshButtonsForSlot(int slot) {
     u8 item = Info().inventory.items[slot];
     bool live = PlayLive();
@@ -543,8 +553,19 @@ void RefreshButtonsForSlot(int slot) {
             DPAD_SLOT_EQUIP(0, btn) = SLOT_NONE;
         }
         if (live) {
-            Interface_Dpad_LoadItemIconImpl(gPlayState, btn);
+            LoadDpadIcon(btn);
         }
+    }
+}
+
+void LoadButtonIcons() {
+    for (int btn = EQUIP_SLOT_B; btn <= EQUIP_SLOT_C_RIGHT; btn++) {
+        if (BUTTON_ITEM_EQUIP(0, btn) < ITEM_F0) {
+            Interface_LoadItemIconImpl(gPlayState, btn);
+        }
+    }
+    for (int btn = EQUIP_SLOT_D_RIGHT; btn <= EQUIP_SLOT_D_UP; btn++) {
+        LoadDpadIcon(btn);
     }
 }
 

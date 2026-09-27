@@ -5896,10 +5896,13 @@ void Message_Update(PlayState* play) {
                     if (Message_ShouldAdvance(play)) {
                         if (msgCtx->choiceIndex == 0) {
                             Audio_PlaySfx_MessageDecide();
-                            if (gSaveContext.save.isNight != 0) {
-                                gSaveContext.save.time = CLOCK_TIME(6, 0);
-                            } else {
-                                gSaveContext.save.time = CLOCK_TIME(18, 0);
+                            // [COOP] the co-op server moves everyone's clock instead
+                            if (GameInteractor_Should(VB_SONG_OF_DOUBLE_TIME_SET_TIME, true)) {
+                                if (gSaveContext.save.isNight != 0) {
+                                    gSaveContext.save.time = CLOCK_TIME(6, 0);
+                                } else {
+                                    gSaveContext.save.time = CLOCK_TIME(18, 0);
+                                }
                             }
                             play->msgCtx.ocarinaMode = OCARINA_MODE_APPLY_DOUBLE_SOT;
                             gSaveContext.timerStates[TIMER_ID_MOON_CRASH] = TIMER_STATE_OFF;

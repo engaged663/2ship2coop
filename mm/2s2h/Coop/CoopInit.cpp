@@ -1,8 +1,10 @@
-// Core of the co-op mod inside the game: pumps the network once per frame. Every feature file
-// (chat, puppets, location...) registers its own hooks with RegisterShipInitFunc.
-// Map of the module: coop/README.md.
+// Core of the co-op mod inside the game: the order of the per-frame work. Every feature file (chat, puppets,
+// location...) registers its own hooks with RegisterShipInitFunc. Map of the module: coop/README.md.
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/World/ClockSync.h"
+#include "2s2h/Coop/World/WorldSession.h"
+#include "2s2h/Coop/World/WorldSync.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
@@ -10,8 +12,17 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 static void RegisterCoop() {
-    // Network messages are handled at the start of every game frame, before actors update.
-    COND_HOOK(OnGameStateMainStart, true, []() { coop::client::ProcessNetwork(); });
+    // Every frame starts with the network (before actors update), then the shared world acts on its messages...
+    COND_HOOK(OnGameStateMainStart, true, []() {
+        coop::client::ProcessNetwork();
+        coop::client::WorldSession_FrameStart();
+        coop::client::ClockSync_FrameStart();
+    });
+    // ...and ends by sending what changed in the world.
+    COND_HOOK(OnGameStateMainFinish, true, []() {
+        coop::client::WorldSync_FrameEnd();
+        coop::client::WorldSession_FrameEnd();
+    });
 
     static bool sAutoConnected = false; // presets run this function again
     if (!sAutoConnected && CVarGetInteger("gCoop.AutoConnect", 0)) {

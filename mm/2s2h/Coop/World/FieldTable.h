@@ -24,6 +24,7 @@ bool PlayLive();                      // a scene is loaded and its actors exist 
 int BottleCount();                    // bottles owned: bottle slots in use + bottles Takkuri stole
 void SetBottleCount(int count);       // adds empty bottles, or removes bottles (empty ones first)
 void RefreshButtonsForSlot(int slot); // C / D-pad buttons that show that slot follow its item
+void LoadButtonIcons();               // every B / C / D-pad icon from its item (a scene must be loaded)
 void SyncSwordButton();               // B shows the sword of equips.equipment (unless a minigame put its item there)
 
 // Test aid (gCoop.Debug.FieldSelfTest): reading, writing back and reading again must not change anything.

@@ -119,6 +119,10 @@ void Warp_SetRespawn(const WarpTarget& t) {
     gSaveContext.respawn[RESPAWN_MODE_DOWN].pos = { t.pos[0], t.pos[1], t.pos[2] };
     gSaveContext.respawn[RESPAWN_MODE_DOWN].yaw = t.rot;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].playerParams = PLAYER_PARAMS(0xFF, PLAYER_START_MODE_D);
+    // The respawn also restores these scene flags (a void-out's): none for a warp
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].tempSwitchFlags = 0;
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].unk_18 = 0;
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].tempCollectFlags = 0;
     gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK_FAST;
     gSaveContext.respawnFlag = -8;
 }
