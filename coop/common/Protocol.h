@@ -6,7 +6,7 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 2; // v2: shared world (sub-project B)
+constexpr uint32_t kProtocolVersion = 3; // v3: shared enemies (sub-project C)
 constexpr uint16_t kDefaultPort = 7780; // UDP
 
 constexpr int kMaxPlayers = 4;
@@ -45,6 +45,15 @@ constexpr int kSotVoteMs = 30000;       // Song of Time vote
 constexpr int kCycleComputeMs = 15000;  // a game has this long to compute the new cycle
 constexpr int kWorldCreateMs = 15000;   // the first player has this long to create the world
 
+// Shared enemies (sub-project C)
+constexpr int kActorStreamBurst = 120;    // actor stream packets per player: burst...
+constexpr int kActorStreamPerSecond = 90; // ...and sustained rate (20/s per room it owns, a few parts each)
+constexpr int kHitBurst = 30;             // hit + hurt events per player: burst...
+constexpr int kHitPerSecond = 20;         // ...and sustained rate
+constexpr int kDropBurst = 20;            // drop events per player: burst...
+constexpr int kDropPerSecond = 10;        // ...and sustained rate
+constexpr int kMaxHurtDamage = 0x40;      // 4 hearts: more than any enemy of the list does
+
 enum Channel : uint8_t {
     kChannelEvents = 0, // reliable + ordered, JSON events
     kChannelStream = 1, // unreliable + sequenced, binary streams
@@ -59,7 +68,7 @@ inline constexpr const char* kReject = "reject";           // S->C reason
 inline constexpr const char* kKicked = "kicked";           // S->C reason
 inline constexpr const char* kJoin = "join";               // S->C id, nick
 inline constexpr const char* kLeave = "leave";             // S->C id, nick, reason
-inline constexpr const char* kLoc = "loc";                 // C->S scene, room, entrance, sceneName, timeStopped; S->C id, scene, sceneName
+inline constexpr const char* kLoc = "loc";                 // C->S scene, room, entrance, sceneName, timeStopped, busy; S->C id, scene, sceneName
 inline constexpr const char* kChat = "chat";               // C->S text; S->C from, text
 inline constexpr const char* kPm = "pm";                   // S->C from, to, text
 inline constexpr const char* kCmd = "cmd";                 // C->S line
@@ -83,6 +92,11 @@ inline constexpr const char* kClockSpeed = "clock_speed";     // C->S inv (Inver
 inline constexpr const char* kSotPropose = "sot_propose";     // C->S (Song of Time: starts a vote)
 inline constexpr const char* kCycleCompute = "cycle_compute"; // S->C (run the end-of-cycle rules, send the world)
 inline constexpr const char* kCycleResult = "cycle_result";   // C->S fields{}
+// Shared enemies (sub-project C)
+inline constexpr const char* kAuth = "auth"; // S->C scene, rooms[[room, id]...] (who simulates each room's enemies)
+inline constexpr const char* kHit = "hit";   // C->S scene, room, key, col, elem, dmgFlags, effect, damage, hitEffect, pos[3], attackerId, form; S->C + from
+inline constexpr const char* kHurt = "hurt"; // C->S to, kind, dmgFlags, effect, damage, hitEffect, pos[3], knock{}; S->C + from
+inline constexpr const char* kDrop = "drop"; // C->S scene, room, pos[3], params, fn; S->C + from
 } // namespace ev
 
 // Levels used by "sys" events.

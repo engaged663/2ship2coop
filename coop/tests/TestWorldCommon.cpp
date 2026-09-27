@@ -218,7 +218,7 @@ TEST_CASE(EventSizeLimitsDependOnDirection) {
     CHECK(GetBool(json{ { "b", true } }, "b"));
     CHECK(!GetBool(json{ { "b", 1 } }, "b"));
     CHECK(GetBool(json{ { "b", 1 } }, "c", true));
-    CHECK_EQ(kProtocolVersion, 2u);
+    CHECK_EQ(kProtocolVersion, 3u);
 }
 
 TEST_CASE(StolenSwordsComeBackToTheWorld) {
