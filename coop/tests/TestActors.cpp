@@ -31,6 +31,7 @@ ActorRecord Record(uint16_t key, int joints = 20) {
     r.shadowAlpha = 255;
     r.yOffset = -2000.f;
     r.shadowScale = 12.f;
+    r.flags = 0x205;
     for (int i = 0; i < joints; i++) {
         r.joints.push_back({ (int16_t)i, (int16_t)-i, (int16_t)(i * 2) });
     }
@@ -62,7 +63,7 @@ bool SameRecord(const ActorRecord& a, const ActorRecord& b) {
     bool same = a.key == b.key && a.actorId == b.actorId && a.params == b.params && a.visible == b.visible &&
                 SameVec(a.rot, b.rot) && a.worldRotY == b.worldRotY && a.health == b.health &&
                 a.colorFilterParams == b.colorFilterParams && a.colorFilterTimer == b.colorFilterTimer &&
-                a.shadowAlpha == b.shadowAlpha && a.yOffset == b.yOffset && a.shadowScale == b.shadowScale &&
+                a.shadowAlpha == b.shadowAlpha && a.yOffset == b.yOffset && a.shadowScale == b.shadowScale && a.flags == b.flags &&
                 a.joints.size() == b.joints.size() &&
                 a.colliders.size() == b.colliders.size() && a.sfx == b.sfx && a.extras == b.extras &&
                 a.loopSfx == b.loopSfx && a.loopSfxFlags == b.loopSfxFlags;

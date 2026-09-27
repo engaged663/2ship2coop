@@ -42,6 +42,12 @@ constexpr float kSwitchTargetRatio = 0.8f;  // another Link must be 20 % closer 
 constexpr int64_t kGoneAfterMs = 1000;      // a replica the owner stopped listing for this long is gone
 constexpr int64_t kGoneMemoryMs = 1000;     // the owner lists a destroyed enemy as gone for this long
 constexpr size_t kBufferedFrames = 2;       // replicas play a frame once two are queued (absorbs jitter)
+// The owner's logic turns these on and off (a Leever cannot be locked on while underground); a replica's never runs,
+// so it copies them. Culling and engine bookkeeping flags stay local.
+constexpr uint32_t kCopiedFlags = ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_FRIENDLY |
+                                  ACTOR_FLAG_LOCK_ON_DISABLED | ACTOR_FLAG_HOOKSHOT_PULLS_ACTOR |
+                                  ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER | ACTOR_FLAG_CAN_ATTACH_TO_ARROW |
+                                  ACTOR_FLAG_REACT_TO_LENS | ACTOR_FLAG_FOCUS_ACTOR_REFINDABLE;
 
 int64_t NowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now().time_since_epoch()).count();
@@ -187,6 +193,7 @@ void ApplyRecord(TrackedActor& t) {
     actor->shape.shadowAlpha = r.shadowAlpha;
     actor->shape.yOffset = r.yOffset;
     actor->shape.shadowScale = r.shadowScale;
+    actor->flags = (actor->flags & ~kCopiedFlags) | (r.flags & kCopiedFlags);
     // Its own logic would switch its body on and off (a Leever coming out of the ground): follow the owner.
     actor->draw = r.visible ? t.drawFunc : nullptr;
     actor->sfxId = r.loopSfx;
@@ -311,6 +318,7 @@ ActorRecord MakeRecord(TrackedActor& t) {
     r.shadowAlpha = actor->shape.shadowAlpha;
     r.yOffset = actor->shape.yOffset;
     r.shadowScale = actor->shape.shadowScale;
+    r.flags = actor->flags;
     r.loopSfx = actor->sfxId;
     r.loopSfxFlags = (uint8_t)actor->audioFlags;
     if (t.skel != nullptr && t.skel->jointTable != nullptr) {
@@ -387,7 +395,15 @@ using namespace coop::client;
 
 extern "C" Player* Coop_ActorUpdateBegin(PlayState* play, Actor* actor, s32* forceUpdate) {
     TrackedActor* t = ActorRegistry_Get(actor);
-    if (t == nullptr || !Active() || !Authority_IsMine(t->room)) {
+    if (t == nullptr || !Active()) {
+        return nullptr;
+    }
+    if (Authority_IsRemote(t->room)) {
+        // A replica follows its owner every frame, on screen or not: its "update" only copies the owner's state.
+        *forceUpdate = true;
+        return nullptr;
+    }
+    if (!Authority_IsMine(t->room)) {
         return nullptr;
     }
     bool nearPuppet = false;
