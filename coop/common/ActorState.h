@@ -28,7 +28,7 @@ struct ActorCollider {
     static constexpr uint8_t kAc = 1; // can be hit (its AC is registered on the replica)
     static constexpr uint8_t kOc = 2; // pushes (OC registered)
     uint8_t flags = 0;
-    Vec3s16 dimPos; // cylinders: dim.pos (other shapes place themselves while drawing)
+    Vec3s16 dimPos; // cylinder: dim.pos; sphere: worldSphere.center; spheres: the first one's center
 };
 
 struct ActorRecord {
@@ -37,6 +37,7 @@ struct ActorRecord {
     int16_t params = 0;
     bool visible = false; // drawn by its owner this frame
     float pos[3] = { 0.f, 0.f, 0.f };
+    float focus[3] = { 0.f, 0.f, 0.f }; // focus.pos (lock-on point; some enemies place their collider there)
     Vec3s16 rot; // shape.rot
     int16_t worldRotY = 0;
     float scale[3] = { 0.f, 0.f, 0.f };

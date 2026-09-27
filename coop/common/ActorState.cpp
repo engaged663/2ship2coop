@@ -36,6 +36,9 @@ void WriteRecord(Writer& w, const ActorRecord& a) {
     for (float v : a.pos) {
         w.F32(v);
     }
+    for (float v : a.focus) {
+        w.F32(v);
+    }
     WriteVec(w, a.rot);
     w.S16(a.worldRotY);
     for (float v : a.scale) {
@@ -71,6 +74,11 @@ bool ReadRecord(Reader& r, ActorRecord& a) {
     }
     a.visible = (flags & 1) != 0;
     for (float& v : a.pos) {
+        if (!r.F32(v) || !Finite(v, pose_limits::kWorldLimit)) {
+            return false;
+        }
+    }
+    for (float& v : a.focus) {
         if (!r.F32(v) || !Finite(v, pose_limits::kWorldLimit)) {
             return false;
         }

@@ -21,6 +21,7 @@ ActorRecord Record(uint16_t key, int joints = 20) {
     r.pos[0] = 10.f + key;
     r.pos[1] = -5.f;
     r.pos[2] = 300.f;
+    r.focus[1] = 20.f;
     r.rot = { 1, 2, 3 };
     r.worldRotY = 4;
     r.scale[0] = r.scale[1] = r.scale[2] = 0.01f;
@@ -60,7 +61,7 @@ bool SameRecord(const ActorRecord& a, const ActorRecord& b) {
                 a.shadowAlpha == b.shadowAlpha && a.joints.size() == b.joints.size() &&
                 a.colliders.size() == b.colliders.size() && a.sfx == b.sfx && a.extras == b.extras;
     for (int i = 0; same && i < 3; i++) {
-        same = a.pos[i] == b.pos[i] && a.scale[i] == b.scale[i];
+        same = a.pos[i] == b.pos[i] && a.focus[i] == b.focus[i] && a.scale[i] == b.scale[i];
     }
     for (size_t i = 0; same && i < a.joints.size(); i++) {
         same = SameVec(a.joints[i], b.joints[i]);
