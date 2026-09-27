@@ -45,6 +45,8 @@ struct ActorRecord {
     uint16_t colorFilterParams = 0;
     uint8_t colorFilterTimer = 0;
     uint8_t shadowAlpha = 0;
+    float yOffset = 0.f;     // shape.yOffset (a Leever rises out of the ground with it)
+    float shadowScale = 0.f; // shape.shadowScale
     std::vector<Vec3s16> joints; // skelAnime.jointTable
     std::vector<ActorCollider> colliders;
     std::vector<uint16_t> sfx;    // sounds it played this frame

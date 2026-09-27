@@ -185,6 +185,10 @@ void ApplyRecord(TrackedActor& t) {
     actor->colorFilterParams = r.colorFilterParams;
     actor->colorFilterTimer = r.colorFilterTimer;
     actor->shape.shadowAlpha = r.shadowAlpha;
+    actor->shape.yOffset = r.yOffset;
+    actor->shape.shadowScale = r.shadowScale;
+    // Its own logic would switch its body on and off (a Leever coming out of the ground): follow the owner.
+    actor->draw = r.visible ? t.drawFunc : nullptr;
     actor->sfxId = r.loopSfx;
     actor->audioFlags = r.loopSfxFlags;
     if (t.skel != nullptr && t.skel->jointTable != nullptr) {
@@ -240,12 +244,6 @@ void OnShouldActorUpdate(Actor* actor, bool* should) {
     }
 }
 
-void OnShouldActorDraw(Actor* actor, bool* should) {
-    TrackedActor* t = ActorRegistry_Get(actor);
-    if (t != nullptr && t->hasRecord && !t->record.visible && Active() && Authority_IsRemote(t->room)) {
-        *should = false;
-    }
-}
 
 // ---- Owner ----
 
@@ -311,6 +309,8 @@ ActorRecord MakeRecord(TrackedActor& t) {
     r.colorFilterParams = actor->colorFilterParams;
     r.colorFilterTimer = actor->colorFilterTimer;
     r.shadowAlpha = actor->shape.shadowAlpha;
+    r.yOffset = actor->shape.yOffset;
+    r.shadowScale = actor->shape.shadowScale;
     r.loopSfx = actor->sfxId;
     r.loopSfxFlags = (uint8_t)actor->audioFlags;
     if (t.skel != nullptr && t.skel->jointTable != nullptr) {
@@ -418,7 +418,6 @@ TrackedActor* coop::client::ActorSync_Updating() {
 
 static void RegisterActorSync() {
     COND_HOOK(ShouldActorUpdate, true, OnShouldActorUpdate);
-    COND_HOOK(ShouldActorDraw, true, OnShouldActorDraw);
     COND_HOOK(OnGameStateMainStart, true, []() {
         if (Active()) {
             ApplyFrames();

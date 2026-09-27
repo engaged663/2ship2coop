@@ -107,7 +107,13 @@ extern "C" void Coop_ActorInitEnd(Actor* actor) {
     if (actor->update == nullptr || tracked->skel == nullptr) {
         // Killed itself in Init (a flag says it is gone) or has no skeleton to send: not shared.
         sTracked.erase(actor);
+        return;
     }
+    // Enemies that start hidden (a Leever underground) clear their draw function in Init: use the profile's.
+    tracked->drawFunc = actor->draw != nullptr ? actor->draw : actor->overlayEntry->profile->draw;
+    SPDLOG_INFO("[Coop] Shared enemy {} (actor {:#x}) of room {} at ({:.0f}, {:.0f}, {:.0f}), {} colliders",
+                tracked->key, (uint16_t)actor->id, (int)tracked->room, actor->world.pos.x, actor->world.pos.y,
+                actor->world.pos.z, tracked->colliders.size());
 }
 
 extern "C" void Coop_OnSkelAnimeInit(SkelAnime* skelAnime) {

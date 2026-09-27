@@ -1,11 +1,14 @@
 // Test aids:
 // - gCoop.Debug.BootToClockTown: boots straight into South Clock Town with the debug file (every item and mask,
 //   never written to disk), so the co-op features can be tried in seconds.
+// - gCoop.Debug.EnterEntrance: once playing in the server's world, goes once to that entrance (e.g. 21504 = Termina
+//   Field): puts two test games next to the same enemies.
 // - gCoop.Debug.FieldSelfTest: once in gameplay, writes every shared-world and player field back to the save and
 //   checks that nothing changed (the result goes to the chat and the log).
 #include "2s2h/Coop/Chat/ChatModel.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 #include "2s2h/Coop/World/FieldTable.h"
+#include "2s2h/Coop/World/WorldSession.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
@@ -23,6 +26,7 @@ extern "C" {
 // Optional: another entrance id to boot into (e.g. 54784 = North Clock Town). Default: South Clock Town.
 #define CVAR_ENTRANCE "gCoop.Debug.BootEntrance"
 #define CVAR_SELF_TEST "gCoop.Debug.FieldSelfTest"
+#define CVAR_ENTER_ENTRANCE "gCoop.Debug.EnterEntrance"
 
 static void RegisterDebugBoot() {
     COND_HOOK(OnConsoleLogoUpdate, CVarGetInteger(CVAR_NAME, 0), []() {
@@ -33,6 +37,20 @@ static void RegisterDebugBoot() {
         gSaveContext.fileNum = 0xFF; // debug file slot: MapSelect_LoadGame creates the debug save
         u16 entrance = (u16)CVarGetInteger(CVAR_ENTRANCE, ENTRANCE(SOUTH_CLOCK_TOWN, 0));
         MapSelect_LoadGame((MapSelectState*)gGameState, entrance, 0);
+    });
+
+    COND_HOOK(OnGameStateMainFinish, CVarGetInteger(CVAR_ENTER_ENTRANCE, 0) != 0, []() {
+        static bool sDone = false;
+        if (sDone || !coop::client::WorldSession_Active() || !PoseCapture_InGameplay() ||
+            gPlayState->transitionTrigger != TRANS_TRIGGER_OFF) {
+            return;
+        }
+        sDone = true;
+        u16 entrance = (u16)CVarGetInteger(CVAR_ENTER_ENTRANCE, 0);
+        SPDLOG_INFO("[Coop] Debug: going to entrance {:#x}", entrance);
+        gPlayState->nextEntrance = entrance;
+        gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+        gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
     });
 
     COND_HOOK(OnGameStateMainFinish, CVarGetInteger(CVAR_SELF_TEST, 0), []() {
@@ -52,4 +70,4 @@ static void RegisterDebugBoot() {
     });
 }
 
-static RegisterShipInitFunc sDebugBootInit(RegisterDebugBoot, { CVAR_NAME, CVAR_SELF_TEST });
+static RegisterShipInitFunc sDebugBootInit(RegisterDebugBoot, { CVAR_NAME, CVAR_SELF_TEST, CVAR_ENTER_ENTRANCE });

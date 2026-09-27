@@ -33,6 +33,7 @@ struct TrackedActor {
     SkelAnime* skel = nullptr;         // the skeleton it draws (first one initialized in its Init)
     std::vector<Collider*> colliders;  // in creation order (the same in every game)
     const SharedActorDef* def = nullptr;
+    ActorFunc drawFunc = nullptr;      // its draw function (replicas turn it on and off like the owner does)
 
     // Sync state (ActorSync.cpp / HitSync.cpp)
     coop::ActorRecord record;       // the owner's latest state (replicas)

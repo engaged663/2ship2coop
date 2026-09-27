@@ -48,6 +48,8 @@ void WriteRecord(Writer& w, const ActorRecord& a) {
     w.U16(a.colorFilterParams);
     w.U8(a.colorFilterTimer);
     w.U8(a.shadowAlpha);
+    w.F32(a.yOffset);
+    w.F32(a.shadowScale);
     w.U8((uint8_t)a.joints.size());
     for (const Vec3s16& j : a.joints) {
         WriteVec(w, j);
@@ -95,7 +97,8 @@ bool ReadRecord(Reader& r, ActorRecord& a) {
     }
     uint8_t n = 0;
     if (!r.U8(a.health) || !r.U16(a.colorFilterParams) || !r.U8(a.colorFilterTimer) || !r.U8(a.shadowAlpha) ||
-        !r.U8(n) || n > kJoints) {
+        !r.F32(a.yOffset) || !Finite(a.yOffset, pose_limits::kWorldLimit) || !r.F32(a.shadowScale) ||
+        !Finite(a.shadowScale, pose_limits::kWorldLimit) || !r.U8(n) || n > kJoints) {
         return false;
     }
     a.joints.resize(n);
