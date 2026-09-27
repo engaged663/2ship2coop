@@ -22,11 +22,13 @@ void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t s
     client.pos[2] = state.pos[2];
     client.rotY = state.rot.y;
     client.hasState = true;
+    client.streamsIn++;
 
     StampPlayerId(data, size, client.id);
     for (RemoteClient* other : server.Players().Welcomed()) {
         if (other != &client && !other->closing && other->scene == state.sceneId) {
             server.SendStream(*other, data, size);
+            client.streamsRelayed++;
         }
     }
 }

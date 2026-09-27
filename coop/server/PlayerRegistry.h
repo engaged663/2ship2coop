@@ -26,6 +26,8 @@ struct RemoteClient {
     float pos[3] = { 0.f, 0.f, 0.f };
     int16_t rotY = 0;
     bool hasState = false;
+    uint32_t streamsIn = 0;      // pose packets received (stats command)
+    uint32_t streamsRelayed = 0; // pose packets forwarded to others
 
     std::deque<int64_t> recentMessagesMs; // rate limiting
 };

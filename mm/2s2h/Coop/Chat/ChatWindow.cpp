@@ -4,6 +4,8 @@
 
 #include "2s2h/Coop/Client/Session.h"
 
+#include "2s2h/ShipInit.hpp"
+
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <libultraship/libultraship.h>
 
@@ -197,7 +199,7 @@ void ChatWindow::DrawInput() {
     }
 }
 
-void ChatWindow_Register() {
+static void ChatWindow_Register() {
     auto gui = Ship::Context::GetRawInstance()->GetWindow()->GetGui();
     sWindow = std::make_shared<ChatWindow>("gCoop.Chat.Window", "Co-op Chat");
     gui->AddGuiWindow(sWindow);
@@ -205,3 +207,5 @@ void ChatWindow_Register() {
 }
 
 } // namespace coop::client
+
+static RegisterShipInitFunc sChatWindowInit(coop::client::ChatWindow_Register);

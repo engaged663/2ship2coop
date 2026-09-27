@@ -21,7 +21,10 @@ extern "C" {
 typedef struct EnCoopPuppet {
     /* 0x000 */ Player player; // must stay first
     u8 playerId;
-    u8 hidden; // true while the remote player's room is not loaded here
+    u8 sword;       // remote sword level, swapped into the save only while drawing
+    u8 hidden;      // the remote player's room is not loaded here
+    u8 hasState;    // at least one pose applied
+    u8 initialized; // Init completed (Destroy may run after a failed spawn)
 } EnCoopPuppet;
 
 #endif // COOP_PUPPET_ACTOR_H

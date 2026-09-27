@@ -32,7 +32,4 @@ class ChatWindow : public Ship::GuiWindow {
     char mBuffer[256] = {};
 };
 
-// Creates the window and adds it to the GUI (called once from CoopInit).
-void ChatWindow_Register();
-
 } // namespace coop::client

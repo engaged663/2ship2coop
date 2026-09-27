@@ -1,8 +1,9 @@
 // 2ship-coop-bot: fake player for testing with a single PC.
 //   --mode mirror (default): copies the target's moves 0.3 s late, standing 60 units to its side.
 //   --mode circle: walks in circles around the target.
+//   --mode front: stands still 80 units in front of the target, facing it (easy to spot on screen).
 // It also answers "!ping" in the chat, pays every /gift it makes and accepts every gift.
-// Usage: 2ship-coop-bot [--host 127.0.0.1] [--port 7780] [--nick Bot] [--pass X] [--target Nick] [--mode mirror|circle]
+// Usage: 2ship-coop-bot [--host 127.0.0.1] [--port 7780] [--nick Bot] [--pass X] [--target Nick] [--mode mirror|circle|front]
 #include "common/Events.h"
 #include "common/PlayerState.h"
 #include "common/Protocol.h"
@@ -55,7 +56,7 @@ Options ParseArgs(int argc, char** argv) {
         else if (a == "--mode") { o.mode = v; i++; }
         else {
             std::printf("Uso: 2ship-coop-bot [--host IP] [--port N] [--nick Bot] [--pass X] [--target Nick] "
-                        "[--mode mirror|circle]\n");
+                        "[--mode mirror|circle|front]\n");
             std::exit(0);
         }
     }
@@ -108,6 +109,10 @@ class Bot {
         if (e.channel == kChannelStream) {
             PlayerState st;
             if (DecodePlayerState(e.data.data(), e.data.size(), st) && st.playerId == mTargetId) {
+                if (mTargetStates.empty() && !mLoggedFirstPose) {
+                    std::printf("Recibiendo la pose del objetivo (escena %d)\n", st.sceneId);
+                    mLoggedFirstPose = true;
+                }
                 mTargetStates.push_back(st);
                 while (mTargetStates.size() > 40) {
                     mTargetStates.pop_front();
@@ -195,7 +200,13 @@ class Bot {
         }
 
         PlayerState out;
-        if (mOpt.mode == "circle") {
+        if (mOpt.mode == "front") {
+            out = mTargetStates.back();
+            float yaw = out.rot.y * (2.f * kPi / 65536.f);
+            out.pos[0] += 80.f * std::sin(yaw);
+            out.pos[2] += 80.f * std::cos(yaw);
+            out.rot.y = (int16_t)(out.rot.y + 0x8000);
+        } else if (mOpt.mode == "circle") {
             out = mTargetStates.back();
             mAngle += 2.f * kPi / 120.f; // one lap every 6 s
             out.pos[0] += 90.f * std::sin(mAngle);
@@ -225,6 +236,7 @@ class Bot {
     int mScene = -1;
     uint16_t mSeq = 0;
     float mAngle = 0.f;
+    bool mLoggedFirstPose = false;
     std::map<int, Known> mKnown;
     std::deque<PlayerState> mTargetStates;
 };
