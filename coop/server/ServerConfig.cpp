@@ -12,7 +12,8 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     std::ifstream in(path);
     if (!in.is_open()) {
         nlohmann::json defaults = {
-            { "port", cfg.port }, { "maxPlayers", cfg.maxPlayers }, { "password", cfg.password }, { "motd", cfg.motd }
+            { "port", cfg.port }, { "maxPlayers", cfg.maxPlayers }, { "password", cfg.password }, { "motd", cfg.motd },
+            { "sharedEnemies", cfg.sharedEnemies }
         };
         std::ofstream file(path);
         file << defaults.dump(4) << '\n';
@@ -58,6 +59,13 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     cfg.maxPlayers = std::clamp(readInt("maxPlayers", cfg.maxPlayers, 1, 1000), 1, kMaxPlayers);
     cfg.password = readString("password", cfg.password);
     cfg.motd = readString("motd", cfg.motd);
+    if (auto it = j.find("sharedEnemies"); it != j.end()) {
+        if (it->is_boolean()) {
+            cfg.sharedEnemies = it->get<bool>();
+        } else {
+            warn("sharedEnemies", "true o false");
+        }
+    }
     if (err != nullptr) {
         *err = warnings;
     }

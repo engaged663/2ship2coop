@@ -10,6 +10,15 @@ namespace coop::server {
 
 namespace {
 
+// The oldest player in a room owns its enemies (ActorHandlers.cpp): remember when each one arrived.
+void NoteRoom(Server& server, RemoteClient& client, int16_t scene, int8_t room) {
+    if (scene != client.scene || room != client.room) {
+        client.roomSinceMs = server.NowMs();
+    }
+    client.scene = scene;
+    client.room = room;
+}
+
 void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t size) {
     if (!client.streamBudget.Take(server.NowMs())) {
         return; // faster than any real client: drop
@@ -19,8 +28,7 @@ void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t s
         server.NoteInvalid(client, "pose inválida");
         return;
     }
-    client.scene = state.sceneId;
-    client.room = state.roomNum;
+    NoteRoom(server, client, state.sceneId, state.roomNum);
     client.entrance = state.entrance;
     client.pos[0] = state.pos[0];
     client.pos[1] = state.pos[1];
@@ -54,8 +62,8 @@ void OnLoc(Server& server, RemoteClient& client, const json& ev) {
     int16_t scene = (int16_t)GetInt(ev, "scene", -1);
     std::string sceneName = SanitizeChat(GetString(ev, "sceneName"), 64);
     bool changed = scene != client.scene || sceneName != client.sceneName;
-    client.scene = scene;
-    client.room = (int8_t)GetInt(ev, "room", client.room);
+    NoteRoom(server, client, scene, (int8_t)GetInt(ev, "room", client.room));
+    client.busy = GetBool(ev, "busy");
     uint16_t entrance = (uint16_t)GetInt(ev, "entrance", client.entrance);
     if ((entrance >> 9) < pose_limits::kEntranceScenes) {
         client.entrance = entrance; // used by /tp: never store an entrance the game lacks

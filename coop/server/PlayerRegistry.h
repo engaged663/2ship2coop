@@ -55,6 +55,14 @@ struct RemoteClient {
     TokenBucket wopsBudget{ kWopsBurst, kWopsPerSecond };
     TokenBucket invBudget{ kInvBurst, kInvPerSecond };
     TokenBucket worldEntryBudget{ kWorldEntryBurst, kWorldEntryPerSecond };
+
+    // Shared enemies (sub-project C)
+    bool busy = false;        // paused, text or cutscene (from "loc"): hands its rooms' enemies to someone else
+    int64_t roomSinceMs = 0;  // when it arrived in its current scene/room (the oldest one there owns the room)
+    TokenBucket actorBudget{ kActorStreamBurst, kActorStreamPerSecond };
+    TokenBucket hitBudget{ kHitBurst, kHitPerSecond };
+    TokenBucket dropBudget{ kDropBurst, kDropPerSecond };
+    std::string authSent;     // the last "auth" it got (serialized): only changes are sent
 };
 
 class PlayerRegistry {

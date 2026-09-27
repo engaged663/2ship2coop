@@ -11,6 +11,7 @@ struct ServerConfig {
     int maxPlayers = kMaxPlayers; // clamped to 1..kMaxPlayers
     std::string password;         // empty = no password
     std::string motd = "Bienvenido al servidor co-op de Majora's Mask. Escribe /help para ver los comandos.";
+    bool sharedEnemies = true; // sub-project C: enemies simulated by one player per room; false = each game its own
     int handshakeTimeoutMs = kHandshakeTimeoutMs; // not stored in server.json (tests only)
     int giftTimeoutMs = kGiftTimeoutMs;           // not stored in server.json (tests only)
     // Shared world files, set by main.cpp (world.json and players/ next to the exe); "" = memory only (tests).

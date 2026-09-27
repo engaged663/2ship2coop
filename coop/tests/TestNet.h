@@ -66,6 +66,7 @@ struct TestClient {
     bool disconnected = false;
     std::deque<coop::json> events;
     std::deque<coop::PlayerState> streams;
+    std::deque<std::vector<uint8_t>> rawStreams;
     coop::json welcome;
     uint8_t id = 0;
     uint16_t seq = 0;
@@ -96,6 +97,8 @@ struct TestClient {
                 if (coop::ParseEvent(e.data.data(), e.data.size(), ev, nullptr, coop::kMaxServerEventBytes)) {
                     events.push_back(ev);
                 }
+            } else if (!e.data.empty() && e.data[0] != coop::kStreamPlayerState) {
+                rawStreams.push_back(e.data); // other streams (the actor stream of sub-project C)
             } else {
                 coop::PlayerState st;
                 if (coop::DecodePlayerState(e.data.data(), e.data.size(), st)) {
