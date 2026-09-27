@@ -139,7 +139,8 @@ void Server::SendEvent(RemoteClient& to, const json& ev) {
 
 void Server::Broadcast(const json& ev, const RemoteClient* except) {
     std::string text = SerializeEvent(ev);
-    for (RemoteClient* c : mPlayers.Welcomed()) {
+    // Players and the server's hosts: a host needs the players' joins and leaves to simulate enemies for them.
+    for (RemoteClient* c : mPlayers.WelcomedAll()) {
         if (c != except && !c->closing) {
             mTransport.Send(c->peer, kChannelEvents, text.data(), text.size());
         }

@@ -38,8 +38,14 @@ void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t s
     client.streamsIn++;
 
     StampPlayerId(data, size, client.id);
-    for (RemoteClient* other : server.Players().Welcomed()) {
-        if (other != &client && !other->closing && other->scene == state.sceneId) {
+    if (client.host) {
+        return; // the server's own game: its (ghost) Link is nobody's to see; the pose only told us where it is
+    }
+    // Players see each other in the same scene. A host gets the poses of its scene, and those of the player it follows
+    // wherever they are (that is how it knows where to go).
+    for (RemoteClient* other : server.Players().WelcomedAll()) {
+        bool followed = other->host && other->followId == client.id;
+        if (other != &client && !other->closing && (other->scene == state.sceneId || followed)) {
             server.SendStream(*other, data, size);
             client.streamsRelayed++;
         }
@@ -47,7 +53,7 @@ void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t s
 }
 
 void FlushLoc(Server& server, RemoteClient& client) {
-    if (!client.locDirty || client.closing || !client.locBudget.Take(server.NowMs())) {
+    if (!client.locDirty || client.closing || client.host || !client.locBudget.Take(server.NowMs())) {
         return;
     }
     client.locDirty = false;

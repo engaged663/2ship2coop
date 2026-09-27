@@ -50,15 +50,32 @@ std::vector<RemoteClient*> SceneMates(Server& server, const RemoteClient& from, 
     return out;
 }
 
-// Every host keeps loaded the room of one player of its scene: the one there longest (the host moves its invisible
-// Link there). Sent when it changes.
+// Every host follows one player (its invisible Link goes wherever that player is, so their room is loaded there).
+// D1: the host keeps its player while they stay in the world; else it takes the player in the world longest who
+// no other host follows. Sent when it changes.
 void TickHostFollow(Server& server) {
+    std::vector<uint8_t> taken;
     for (RemoteClient* host : server.Players().WelcomedHosts()) {
-        RemoteClient* best = nullptr;
-        for (RemoteClient* p : server.Players().Welcomed()) {
-            if (Takes(server, *p) && p->scene == host->scene && p->scene >= 0 &&
-                (best == nullptr || p->roomSinceMs < best->roomSinceMs)) {
-                best = p;
+        RemoteClient* current = server.Players().ById(host->followId);
+        if (current != nullptr && !current->host && Takes(server, *current)) {
+            taken.push_back(current->id);
+        }
+    }
+    for (RemoteClient* host : server.Players().WelcomedHosts()) {
+        if (!Takes(server, *host)) {
+            continue;
+        }
+        RemoteClient* best = server.Players().ById(host->followId);
+        if (best == nullptr || best->host || !Takes(server, *best)) {
+            best = nullptr;
+            for (RemoteClient* p : server.Players().Welcomed()) {
+                bool free = std::find(taken.begin(), taken.end(), p->id) == taken.end();
+                if (Takes(server, *p) && free && (best == nullptr || p->roomSinceMs < best->roomSinceMs)) {
+                    best = p;
+                }
+            }
+            if (best != nullptr) {
+                taken.push_back(best->id);
             }
         }
         uint8_t id = best != nullptr ? best->id : 0;
@@ -187,12 +204,13 @@ void OnHurt(Server& server, RemoteClient& client, const json& ev) {
         return;
     }
     std::string kind = GetString(ev, "kind");
-    if (!InRange(ev, "to", 1, kMaxPlayers) || (kind != "col" && kind != "knock") || !ValidDamage(ev)) {
+    if (!InRange(ev, "to", 1, kMaxPlayers + kMaxHosts) || (kind != "col" && kind != "knock") || !ValidDamage(ev)) {
         server.NoteInvalid(client, "daño inválido");
         return;
     }
     RemoteClient* victim = server.Players().ById((uint8_t)GetInt(ev, "to"));
-    if (victim == nullptr || victim == &client || !Takes(server, *victim) || victim->scene != client.scene ||
+    if (victim == nullptr || victim == &client || victim->host || !Takes(server, *victim) ||
+        victim->scene != client.scene ||
         !OwnsAnyRoomOf(client, client.scene)) {
         return;
     }

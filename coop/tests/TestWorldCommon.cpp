@@ -218,7 +218,7 @@ TEST_CASE(EventSizeLimitsDependOnDirection) {
     CHECK(GetBool(json{ { "b", true } }, "b"));
     CHECK(!GetBool(json{ { "b", 1 } }, "b"));
     CHECK(GetBool(json{ { "b", 1 } }, "c", true));
-    CHECK_EQ(kProtocolVersion, 3u);
+    CHECK_EQ(kProtocolVersion, 4u); // v4: actor flags + the server's hosts (D1)
 }
 
 TEST_CASE(StolenSwordsComeBackToTheWorld) {

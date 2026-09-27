@@ -6,7 +6,7 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 3; // v3: shared enemies (sub-project C)
+constexpr uint32_t kProtocolVersion = 4; // v4: actor flags in the actor stream, the server's hosts (sub-project D)
 constexpr uint16_t kDefaultPort = 7780; // UDP
 
 constexpr int kMaxPlayers = 4;

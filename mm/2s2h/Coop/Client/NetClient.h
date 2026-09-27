@@ -29,6 +29,8 @@ class NetClient {
     ~NetClient();
 
     void Connect(const std::string& host, uint16_t port, const std::string& nick, const std::string& password);
+    // Sub-project D: this game is one of the server's headless hosts (the token proves it).
+    void ConnectHost(const std::string& host, uint16_t port, const std::string& token);
     void Disconnect();
     void SendEvent(const json& ev);
     void SendStream(std::vector<uint8_t> bytes);
@@ -41,6 +43,8 @@ class NetClient {
     uint32_t PingMs() const;
 
   private:
+    void Start(const std::string& host, uint16_t port, const json& hello);
+
     struct Outbound {
         uint8_t channel;
         std::vector<uint8_t> bytes;

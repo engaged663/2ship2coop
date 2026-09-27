@@ -26,12 +26,16 @@ void WelcomeHost(Server& server, RemoteClient& client, const std::string& token)
     client.nick = kHostNick;
     client.host = true;
     client.welcomed = true;
+    json players = json::array(); // the players (never the other hosts): the enemies it simulates go for them
+    for (RemoteClient* other : server.Players().Welcomed()) {
+        players.push_back(PlayerSummary(*other));
+    }
     json welcome = MakeEvent(ev::kWelcome);
     welcome["id"] = client.id;
     welcome["nick"] = client.nick;
     welcome["host"] = true;
     welcome["motd"] = "";
-    welcome["players"] = json::array();
+    welcome["players"] = players;
     server.SendEvent(client, welcome);
     server.Log().Info("Anfitrión conectado (id " + std::to_string(client.id) + ")");
 }

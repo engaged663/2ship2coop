@@ -12,6 +12,7 @@
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Host/HostMode.h"
 #include "2s2h/Coop/Puppet/PuppetActor.h"
 #include "2s2h/Coop/Puppet/PuppetManager.h"
 #include "2s2h/Coop/World/WorldSession.h"
@@ -255,27 +256,34 @@ void OnShouldActorUpdate(Actor* actor, bool* should) {
 // ---- Owner ----
 
 // The Links an enemy of ours may chase: our own and every drawn puppet of our scene.
+// Every Link an enemy may go for. Ours first, except on the server's host: its Link is a ghost, so only the
+// puppets count there (it stays in the list alone when no puppet is around).
 std::vector<Player*> Links() {
     std::vector<Player*> out;
-    out.push_back((Player*)gPlayState->actorCtx.actorLists[ACTORCAT_PLAYER].first);
+    Player* local = (Player*)gPlayState->actorCtx.actorLists[ACTORCAT_PLAYER].first;
+    out.push_back(local);
     for (const auto& [id, remote] : Session_Players()) {
         Actor* puppet = PuppetManager_Actor(id);
         if (puppet != nullptr && puppet->update != nullptr && puppet->draw != nullptr) {
             out.push_back((Player*)puppet);
         }
     }
+    if (HostMode_Enabled() && out.size() > 1) {
+        out.erase(out.begin());
+    }
     return out;
 }
 
 Player* ChooseTarget(TrackedActor& t, bool* nearPuppet) {
     std::vector<Player*> links = Links();
+    Player* local = (Player*)gPlayState->actorCtx.actorLists[ACTORCAT_PLAYER].first;
     Player* best = links[0];
     float bestDist = Actor_WorldDistXYZToActor(t.actor, &best->actor);
     float currentDist = -1.f;
     *nearPuppet = false;
     for (Player* link : links) {
         float d = Actor_WorldDistXYZToActor(t.actor, &link->actor);
-        if (link != links[0] && d < kKeepUpdatingDist) {
+        if (link != local && d < kKeepUpdatingDist) {
             *nearPuppet = true;
         }
         if (&link->actor == t.target) {

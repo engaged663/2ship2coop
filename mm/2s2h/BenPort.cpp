@@ -1,3 +1,4 @@
+#include "2s2h/Coop/Host/HostMode.h" // [COOP]
 #include "BenPort.h"
 #include <iostream>
 #include <algorithm>
@@ -960,6 +961,7 @@ bool VerifyArchiveVersion(ArchiveVersion version) {
 }
 
 extern "C" void InitOTR(int argc, char* argv[]) {
+    coop::client::HostMode_ParseArgs(argc, argv); // [COOP] sub-project D: --coop-host <port> <token>
     OTRGlobals::Instance = new OTRGlobals();
     OTRGlobals::Instance->RunExtract(argc, argv);
 

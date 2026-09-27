@@ -24,6 +24,23 @@ NetClient::~NetClient() {
 
 void NetClient::Connect(const std::string& host, uint16_t port, const std::string& nick,
                         const std::string& password) {
+    json hello = MakeEvent(ev::kHello);
+    hello["proto"] = kProtocolVersion;
+    hello["nick"] = nick;
+    hello["pass"] = password;
+    Start(host, port, hello);
+}
+
+void NetClient::ConnectHost(const std::string& host, uint16_t port, const std::string& token) {
+    json hello = MakeEvent(ev::kHello);
+    hello["proto"] = kProtocolVersion;
+    hello["nick"] = kHostNick;
+    hello["host"] = true;
+    hello["token"] = token;
+    Start(host, port, hello);
+}
+
+void NetClient::Start(const std::string& host, uint16_t port, const json& hello) {
     mUserDisconnect = true;
     StopThread(); // the old session's "Lost" stays queued so the game cleans up before the new welcome
     {
@@ -32,11 +49,6 @@ void NetClient::Connect(const std::string& host, uint16_t port, const std::strin
         mLastError.clear();
         mServerLabel = host + ":" + std::to_string(port);
     }
-    json hello = MakeEvent(ev::kHello);
-    hello["proto"] = kProtocolVersion;
-    hello["nick"] = nick;
-    hello["pass"] = password;
-
     mUserDisconnect = false;
     mState = ConnState::Connecting;
     mRunning = true;

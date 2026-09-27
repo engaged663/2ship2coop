@@ -199,12 +199,14 @@ void SharedWorld::AssignCreator(RemoteClient& c) {
 
 void SharedWorld::NextCreator() {
     mCreator = 0;
-    for (size_t i = 0; i < mWaiting.size(); i++) {
+    size_t i = 0;
+    while (i < mWaiting.size()) {
         RemoteClient* next = mServer.Players().ByPeer(mWaiting[i]);
         if (next != nullptr && next->host) {
-            continue; // hosts never create the world
+            i++; // hosts never create the world: they stay in the queue until it exists
+            continue;
         }
-        mWaiting.erase(mWaiting.begin() + i);
+        mWaiting.erase(mWaiting.begin() + i); // the next entry is now at i
         if (next != nullptr && next->welcomed && !next->closing) {
             AssignCreator(*next);
             return;
