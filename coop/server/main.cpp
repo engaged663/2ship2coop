@@ -1,5 +1,6 @@
 // 2ship-coop-server: dedicated co-op server for 2 Ship 2 Harkinian.
-// Files live in the working directory: server.json (settings), bans.json, ops.json, logs/server.log.
+// Files live in the working directory: server.json (settings), bans.json, ops.json, world.json + players/
+// (the shared world, see World/SharedWorld.h) and logs/server.log.
 // Usage: 2ship-coop-server [--port N]
 #include "server/AccessLists.h"
 #include "server/Logger.h"
@@ -95,6 +96,8 @@ int main(int argc, char** argv) {
         log.Warn(accessWarnings);
     }
 
+    config.worldPath = "world.json";
+    config.playersDir = "players";
     Server server(config, access, log);
     if (!server.Start(&err)) {
         log.Error(err);

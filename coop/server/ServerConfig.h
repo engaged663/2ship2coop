@@ -13,6 +13,15 @@ struct ServerConfig {
     std::string motd = "Bienvenido al servidor co-op de Majora's Mask. Escribe /help para ver los comandos.";
     int handshakeTimeoutMs = kHandshakeTimeoutMs; // not stored in server.json (tests only)
     int giftTimeoutMs = kGiftTimeoutMs;           // not stored in server.json (tests only)
+    // Shared world files, set by main.cpp (world.json and players/ next to the exe); "" = memory only (tests).
+    std::string worldPath;
+    std::string playersDir;
+    // Not stored in server.json (tests only)
+    int voteTimeoutMs = kSotVoteMs;
+    int cycleComputeTimeoutMs = kCycleComputeMs;
+    int worldCreateTimeoutMs = kWorldCreateMs;
+    int worldSaveMs = kWorldSaveMs;
+    int clockBroadcastMs = kClockBroadcastMs;
 };
 
 // Reads path; if it does not exist it is created with the defaults. False (with err) on invalid JSON.

@@ -48,6 +48,12 @@ struct RemoteClient {
     TokenBucket streamBudget{ kStreamBurst, kStreamPerSecond };
     TokenBucket locBudget{ kLocBurst, kLocPerSecond };
     bool locDirty = false; // a location change is waiting for locBudget to be broadcast
+
+    // Shared world (sub-project B)
+    bool inWorld = false;     // playing in the server's world: gets its clock and changes, counts for votes
+    bool timeStopped = false; // in a scene where the original game stops time (from "loc"): the clock waits
+    TokenBucket wopsBudget{ kWopsBurst, kWopsPerSecond };
+    TokenBucket invBudget{ kInvBurst, kInvPerSecond };
 };
 
 class PlayerRegistry {

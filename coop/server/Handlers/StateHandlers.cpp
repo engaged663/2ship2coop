@@ -61,6 +61,11 @@ void OnLoc(Server& server, RemoteClient& client, const json& ev) {
         client.entrance = entrance; // used by /tp: never store an entrance the game lacks
     }
     client.sceneName = sceneName;
+    bool timeStopped = GetBool(ev, "timeStopped");
+    if (timeStopped != client.timeStopped) {
+        client.timeStopped = timeStopped;
+        server.World().UpdateClock();
+    }
     client.locDirty = client.locDirty || changed;
     FlushLoc(server, client);
 }

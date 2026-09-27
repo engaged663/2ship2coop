@@ -1,0 +1,50 @@
+// Shared world events (sub-project B): entering/leaving the server's world, creating it, world changes (wops)
+// and inventory uploads. The logic lives in World/SharedWorld.cpp.
+#include "server/Registry.h"
+#include "server/Server.h"
+
+namespace coop::server {
+
+namespace {
+
+void OnEnter(Server& server, RemoteClient& client, const json&) {
+    server.World().Enter(client);
+}
+
+void OnLeave(Server& server, RemoteClient& client, const json&) {
+    server.World().Leave(client, false);
+}
+
+void OnInit(Server& server, RemoteClient& client, const json& ev) {
+    server.World().Create(client, ev);
+}
+
+void OnWops(Server& server, RemoteClient& client, const json& ev) {
+    server.World().ApplyOps(client, ev);
+}
+
+void OnInv(Server& server, RemoteClient& client, const json& ev) {
+    server.World().Upload(client, ev);
+}
+
+void OnDisconnect(Server& server, RemoteClient& client) {
+    if (client.welcomed) {
+        server.World().Leave(client, true);
+    }
+}
+
+void OnTick(Server& server) {
+    server.World().Tick();
+}
+
+} // namespace
+
+COOP_SERVER_EVENT(worldEnter, ev::kWorldEnter, true, OnEnter);
+COOP_SERVER_EVENT(worldLeave, ev::kWorldLeave, true, OnLeave);
+COOP_SERVER_EVENT(worldInit, ev::kWorldInit, true, OnInit);
+COOP_SERVER_EVENT(worldOps, ev::kWops, true, OnWops);
+COOP_SERVER_EVENT(worldInv, ev::kInv, true, OnInv);
+COOP_SERVER_ON_DISCONNECT(worldDisconnect, OnDisconnect);
+COOP_SERVER_ON_TICK(worldTick, OnTick);
+
+} // namespace coop::server

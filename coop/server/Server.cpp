@@ -18,15 +18,17 @@ std::string Describe(const RemoteClient& c) {
 } // namespace
 
 Server::Server(const ServerConfig& config, AccessLists& access, Logger& log)
-    : mConfig(config), mAccess(access), mLog(log) {
+    : mConfig(config), mAccess(access), mLog(log), mWorld(*this, config.worldPath, config.playersDir) {
 }
 
 Server::~Server() {
+    mWorld.Flush(); // also saved when stopping; this covers a server destroyed without Stop
     mTransport.Close();
 }
 
 bool Server::Start(std::string* err) {
     mStartTime = std::chrono::steady_clock::now();
+    mWorld.Load();
     // Extra slots let a client connect just to be told why it cannot join (full, banned...).
     if (!mTransport.Listen(mConfig.port, (size_t)mConfig.maxPlayers + 4, err)) {
         return false;
@@ -218,6 +220,7 @@ void Server::Stop(const std::string& reason) {
     if (!mRunning || mStopping) {
         return;
     }
+    mWorld.Flush();
     mLog.Info("Deteniendo el servidor: " + reason);
     for (RemoteClient* c : mPlayers.Welcomed()) {
         SendSystem(c, "Servidor detenido: " + reason, level::kWarn);

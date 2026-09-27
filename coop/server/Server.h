@@ -6,6 +6,7 @@
 #include "Logger.h"
 #include "PlayerRegistry.h"
 #include "ServerConfig.h"
+#include "World/SharedWorld.h"
 #include "common/Events.h"
 #include "common/Protocol.h"
 #include "common/Transport.h"
@@ -48,6 +49,9 @@ class Server {
     GiftManager& Gifts() {
         return mGifts;
     }
+    SharedWorld& World() {
+        return mWorld;
+    }
     const ServerConfig& Config() const {
         return mConfig;
     }
@@ -68,6 +72,7 @@ class Server {
     Transport mTransport;
     PlayerRegistry mPlayers;
     GiftManager mGifts;
+    SharedWorld mWorld; // after mPlayers: it reads the registry
     bool mRunning = false;
     bool mStopping = false;
     int64_t mStopDeadlineMs = 0;
