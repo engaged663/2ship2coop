@@ -4,6 +4,8 @@
 
 #include "PuppetManager.h"
 
+#include "2s2h/Coop/Actors/HitSync.h"
+
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/NameTag/NameTag.h"
 
@@ -160,6 +162,7 @@ static void EnCoopPuppet_Update(Actor* thisx, PlayState* play) {
     if (PuppetManager_GetCurrent(self->playerId, state)) {
         ApplyState(self, state, play);
     }
+    coop::client::HitSync_PuppetUpdate(thisx, self->playerId, play); // [COOP] C: enemies of ours can hit it
     // No draw function = no body, no shadow and no nametag (NameTag only follows drawn actors).
     bool visible = self->hasState && !self->hidden && !(self->player.stateFlags2 & PLAYER_STATE2_20000000);
     thisx->draw = visible ? EnCoopPuppet_Draw : nullptr;

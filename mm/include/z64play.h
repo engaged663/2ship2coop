@@ -134,7 +134,16 @@ typedef enum PictoPhotoState {
 } PictoPhotoState;
 
 #define GET_ACTIVE_CAM(play) ((play)->cameraPtrs[(play)->activeCamId])
-#define GET_PLAYER(play) ((Player*)(play)->actorCtx.actorLists[ACTORCAT_PLAYER].first)
+// [COOP] While a shared enemy updates, GET_PLAYER is the Link it chases (2s2h/Coop/Actors/CoopEngine.h).
+#ifdef __cplusplus
+extern "C"
+#else
+extern
+#endif
+    struct Player* gCoopPlayerOverride;
+#define GET_PLAYER(play) \
+    ((gCoopPlayerOverride != NULL) ? gCoopPlayerOverride \
+                                   : (Player*)(play)->actorCtx.actorLists[ACTORCAT_PLAYER].first)
 #define GET_FIRST_ENEMY(play) ((Actor*)(play)->actorCtx.actorLists[ACTORCAT_ENEMY].first)
 
 

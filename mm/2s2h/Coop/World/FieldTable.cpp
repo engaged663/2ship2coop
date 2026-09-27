@@ -1,5 +1,7 @@
 #include "FieldTable.h"
 
+#include "2s2h/Coop/Actors/LiveFlags.h"
+
 #include "common/Hex.h"
 #include "common/WorldFields.h"
 #include "common/WorldRules.h"
@@ -20,6 +22,9 @@ extern "C" {
 namespace coop::client::fields {
 
 namespace {
+
+using coop::client::LiveFlagType;
+using coop::client::LiveFlags_OnRemoteFlag;
 
 constexpr int kScenes = 120;
 static_assert(sizeof(gSaveContext.cycleSceneFlags) == kScenes * sizeof(CycleSceneFlags), "cycleSceneFlags");
@@ -44,10 +49,14 @@ SaveInfo& Info() {
     return gSaveContext.save.saveInfo;
 }
 
-// Engine bits that belong to this game only: "a scene is loaded" (92_80) and the leftovers the map select also
-// clears when it loads a save (z_select.c).
-constexpr uint16_t kLocalWeekEventFlags[] = { WEEKEVENTREG_92_80, WEEKEVENTREG_08_01, WEEKEVENTREG_KICKOUT_WAIT,
-                                              WEEKEVENTREG_82_08, WEEKEVENTREG_90_20 };
+// Engine bits that belong to this game only: "a scene is loaded" (92_80), the state of Gorman's horse race
+// (92 & 7: a value, not progress, so each game runs its own race) and the leftovers the map select also clears when
+// it loads a save (z_select.c).
+constexpr uint16_t kLocalWeekEventFlags[] = {
+    WEEKEVENTREG_92_80, PACK_WEEKEVENTREG_FLAG(92, WEEKEVENTREG_HORSE_RACE_STATE_MASK),
+    WEEKEVENTREG_08_01, WEEKEVENTREG_KICKOUT_WAIT,
+    WEEKEVENTREG_82_08, WEEKEVENTREG_90_20,
+};
 
 uint8_t LocalWeekEventMask(int index) {
     uint8_t mask = 0;
@@ -73,7 +82,20 @@ void WriteWeekEvents(const uint8_t* in) {
 }
 
 // The loaded scene keeps its flags in actorCtx.sceneFlags (the same rules as Play_SaveCycleSceneFlags).
+// Bits that a remote change turned on in the loaded scene: the actors that only read their flag when created are
+// removed at once (sub-project C, LiveFlags.cpp). Flag 0 means "no flag" for collectibles.
+void NotifyNewBits(LiveFlagType type, uint32_t before, uint32_t after, int base) {
+    uint32_t added = after & ~before;
+    for (int bit = 0; bit < 32; bit++) {
+        int flag = base + bit;
+        if ((added & (1u << bit)) && !(type == LiveFlagType::Collectible && flag == 0)) {
+            LiveFlags_OnRemoteFlag(type, flag);
+        }
+    }
+}
+
 void LoadCurrentSceneFlags(PlayState* play) {
+    ActorContextSceneFlags before = play->actorCtx.sceneFlags;
     CycleSceneFlags* flags = &gSaveContext.cycleSceneFlags[Play_GetOriginalSceneId(play->sceneId)];
     play->actorCtx.sceneFlags.chest = flags->chest;
     play->actorCtx.sceneFlags.switches[0] = flags->switch0;
@@ -83,6 +105,12 @@ void LoadCurrentSceneFlags(PlayState* play) {
     }
     play->actorCtx.sceneFlags.collectible[0] = flags->collectible;
     play->actorCtx.sceneFlags.clearedRoom = flags->clearedRoom;
+
+    const ActorContextSceneFlags& after = play->actorCtx.sceneFlags;
+    NotifyNewBits(LiveFlagType::Chest, before.chest, after.chest, 0);
+    NotifyNewBits(LiveFlagType::Switch, before.switches[0], after.switches[0], 0);
+    NotifyNewBits(LiveFlagType::Switch, before.switches[1], after.switches[1], 32);
+    NotifyNewBits(LiveFlagType::Collectible, before.collectible[0], after.collectible[0], 0);
 }
 
 void ReadSceneFlags(uint8_t* out) {

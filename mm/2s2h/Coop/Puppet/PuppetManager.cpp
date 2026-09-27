@@ -134,6 +134,11 @@ bool PuppetManager_GetCurrent(uint8_t playerId, coop::PlayerState& out) {
     return true;
 }
 
+Actor* PuppetManager_Actor(uint8_t playerId) {
+    auto it = sBodies.find(playerId);
+    return it == sBodies.end() ? nullptr : it->second.actor;
+}
+
 void PuppetManager_OnPuppetDestroyed(uint8_t playerId, Actor* actor) {
     auto it = sBodies.find(playerId);
     if (it != sBodies.end() && it->second.actor == actor) {

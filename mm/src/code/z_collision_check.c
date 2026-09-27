@@ -1,3 +1,4 @@
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "z64collision_check.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 
@@ -131,6 +132,7 @@ s32 Collider_SetBaseToActor(struct PlayState* play, Collider* col, ColliderInitT
     col->ocFlags1 = src->ocFlags1;
     col->ocFlags2 = OC2_TYPE_1;
     col->shape = src->shape;
+    Coop_OnColliderSet(col); // [COOP]
     return 1;
 }
 
@@ -145,6 +147,7 @@ s32 Collider_SetBaseType1(struct PlayState* play, Collider* col, Actor* actor, C
     col->ocFlags1 = src->ocFlags1;
     col->ocFlags2 = OC2_TYPE_1;
     col->shape = src->shape;
+    Coop_OnColliderSet(col); // [COOP]
     return 1;
 }
 
@@ -156,6 +159,7 @@ s32 Collider_SetBase(struct PlayState* play, Collider* col, Actor* actor, Collid
     col->ocFlags1 = src->ocFlags1;
     col->ocFlags2 = src->ocFlags2;
     col->shape = src->shape;
+    Coop_OnColliderSet(col); // [COOP]
     return 1;
 }
 

@@ -1639,7 +1639,12 @@ void Player_ClearZTargeting(Player* player) {
  * when it switches from "friendly" mode to "hostile" mode.
  */
 void Player_SetAutoLockOnActor(PlayState* play, Actor* actor) {
-    Player* this = GET_PLAYER(play);
+    Player* this;
+
+    if (gCoopPlayerOverride != NULL) { // [COOP] a shared enemy chasing another player's puppet
+        return;
+    }
+    this = GET_PLAYER(play);
 
     Player_ClearZTargeting(this);
     this->focusActor = actor;

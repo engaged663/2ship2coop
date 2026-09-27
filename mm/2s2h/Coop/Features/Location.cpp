@@ -20,11 +20,20 @@ namespace {
 int16_t sLastScene = -2;
 int8_t sLastRoom = -2;
 bool sLastTimeStopped = false;
+bool sLastBusy = false;
+
+// Paused, reading a text or in a cutscene: the enemies we simulate would freeze for everyone, so the server hands
+// our rooms to someone else meanwhile (sub-project C).
+bool Busy() {
+    return IS_PAUSED(&gPlayState->pauseCtx) || gPlayState->msgCtx.msgMode != MSGMODE_NONE ||
+           Player_InCsMode(gPlayState);
+}
 
 void Reset() {
     sLastScene = -2;
     sLastRoom = -2;
     sLastTimeStopped = false;
+    sLastBusy = false;
 }
 
 void LocationTick() {
@@ -34,9 +43,11 @@ void LocationTick() {
     int16_t scene = gPlayState->sceneId;
     int8_t room = gPlayState->roomCtx.curRoom.num;
     bool timeStopped = gPlayState->envCtx.sceneTimeSpeed == 0;
-    if (scene == sLastScene && room == sLastRoom && timeStopped == sLastTimeStopped) {
+    bool busy = Busy();
+    if (scene == sLastScene && room == sLastRoom && timeStopped == sLastTimeStopped && busy == sLastBusy) {
         return;
     }
+    sLastBusy = busy;
     sLastScene = scene;
     sLastRoom = room;
     sLastTimeStopped = timeStopped;
@@ -47,6 +58,7 @@ void LocationTick() {
     const char* name = Ship_GetSceneName(scene);
     ev["sceneName"] = name != nullptr ? name : "";
     ev["timeStopped"] = timeStopped;
+    ev["busy"] = busy;
     coop::client::NetClient::Get().SendEvent(ev);
 }
 

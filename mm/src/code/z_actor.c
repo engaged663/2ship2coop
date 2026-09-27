@@ -26,6 +26,7 @@
 #include <string.h>
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/BenPort.h"
 #include "2s2h/ShipUtils.h"
 #include "2s2h/ObjectExtension/ObjectExtension.h"
@@ -1289,7 +1290,9 @@ void Actor_Init(Actor* actor, PlayState* play) {
         Actor_SetObjectDependency(play, actor);
 
         if (GameInteractor_ShouldActorInit(actor)) {
+            Coop_ActorInitBegin(actor); // [COOP]
             actor->init(actor, play);
+            Coop_ActorInitEnd(actor); // [COOP]
             actor->init = NULL;
             GameInteractor_ExecuteOnActorInit(actor);
         } else {
@@ -2459,7 +2462,12 @@ s32 Actor_HasNoRider(PlayState* play, Actor* horse) {
 }
 
 void func_800B8D10(PlayState* play, Actor* actor, f32 arg2, s16 arg3, f32 arg4, s32 arg5, u32 arg6) {
-    Player* player = GET_PLAYER(play);
+    Player* player;
+
+    if (Coop_OnKnockback(play, actor, arg2, arg3, arg4, arg5, arg6)) { // [COOP] aimed at another player
+        return;
+    }
+    player = GET_PLAYER(play);
 
     player->unk_B74 = arg6;
     player->unk_B75 = arg5;
@@ -2502,6 +2510,7 @@ void Player_PlaySfx(Player* player, u16 sfxId) {
  * Play a sound effect at the actor's position
  */
 void Actor_PlaySfx(Actor* actor, u16 sfxId) {
+    Coop_OnActorSfx(actor, sfxId); // [COOP]
     Audio_PlaySfx_AtPos(&actor->projectedPos, sfxId);
 }
 
@@ -2718,7 +2727,9 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
             Actor_SetObjectDependency(play, actor);
 
             if (GameInteractor_ShouldActorInit(actor)) {
+                Coop_ActorInitBegin(actor); // [COOP]
                 actor->init(actor, play);
+                Coop_ActorInitEnd(actor); // [COOP]
                 actor->init = NULL;
                 GameInteractor_ExecuteOnActorInit(actor);
             } else {
@@ -2745,15 +2756,22 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
                     (actor->parent != &params->player->actor))) {
             CollisionCheck_ResetDamage(&actor->colChkInfo);
         } else {
+            // [COOP] A shared enemy measures its distances to the Link it chases (ours or a remote player's
+            // puppet) and may have to update outside our camera (another player is next to it).
+            s32 coopForceUpdate = false;
+            Player* coopTarget = Coop_ActorUpdateBegin(play, actor, &coopForceUpdate);
+            Player* target = (coopTarget != NULL) ? coopTarget : params->player;
+
             Math_Vec3f_Copy(&actor->prevPos, &actor->world.pos);
-            actor->xzDistToPlayer = Actor_WorldDistXZToActor(actor, &params->player->actor);
-            actor->playerHeightRel = Actor_HeightDiff(actor, &params->player->actor);
+            actor->xzDistToPlayer = Actor_WorldDistXZToActor(actor, &target->actor);
+            actor->playerHeightRel = Actor_HeightDiff(actor, &target->actor);
             actor->xyzDistToPlayerSq = SQ(actor->xzDistToPlayer) + SQ(actor->playerHeightRel);
 
-            actor->yawTowardsPlayer = Actor_WorldYawTowardActor(actor, &params->player->actor);
+            actor->yawTowardsPlayer = Actor_WorldYawTowardActor(actor, &target->actor);
             actor->flags &= ~ACTOR_FLAG_SFX_FOR_PLAYER_BODY_HIT;
 
-            if ((DECR(actor->freezeTimer) == 0) && (actor->flags & params->updateActorFlagsMask)) {
+            if ((DECR(actor->freezeTimer) == 0) &&
+                ((actor->flags & params->updateActorFlagsMask) || coopForceUpdate)) { // [COOP]
                 if (actor == params->player->focusActor) {
                     actor->isLockedOn = true;
                 } else {
@@ -2776,6 +2794,7 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
                 }
                 DynaPoly_UnsetAllInteractFlags(play, &play->colCtx.dyna, actor);
             }
+            Coop_ActorUpdateEnd(play, actor); // [COOP]
 
             CollisionCheck_ResetDamage(&actor->colChkInfo);
         }

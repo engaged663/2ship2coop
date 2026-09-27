@@ -1,5 +1,6 @@
 // Core of the co-op mod inside the game: the order of the per-frame work. Every feature file (chat, puppets,
 // location...) registers its own hooks with RegisterShipInitFunc. Map of the module: coop/README.md.
+#include "2s2h/Coop/Actors/ActorSync.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/World/ClockSync.h"
@@ -18,10 +19,11 @@ static void RegisterCoop() {
         coop::client::WorldSession_FrameStart();
         coop::client::ClockSync_FrameStart();
     });
-    // ...and ends by sending what changed in the world.
+    // ...and ends by sending what changed in the world and the state of the enemies we simulate.
     COND_HOOK(OnGameStateMainFinish, true, []() {
         coop::client::WorldSync_FrameEnd();
         coop::client::WorldSession_FrameEnd();
+        coop::client::ActorSync_FrameEnd();
     });
 
     static bool sAutoConnected = false; // presets run this function again

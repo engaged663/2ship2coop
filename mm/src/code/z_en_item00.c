@@ -1,4 +1,5 @@
 #include "global.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "overlays/actors/ovl_En_Elforg/z_en_elforg.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/object_gi_hearts/object_gi_hearts.h"
@@ -917,7 +918,34 @@ s16 func_800A7650(s16 dropId) {
     return dropId;
 }
 
+// [COOP] Drops of a shared enemy are also dropped by the other games of the scene (each gets its own). Both drop
+// functions call each other, so only the outermost call is reported.
+static s32 sCoopDropDepth = 0;
+static Actor* Item_DropCollectibleImpl(PlayState* play, Vec3f* spawnPos, u32 params);
+static void Item_DropCollectibleRandomImpl(PlayState* play, Actor* fromActor, Vec3f* spawnPos, s16 params);
+
 Actor* Item_DropCollectible(PlayState* play, Vec3f* spawnPos, u32 params) {
+    Actor* spawned;
+
+    if (sCoopDropDepth == 0) {
+        Coop_OnDrop(play, spawnPos, (s32)params, 1);
+    }
+    sCoopDropDepth++;
+    spawned = Item_DropCollectibleImpl(play, spawnPos, params);
+    sCoopDropDepth--;
+    return spawned;
+}
+
+void Item_DropCollectibleRandom(PlayState* play, Actor* fromActor, Vec3f* spawnPos, s16 params) {
+    if (sCoopDropDepth == 0) {
+        Coop_OnDrop(play, spawnPos, params, 0);
+    }
+    sCoopDropDepth++;
+    Item_DropCollectibleRandomImpl(play, fromActor, spawnPos, params);
+    sCoopDropDepth--;
+}
+
+static Actor* Item_DropCollectibleImpl(PlayState* play, Vec3f* spawnPos, u32 params) {
 
     s32 pad;
     Actor* spawnedActor = NULL;
@@ -1336,7 +1364,7 @@ u8 sDropTableAmounts[DROP_TABLE_SIZE * DROP_TABLE_NUMBER] = {
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 };
 
-void Item_DropCollectibleRandom(PlayState* play, Actor* fromActor, Vec3f* spawnPos, s16 params) {
+static void Item_DropCollectibleRandomImpl(PlayState* play, Actor* fromActor, Vec3f* spawnPos, s16 params) {
 
     EnItem00* spawnedActor;
     u8 dropId;

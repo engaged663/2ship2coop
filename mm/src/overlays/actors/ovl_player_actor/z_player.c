@@ -735,7 +735,7 @@ u8 D_8085BA20[PLAYER_LIMB_MAX] = {
 
 void Player_RequestRumble(PlayState* play, Player* this, s32 sourceIntensity, s32 decayTimer, s32 decayStep,
                           s32 distSq) {
-    if (this == GET_PLAYER(play)) {
+    if (this == (Player*)play->actorCtx.actorLists[ACTORCAT_PLAYER].first) { // [COOP] not a remote puppet
         Rumble_Request(distSq, sourceIntensity, decayTimer, decayStep);
     }
 }

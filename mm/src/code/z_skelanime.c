@@ -1,3 +1,4 @@
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "global.h"
 #include "BenPort.h"
 #include <string.h>
@@ -1629,6 +1630,7 @@ s32 PlayerAnimation_OnFrame(SkelAnime* skelAnime, f32 frame) {
  */
 void SkelAnime_Init(PlayState* play, SkelAnime* skelAnime, SkeletonHeader* skeletonHeaderSeg,
                     AnimationHeader* animation, Vec3s* jointTable, Vec3s* morphTable, s32 limbCount) {
+    Coop_OnSkelAnimeInit(skelAnime); // [COOP]
     SkeletonHeader* skeletonHeader;
 
     if (ResourceMgr_OTRSigCheck(skeletonHeaderSeg))
@@ -1655,6 +1657,7 @@ void SkelAnime_Init(PlayState* play, SkelAnime* skelAnime, SkeletonHeader* skele
  */
 void SkelAnime_InitFlex(PlayState* play, SkelAnime* skelAnime, FlexSkeletonHeader* skeletonHeaderSeg,
                         AnimationHeader* animation, Vec3s* jointTable, Vec3s* morphTable, s32 limbCount) {
+    Coop_OnSkelAnimeInit(skelAnime); // [COOP]
     if (ResourceMgr_OTRSigCheck(skeletonHeaderSeg)) {
         skeletonHeaderSeg = ResourceMgr_LoadSkeletonByName(skeletonHeaderSeg, NULL);
     }

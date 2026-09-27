@@ -34,6 +34,7 @@ en tiempo real, cambios en el motor). Diseño de B: docs/superpowers/specs/2026-
 | `WorldOps.*` | cambios del mundo: diferencias, aplicar validado, JSON; servidor y juego |
 | `Clock.*` | reloj de 3 días: abs ↔ día/hora, formato, regla de seguimiento del juego |
 | `WorldRules.*` | reglas del juego original que el mundo aplica fuera de él (espadas que robó Takkuri) |
+| `ActorState.*` | stream binario de los enemigos compartidos de una sala (C): registros, partes, límites |
 
 ### `coop/server/`
 | Archivo | Responsabilidad |
@@ -62,6 +63,8 @@ en tiempo real, cambios en el motor). Diseño de B: docs/superpowers/specs/2026-
 | `Handlers/WorldHandlers.cpp` | `world_enter/world_leave/world_init/wops/inv/cycle_result` |
 | `Handlers/ClockHandlers.cpp` | `clock_jump/clock_speed/sot_propose` |
 | `Commands/WorldCommands.cpp` | `/tiempo /si /no /settime /mundo /reiniciar` |
+| `World/RoomAuthority.*` | C: quién simula los enemigos de cada (escena, sala): el que lleva más tiempo y no está ocupado |
+| `Handlers/ActorHandlers.cpp` | C: `auth` y reenvío del stream de enemigos, `hit`, `hurt`, `drop` (con sus reglas) |
 
 ### `mm/2s2h/Coop/` (juego)
 | Archivo | Responsabilidad |
@@ -75,7 +78,15 @@ en tiempo real, cambios en el motor). Diseño de B: docs/superpowers/specs/2026-
 | `Puppet/PoseCapture.*` | envía la pose del Link local cada frame (whitelist de flags de estado) |
 | `Puppet/PuppetManager.*` | un actor marioneta por jugador remoto en mi escena; búfer anti-jitter |
 | `Puppet/PuppetActor.*` | actor `En_CoopPuppet`: estructura `Player` completa dibujada con `Player_Draw` |
-| `Features/Location.cpp` | envía `loc` al cambiar de escena/sala |
+| `Features/Location.cpp` | envía `loc` al cambiar de escena/sala o de estado ocupado (pausa, texto, cinemática) |
+| `Actors/CoopEngine.h` | C: la API en C que llaman los cambios `[COOP]` del motor |
+| `Actors/SharedActors.*` | C: **la lista de enemigos compartidos** (añadir uno = una línea) y su estado de dibujo |
+| `Actors/ActorRegistry.*` | C: los enemigos compartidos de la escena, su clave, esqueleto y colisiones |
+| `Actors/Authority.*` | C: la tabla `auth` en el juego |
+| `Actors/ActorSync.*` | C: la autoridad transmite; los demás aplican réplicas; objetivo = el Link más cercano |
+| `Actors/HitSync.*` | C: golpes a réplicas (`hit`) y de enemigos a otros jugadores (`hurt`), inyectados en las colisiones |
+| `Actors/DropSync.cpp` | C: cada juego tira sus propios objetos cuando muere un enemigo compartido |
+| `Actors/LiveFlags.*` | C: borra al momento los objetos únicos que recogió otro (fichas, hadas, piezas de corazón) |
 | `Features/Teleport.cpp` | aplica `tp`: mover en la misma sala o viajar con el sistema de reaparición |
 | `Features/Warp.*` | warp por reaparición: /tp y la entrada al mundo |
 | `Features/Gift.cpp` | pagar / recibir / reembolsar rupias |
