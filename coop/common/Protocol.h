@@ -10,6 +10,8 @@ constexpr uint32_t kProtocolVersion = 3; // v3: shared enemies (sub-project C)
 constexpr uint16_t kDefaultPort = 7780; // UDP
 
 constexpr int kMaxPlayers = 4;
+constexpr int kMaxHosts = 4;           // headless games of the server (sub-project D): one per busy scene
+inline constexpr const char* kHostNick = "#host"; // their nick (no player can take it: '#' is not allowed)
 constexpr int kNickMin = 3;
 constexpr int kNickMax = 16;
 constexpr int kChatMaxChars = 150;    // after sanitizing, in UTF-8 code points
@@ -62,7 +64,7 @@ enum Channel : uint8_t {
 
 // Event names (JSON field "t"). Direction and fields are documented in coop/README.md.
 namespace ev {
-inline constexpr const char* kHello = "hello";             // C->S proto, nick, pass
+inline constexpr const char* kHello = "hello";             // C->S proto, nick, pass (+ host, token: the server's own game)
 inline constexpr const char* kWelcome = "welcome";         // S->C id, nick, motd, players[]
 inline constexpr const char* kReject = "reject";           // S->C reason
 inline constexpr const char* kKicked = "kicked";           // S->C reason
@@ -97,6 +99,8 @@ inline constexpr const char* kAuth = "auth"; // S->C scene, rooms[[room, id]...]
 inline constexpr const char* kHit = "hit";   // C->S scene, room, key, col, elem, dmgFlags, effect, damage, hitEffect, pos[3], attackerId, form; S->C + from
 inline constexpr const char* kHurt = "hurt"; // C->S to, kind, dmgFlags, effect, damage, hitEffect, pos[3], knock{}; S->C + from
 inline constexpr const char* kDrop = "drop"; // C->S scene, room, pos[3], params, fn; S->C + from
+// Server-side simulation (sub-project D)
+inline constexpr const char* kHostFollow = "host_follow"; // S->C (host only) id: the player whose room to keep loaded
 } // namespace ev
 
 // Levels used by "sys" events.

@@ -42,12 +42,33 @@ bool OwnsAnyRoomOf(const RemoteClient& c, int16_t scene) {
 // Everyone else taking part who is in that scene.
 std::vector<RemoteClient*> SceneMates(Server& server, const RemoteClient& from, int16_t scene) {
     std::vector<RemoteClient*> out;
-    for (RemoteClient* other : server.Players().Welcomed()) {
+    for (RemoteClient* other : server.Players().WelcomedAll()) {
         if (other != &from && Takes(server, *other) && other->scene == scene) {
             out.push_back(other);
         }
     }
     return out;
+}
+
+// Every host keeps loaded the room of one player of its scene: the one there longest (the host moves its invisible
+// Link there). Sent when it changes.
+void TickHostFollow(Server& server) {
+    for (RemoteClient* host : server.Players().WelcomedHosts()) {
+        RemoteClient* best = nullptr;
+        for (RemoteClient* p : server.Players().Welcomed()) {
+            if (Takes(server, *p) && p->scene == host->scene && p->scene >= 0 &&
+                (best == nullptr || p->roomSinceMs < best->roomSinceMs)) {
+                best = p;
+            }
+        }
+        uint8_t id = best != nullptr ? best->id : 0;
+        if (id != host->followId) {
+            host->followId = id;
+            json ev = MakeEvent(ev::kHostFollow);
+            ev["id"] = id;
+            server.SendEvent(*host, ev);
+        }
+    }
 }
 
 json AuthEventFor(const RemoteClient& c, bool takes) {
@@ -68,13 +89,13 @@ json AuthEventFor(const RemoteClient& c, bool takes) {
 // Recomputes the owners and sends "auth" to whoever's view of its scene changed.
 void TickAuthority(Server& server) {
     std::vector<AuthMember> members;
-    for (RemoteClient* c : server.Players().Welcomed()) {
+    for (RemoteClient* c : server.Players().WelcomedAll()) {
         if (Takes(server, *c)) {
-            members.push_back({ c->id, c->scene, c->room, c->busy, c->roomSinceMs });
+            members.push_back({ c->id, c->scene, c->room, c->busy, c->roomSinceMs, c->host });
         }
     }
     sOwners = ComputeAuthority(members);
-    for (RemoteClient* c : server.Players().Welcomed()) {
+    for (RemoteClient* c : server.Players().WelcomedAll()) {
         bool takes = Takes(server, *c);
         if (!takes && c->authSent.empty()) {
             continue; // never took part: nothing to take back
@@ -86,6 +107,7 @@ void TickAuthority(Server& server) {
             server.SendEvent(*c, ev);
         }
     }
+    TickHostFollow(server);
 }
 
 void OnActors(Server& server, RemoteClient& client, uint8_t* data, size_t size) {

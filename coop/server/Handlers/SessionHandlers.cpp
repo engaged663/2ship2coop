@@ -12,6 +12,30 @@ json PlayerSummary(const RemoteClient& c) {
     return { { "id", c.id }, { "nick", c.nick }, { "scene", c.scene }, { "sceneName", c.sceneName } };
 }
 
+// The server's own headless game (sub-project D): it must show the server's secret. It is not a player: no slot,
+// no join/leave messages, not in /list.
+void WelcomeHost(Server& server, RemoteClient& client, const std::string& token) {
+    const std::string& expected = server.Config().hostToken;
+    if (expected.empty() || token != expected) {
+        return server.Reject(client, "Este servidor no acepta anfitriones con esa clave.");
+    }
+    if ((int)server.Players().WelcomedHosts().size() >= kMaxHosts) {
+        return server.Reject(client, "Ya hay demasiados anfitriones conectados.");
+    }
+    client.id = server.Players().AllocateId();
+    client.nick = kHostNick;
+    client.host = true;
+    client.welcomed = true;
+    json welcome = MakeEvent(ev::kWelcome);
+    welcome["id"] = client.id;
+    welcome["nick"] = client.nick;
+    welcome["host"] = true;
+    welcome["motd"] = "";
+    welcome["players"] = json::array();
+    server.SendEvent(client, welcome);
+    server.Log().Info("Anfitrión conectado (id " + std::to_string(client.id) + ")");
+}
+
 void OnHello(Server& server, RemoteClient& client, const json& ev) {
     if (client.welcomed) {
         return; // a second hello is ignored
@@ -24,6 +48,9 @@ void OnHello(Server& server, RemoteClient& client, const json& ev) {
         return server.Reject(client, "Versión incompatible: el servidor usa el protocolo v" +
                                          std::to_string(kProtocolVersion) + " y tu juego el v" +
                                          std::to_string(proto) + ". Usad la misma versión del mod.");
+    }
+    if (GetBool(ev, "host")) {
+        return WelcomeHost(server, client, GetString(ev, "token"));
     }
     if (server.Players().WelcomedCount() >= server.Config().maxPlayers) {
         return server.Reject(client, "El servidor está lleno (" + std::to_string(server.Config().maxPlayers) +
@@ -70,6 +97,10 @@ void OnHello(Server& server, RemoteClient& client, const json& ev) {
 
 void OnDisconnect(Server& server, RemoteClient& client) {
     if (!client.welcomed) {
+        return;
+    }
+    if (client.host) {
+        server.Log().Info("Anfitrión desconectado (id " + std::to_string(client.id) + ")");
         return;
     }
     std::string reason = client.leaveReason.empty() ? "desconectado" : client.leaveReason;

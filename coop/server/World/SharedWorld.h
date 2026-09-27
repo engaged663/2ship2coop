@@ -62,7 +62,8 @@ class SharedWorld {
 
   private:
     int64_t Now() const;
-    std::vector<RemoteClient*> InWorld();
+    std::vector<RemoteClient*> InWorld();   // players in the world (hosts never vote, stop the clock or compute)
+    std::vector<RemoteClient*> Receivers(); // players and hosts: every game that follows the world
     std::vector<uint32_t> EligiblePeers();
     json ClockJson();
     void SendClock(RemoteClient* to, bool jump); // to == nullptr: everyone in the world

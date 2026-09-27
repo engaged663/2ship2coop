@@ -24,7 +24,7 @@ void SharedWorld::TickCycle(int64_t now) {
 }
 
 void SharedWorld::RequestJump(RemoteClient& c) {
-    if (!c.inWorld) {
+    if (!c.inWorld || c.host) {
         return;
     }
     int64_t now = Now();
@@ -45,7 +45,7 @@ void SharedWorld::RequestJump(RemoteClient& c) {
 }
 
 void SharedWorld::RequestSpeed(RemoteClient& c, bool inverted) {
-    if (!c.inWorld) {
+    if (!c.inWorld || c.host) {
         return;
     }
     if (inverted != mClock.Inverted()) {
@@ -59,7 +59,7 @@ void SharedWorld::RequestSpeed(RemoteClient& c, bool inverted) {
 }
 
 void SharedWorld::ProposeSot(RemoteClient& c) {
-    if (!c.inWorld) {
+    if (!c.inWorld || c.host) {
         return;
     }
     if (mResetting) {
@@ -179,7 +179,7 @@ void SharedWorld::CycleResult(RemoteClient& c, const json& ev) {
     mClock.SetInverted(false, now);
     UpdateClock();
     Flush();
-    for (RemoteClient* p : InWorld()) {
+    for (RemoteClient* p : Receivers()) {
         mServer.SendEvent(*p, FullEvent(*p, "sot"));
     }
     mServer.Log().Info("Empieza el ciclo " + std::to_string(mStore.Cycle()) + ".");
@@ -197,7 +197,7 @@ void SharedWorld::MoonFalls() {
     Flush();
     Announce("La luna ha caído. Volvéis al Amanecer del Primer Día con lo que teníais al empezar el ciclo.",
              level::kWarn, nullptr);
-    for (RemoteClient* p : InWorld()) {
+    for (RemoteClient* p : Receivers()) {
         mServer.SendEvent(*p, FullEvent(*p, "moon"));
     }
 }

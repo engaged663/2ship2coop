@@ -41,7 +41,7 @@ RemoteClient* PlayerRegistry::ByPeer(uint32_t peer) {
 
 RemoteClient* PlayerRegistry::ByNick(const std::string& nick) {
     for (auto& c : mClients) {
-        if (c->welcomed && EqualsIgnoreCase(c->nick, nick)) {
+        if (c->welcomed && !c->host && EqualsIgnoreCase(c->nick, nick)) {
             return c.get();
         }
     }
@@ -60,13 +60,13 @@ RemoteClient* PlayerRegistry::ById(uint8_t id) {
 int PlayerRegistry::WelcomedCount() const {
     int count = 0;
     for (auto& c : mClients) {
-        count += c->welcomed ? 1 : 0;
+        count += (c->welcomed && !c->host) ? 1 : 0;
     }
     return count;
 }
 
 uint8_t PlayerRegistry::AllocateId() const {
-    for (int id = 1; id <= kMaxPlayers; id++) {
+    for (int id = 1; id <= kMaxPlayers + kMaxHosts; id++) {
         bool used = false;
         for (auto& c : mClients) {
             used = used || (c->welcomed && c->id == id);
@@ -79,6 +79,26 @@ uint8_t PlayerRegistry::AllocateId() const {
 }
 
 std::vector<RemoteClient*> PlayerRegistry::Welcomed() {
+    std::vector<RemoteClient*> out;
+    for (auto& c : mClients) {
+        if (c->welcomed && !c->host) {
+            out.push_back(c.get());
+        }
+    }
+    return out;
+}
+
+std::vector<RemoteClient*> PlayerRegistry::WelcomedHosts() {
+    std::vector<RemoteClient*> out;
+    for (auto& c : mClients) {
+        if (c->welcomed && c->host) {
+            out.push_back(c.get());
+        }
+    }
+    return out;
+}
+
+std::vector<RemoteClient*> PlayerRegistry::WelcomedAll() {
     std::vector<RemoteClient*> out;
     for (auto& c : mClients) {
         if (c->welcomed) {

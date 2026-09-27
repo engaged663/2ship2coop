@@ -59,6 +59,7 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     cfg.maxPlayers = std::clamp(readInt("maxPlayers", cfg.maxPlayers, 1, 1000), 1, kMaxPlayers);
     cfg.password = readString("password", cfg.password);
     cfg.motd = readString("motd", cfg.motd);
+    cfg.hostToken = readString("hostToken", cfg.hostToken);
     if (auto it = j.find("sharedEnemies"); it != j.end()) {
         if (it->is_boolean()) {
             cfg.sharedEnemies = it->get<bool>();

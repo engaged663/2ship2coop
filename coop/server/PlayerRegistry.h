@@ -28,6 +28,8 @@ struct RemoteClient {
     std::string nick;
     std::string ip;
     bool welcomed = false;
+    bool host = false;       // the server's own headless game (sub-project D): not a player
+    uint8_t followId = 0;    // host: the player whose room it keeps loaded
     bool closing = false;    // kicked/rejected: ignore anything else it sends
     std::string leaveReason; // shown to the others when it leaves
     int64_t connectedAtMs = 0;
@@ -74,9 +76,11 @@ class PlayerRegistry {
     RemoteClient* ByNick(const std::string& nick); // welcomed only, case-insensitive
     RemoteClient* ById(uint8_t id);                 // welcomed only
 
-    int WelcomedCount() const;
-    uint8_t AllocateId() const; // smallest free id in 1..kMaxPlayers, 0 if none
-    std::vector<RemoteClient*> Welcomed();
+    int WelcomedCount() const;  // players only (hosts do not take a slot)
+    uint8_t AllocateId() const; // smallest free id in 1..kMaxPlayers + kMaxHosts, 0 if none
+    std::vector<RemoteClient*> Welcomed();      // players only
+    std::vector<RemoteClient*> WelcomedHosts(); // the server's headless games
+    std::vector<RemoteClient*> WelcomedAll();   // both
     std::vector<RemoteClient*> All();
 
   private:

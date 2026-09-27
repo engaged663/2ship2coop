@@ -55,6 +55,16 @@ std::vector<RemoteClient*> SharedWorld::InWorld() {
     return players;
 }
 
+std::vector<RemoteClient*> SharedWorld::Receivers() {
+    std::vector<RemoteClient*> games;
+    for (RemoteClient* c : mServer.Players().WelcomedAll()) {
+        if (c->inWorld && !c->closing) {
+            games.push_back(c);
+        }
+    }
+    return games;
+}
+
 std::vector<uint32_t> SharedWorld::EligiblePeers() {
     std::vector<uint32_t> peers;
     for (RemoteClient* c : InWorld()) {
@@ -144,6 +154,17 @@ void SharedWorld::Enter(RemoteClient& c) {
     if (c.inWorld || c.peer == mCreator || waiting) {
         return; // asked twice
     }
+    if (c.host) {
+        // The server's own game follows a world that a player created; it never creates or resets one.
+        if (!mStore.Exists() || mResetting) {
+            mWaiting.push_back(c.peer);
+            return;
+        }
+        c.inWorld = true;
+        mServer.SendEvent(c, FullEvent(c, ""));
+        mServer.Log().Info("El anfitrión " + std::to_string(c.id) + " sigue la partida del servidor.");
+        return;
+    }
     if (!mStore.Exists() && mCreator == 0) {
         AssignCreator(c);
         return;
@@ -178,9 +199,12 @@ void SharedWorld::AssignCreator(RemoteClient& c) {
 
 void SharedWorld::NextCreator() {
     mCreator = 0;
-    while (!mWaiting.empty()) {
-        RemoteClient* next = mServer.Players().ByPeer(mWaiting.front());
-        mWaiting.erase(mWaiting.begin());
+    for (size_t i = 0; i < mWaiting.size(); i++) {
+        RemoteClient* next = mServer.Players().ByPeer(mWaiting[i]);
+        if (next != nullptr && next->host) {
+            continue; // hosts never create the world
+        }
+        mWaiting.erase(mWaiting.begin() + i);
         if (next != nullptr && next->welcomed && !next->closing) {
             AssignCreator(*next);
             return;
@@ -233,6 +257,9 @@ void SharedWorld::Leave(RemoteClient& c, bool disconnected) {
         return;
     }
     c.inWorld = false;
+    if (c.host) {
+        return; // nothing of it is saved or announced
+    }
     if (mResetting && c.peer == mComputer) {
         NextComputer();
     }
@@ -252,6 +279,9 @@ void SharedWorld::Leave(RemoteClient& c, bool disconnected) {
 void SharedWorld::ApplyOps(RemoteClient& c, const json& ev) {
     if (!c.inWorld) {
         return; // sent just before leaving
+    }
+    if (c.host) {
+        return; // D1: the players' games own the world's changes; the host only follows them
     }
     if (!c.wopsBudget.Take(Now())) {
         mServer.NoteInvalid(c, "demasiados cambios del mundo por segundo");
@@ -293,7 +323,7 @@ void SharedWorld::ApplyOps(RemoteClient& c, const json& ev) {
         json back = world::ToJson(echo);
         back["t"] = ev::kWops;
         back["from"] = c.id;
-        for (RemoteClient* p : InWorld()) {
+        for (RemoteClient* p : Receivers()) {
             if (p != &c) {
                 mServer.SendEvent(*p, out);
             } else if (!echo.Empty()) {
@@ -304,8 +334,8 @@ void SharedWorld::ApplyOps(RemoteClient& c, const json& ev) {
 }
 
 void SharedWorld::Upload(RemoteClient& c, const json& ev) {
-    if (!c.inWorld) {
-        return;
+    if (!c.inWorld || c.host) {
+        return; // a host has no inventory of its own
     }
     if (!c.invBudget.Take(Now())) {
         mServer.NoteInvalid(c, "demasiadas subidas de inventario");
@@ -351,7 +381,7 @@ void SharedWorld::SendClock(RemoteClient* to, bool jump) {
         mServer.SendEvent(*to, ev);
         return;
     }
-    for (RemoteClient* p : InWorld()) {
+    for (RemoteClient* p : Receivers()) {
         mServer.SendEvent(*p, ev);
     }
 }

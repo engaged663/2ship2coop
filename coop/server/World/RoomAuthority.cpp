@@ -8,7 +8,7 @@ std::map<RoomKey, uint8_t> ComputeAuthority(const std::vector<AuthMember>& membe
     std::map<RoomKey, const AuthMember*> best;
     // Busy members lose to anyone who is not; then the oldest, then the lower id.
     auto better = [](const AuthMember& a, const AuthMember& b) {
-        return std::make_tuple(a.busy, a.sinceMs, a.id) < std::make_tuple(b.busy, b.sinceMs, b.id);
+        return std::make_tuple(!a.host, a.busy, a.sinceMs, a.id) < std::make_tuple(!b.host, b.busy, b.sinceMs, b.id);
     };
     for (const AuthMember& m : members) {
         if (m.scene < 0 || m.room < 0) {

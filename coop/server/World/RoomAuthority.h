@@ -13,12 +13,14 @@ struct AuthMember {
     int8_t room = -1;
     bool busy = false;    // paused, reading a text or in a cutscene: its enemies would freeze for everyone
     int64_t sinceMs = 0;  // when it arrived in that room
+    bool host = false;    // the server's own game: always the owner of the rooms it is in
 };
 
 using RoomKey = std::pair<int16_t, int8_t>;
 
-// The owner of every (scene, room) with members: the one there longest that is not busy; if all are busy, the one
-// there longest (the enemies wait for it). Negative scenes and rooms are ignored. Ties: the lower id.
+// The owner of every (scene, room) with members: a host if one is there; else the one there longest that is not
+// busy; if all are busy, the one there longest (the enemies wait for it). Negative scenes and rooms are ignored.
+// Ties: the lower id.
 std::map<RoomKey, uint8_t> ComputeAuthority(const std::vector<AuthMember>& members);
 
 } // namespace coop::server
