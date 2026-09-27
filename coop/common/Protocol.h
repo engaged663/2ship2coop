@@ -48,8 +48,15 @@ constexpr int kCycleComputeMs = 15000;  // a game has this long to compute the n
 constexpr int kWorldCreateMs = 15000;   // the first player has this long to create the world
 
 // Shared enemies (sub-project C)
-constexpr int kActorStreamBurst = 120;    // actor stream packets per player: burst...
-constexpr int kActorStreamPerSecond = 90; // ...and sustained rate (20/s per room it owns, a few parts each)
+constexpr int kActorStreamBurst = 400;    // actor stream packets per player: burst...
+constexpr int kActorStreamPerSecond = 300; // ...and sustained rate (D3: full memory, several parts per room)
+constexpr int kHostActorStreamBurst = 2000;    // the server's own games simulate whole scenes
+constexpr int kHostActorStreamPerSecond = 1500;
+constexpr int kLeaseBurst = 60;            // lease_req/lease_drop/echo events per player: burst...
+constexpr int kLeasePerSecond = 40;        // ...and sustained rate (a request per nearby NPC twice a second)
+constexpr int kMaxLeasesPerPlayer = 16;
+constexpr uint32_t kRuntimeKeyBits = 0xC0000000u; // keys of runtime/derived actors (only list actors are lent)
+constexpr int kMaxActorId = 0x2FF;         // above every actor of the game's table
 constexpr int kHitBurst = 30;             // hit + hurt events per player: burst...
 constexpr int kHitPerSecond = 20;         // ...and sustained rate
 constexpr int kDropBurst = 20;            // drop events per player: burst...
@@ -101,6 +108,11 @@ inline constexpr const char* kHurt = "hurt"; // C->S to, kind, dmgFlags, effect,
 inline constexpr const char* kDrop = "drop"; // C->S scene, room, pos[3], params, fn; S->C + from
 // Server-side simulation (sub-project D)
 inline constexpr const char* kHostFollow = "host_follow"; // S->C (host only) id: the player whose room to keep loaded
+inline constexpr const char* kLeaseReq = "lease_req";   // C->S scene, room, key, dist, talking: lend me this NPC
+inline constexpr const char* kLeaseDrop = "lease_drop"; // C->S scene, room, key
+inline constexpr const char* kLeases = "leases";        // S->C scene, list [[room, key, id]]: who simulates which NPC
+inline constexpr const char* kEcho = "echo";            // C->S->C scene, room, id, params, pos[3], rot[3] (+ from):
+                                                        // every game creates its own copy (warps, hearts, fairies)
 } // namespace ev
 
 // Levels used by "sys" events.

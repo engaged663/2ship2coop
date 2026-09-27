@@ -50,6 +50,7 @@ void WelcomeHost(Server& server, RemoteClient& client, const std::string& token)
     client.nick = kHostNick;
     client.host = true;
     client.welcomed = true;
+    client.actorBudget = TokenBucket(kHostActorStreamBurst, kHostActorStreamPerSecond); // whole scenes
     json players = json::array(); // the players (never the other hosts): the enemies it simulates go for them
     for (RemoteClient* other : server.Players().Welcomed()) {
         players.push_back(PlayerSummary(*other));

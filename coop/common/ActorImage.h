@@ -6,13 +6,13 @@
 //
 // An actor is a list of memory regions (its instance, and tables of its skeletons/colliders kept outside it), seen as
 // 8-byte slots. Each slot travels as one of the SlotKind below; a record carries the slots that changed recently.
+#include "StreamIds.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
 namespace coop {
-
-constexpr uint8_t kStreamActors = 2;
 
 namespace image_limits {
 constexpr size_t kPacketBytes = 1200;   // below the path MTU: ENet never fragments it

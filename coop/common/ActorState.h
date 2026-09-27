@@ -2,14 +2,13 @@
 // Binary stream of the shared enemies of one room (channel kChannelStream), sent by the room's authority once per
 // game frame (sub-project C). A frame of a big room can take several packets ("parts"). Layout: ActorState.cpp.
 #include "PlayerState.h"
+#include "StreamIds.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
 namespace coop {
-
-constexpr uint8_t kStreamActors = 2;
 
 namespace actor_limits {
 constexpr size_t kPacketBytes = 1200; // stays below the path MTU: ENet never has to fragment it

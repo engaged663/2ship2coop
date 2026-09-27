@@ -17,6 +17,7 @@ struct ServerConfig {
     std::string hostToken;
     // Sub-project D3: only games with the same executable as the first one accepted (actors copy code pointers).
     bool requireSameBuild = true;
+    int64_t leaseExpireMs = 3000; // an NPC lent to a player goes back if it is not asked for again (tests shorten it)
     int handshakeTimeoutMs = kHandshakeTimeoutMs; // not stored in server.json (tests only)
     int giftTimeoutMs = kGiftTimeoutMs;           // not stored in server.json (tests only)
     // Shared world files, set by main.cpp (world.json and players/ next to the exe); "" = memory only (tests).

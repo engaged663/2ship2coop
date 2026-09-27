@@ -65,6 +65,9 @@ struct RemoteClient {
     TokenBucket hitBudget{ kHitBurst, kHitPerSecond };
     TokenBucket dropBudget{ kDropBurst, kDropPerSecond };
     std::string authSent;     // the last "auth" it got (serialized): only changes are sent
+    // Full replication (sub-project D3)
+    TokenBucket leaseBudget{ kLeaseBurst, kLeasePerSecond };
+    std::string leasesSent;   // the last "leases" it got (serialized)
 };
 
 class PlayerRegistry {
