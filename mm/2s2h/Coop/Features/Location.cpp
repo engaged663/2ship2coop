@@ -1,4 +1,5 @@
-// Tells the server which scene/room we are in ("loc"): used for /list, the player list and /tp.
+// Tells the server which scene/room we are in ("loc"): used for /list, the player list and /tp, and whether the
+// original game stops time there (the shared clock waits while someone is in such a scene, e.g. the Moon).
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
@@ -18,10 +19,12 @@ namespace {
 
 int16_t sLastScene = -2;
 int8_t sLastRoom = -2;
+bool sLastTimeStopped = false;
 
 void Reset() {
     sLastScene = -2;
     sLastRoom = -2;
+    sLastTimeStopped = false;
 }
 
 void LocationTick() {
@@ -30,17 +33,20 @@ void LocationTick() {
     }
     int16_t scene = gPlayState->sceneId;
     int8_t room = gPlayState->roomCtx.curRoom.num;
-    if (scene == sLastScene && room == sLastRoom) {
+    bool timeStopped = gPlayState->envCtx.sceneTimeSpeed == 0;
+    if (scene == sLastScene && room == sLastRoom && timeStopped == sLastTimeStopped) {
         return;
     }
     sLastScene = scene;
     sLastRoom = room;
+    sLastTimeStopped = timeStopped;
     coop::json ev = coop::MakeEvent(coop::ev::kLoc);
     ev["scene"] = scene;
     ev["room"] = room;
     ev["entrance"] = gSaveContext.save.entrance;
     const char* name = Ship_GetSceneName(scene);
     ev["sceneName"] = name != nullptr ? name : "";
+    ev["timeStopped"] = timeStopped;
     coop::client::NetClient::Get().SendEvent(ev);
 }
 
@@ -53,7 +59,7 @@ void OnLost(const std::string& reason) {
 }
 
 void RegisterLocation() {
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainFinish>(LocationTick);
+    COND_HOOK(OnGameStateMainFinish, true, LocationTick);
 }
 
 } // namespace

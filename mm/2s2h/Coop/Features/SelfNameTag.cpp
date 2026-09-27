@@ -42,9 +42,9 @@ void SelfNameTagTick() {
 }
 
 void RegisterSelfNameTag() {
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainFinish>(SelfNameTagTick);
+    COND_HOOK(OnGameStateMainFinish, true, SelfNameTagTick);
     // The player actor is freed with the scene; its tag goes with it (NameTag listens to actor destroy).
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayDestroy>([]() { sTaggedActor = nullptr; });
+    COND_HOOK(OnPlayDestroy, true, []() { sTaggedActor = nullptr; });
 }
 
 } // namespace

@@ -200,6 +200,9 @@ void ChatWindow::DrawInput() {
 }
 
 static void ChatWindow_Register() {
+    if (sWindow != nullptr) {
+        return; // presets run this function again
+    }
     auto gui = Ship::Context::GetRawInstance()->GetWindow()->GetGui();
     sWindow = std::make_shared<ChatWindow>("gCoop.Chat.Window", "Co-op Chat");
     gui->AddGuiWindow(sWindow);

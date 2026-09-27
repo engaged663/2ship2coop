@@ -11,10 +11,11 @@
 
 static void RegisterCoop() {
     // Network messages are handled at the start of every game frame, before actors update.
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>(
-        []() { coop::client::ProcessNetwork(); });
+    COND_HOOK(OnGameStateMainStart, true, []() { coop::client::ProcessNetwork(); });
 
-    if (CVarGetInteger("gCoop.AutoConnect", 0)) {
+    static bool sAutoConnected = false; // presets run this function again
+    if (!sAutoConnected && CVarGetInteger("gCoop.AutoConnect", 0)) {
+        sAutoConnected = true;
         coop::client::Session_ConnectFromSettings();
     }
 }

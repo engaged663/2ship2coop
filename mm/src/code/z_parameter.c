@@ -8028,6 +8028,9 @@ void Interface_DrawPerfectLetters(PlayState* play) {
 }
 
 void Interface_StartMoonCrash(PlayState* play) {
+    if (!GameInteractor_Should(VB_START_MOON_CRASH, true)) { // [COOP] the co-op server makes the moon fall
+        return;
+    }
     GameInteractor_ExecuteBeforeMoonCrash();
 
     if (play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) {
@@ -8368,7 +8371,9 @@ void Interface_DrawTimers(PlayState* play) {
 
                     gSaveContext.timerStates[sTimerId] = TIMER_STATE_OFF;
 
-                    if (sTimerId == TIMER_ID_MOON_CRASH) {
+                    if ((sTimerId == TIMER_ID_MOON_CRASH) && !GameInteractor_Should(VB_START_MOON_CRASH, true)) {
+                        // [COOP] the co-op server makes the moon fall
+                    } else if (sTimerId == TIMER_ID_MOON_CRASH) {
                         gSaveContext.save.day = 4;
                         if ((play->sceneId == SCENE_OKUJOU) && (gSaveContext.sceneLayer == 3)) {
                             // This is a moon crash edge case that only occurs if the player played Oath to Order

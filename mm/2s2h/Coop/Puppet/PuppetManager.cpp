@@ -168,9 +168,8 @@ COOP_ON_LOST(puppetLost, OnLost);
 
 static void RegisterPuppetManager() {
     // Runs right after the local Link updates: a safe point to spawn/kill actors every frame.
-    GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnActorUpdate>(
-        ACTOR_PLAYER, [](Actor* actor) { PuppetManager_Update(gPlayState); });
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayDestroy>(PuppetManager_OnSceneEnd);
+    COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, true, [](Actor* actor) { PuppetManager_Update(gPlayState); });
+    COND_HOOK(OnPlayDestroy, true, PuppetManager_OnSceneEnd);
 }
 
 static RegisterShipInitFunc sPuppetManagerInit(RegisterPuppetManager);

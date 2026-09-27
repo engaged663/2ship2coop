@@ -2383,6 +2383,14 @@ typedef enum {
 
     // #### `result`
     // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_START_MOON_CRASH,
+
+    // #### `result`
+    // ```c
     // gSaveContext.save.saveInfo.inventory.items[SLOT_OCARINA] == ITEM_NONE
     // ```
     // #### `args`

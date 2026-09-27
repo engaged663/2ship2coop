@@ -111,7 +111,7 @@ void PoseCapture_Tick() {
 
 static void RegisterPoseCapture() {
     // End of frame: animations are final and the draw has run.
-    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainFinish>(PoseCapture_Tick);
+    COND_HOOK(OnGameStateMainFinish, true, PoseCapture_Tick);
 }
 
 static RegisterShipInitFunc sPoseCaptureInit(RegisterPoseCapture);
