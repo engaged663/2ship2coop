@@ -65,6 +65,11 @@ int SDL_main(int argc, char* argv[] /* void* arg*/) {
     (void)freopen("CONIN$", "r", stdin);
     (void)freopen("CONOUT$", "w", stdout);
     (void)freopen("CONOUT$", "w", stderr);
+#ifdef COOP_HEADLESS
+    // [COOP] The server's host has no console to look at: its errors go to a file next to it.
+    (void)freopen("host-stderr.txt", "w", stderr);
+    setvbuf(stderr, NULL, _IONBF, 0);
+#endif
 #ifndef _DEBUG
     ShowWindow(GetConsoleWindow(), SW_HIDE);
 #endif
