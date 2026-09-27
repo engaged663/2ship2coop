@@ -20,6 +20,10 @@ class Writer {
         U16((uint16_t)(v & 0xFFFF));
         U16((uint16_t)(v >> 16));
     }
+    void U64(uint64_t v) {
+        U32((uint32_t)(v & 0xFFFFFFFFull));
+        U32((uint32_t)(v >> 32));
+    }
     void S8(int8_t v) {
         U8((uint8_t)v);
     }
@@ -33,6 +37,9 @@ class Writer {
     }
     const std::vector<uint8_t>& Data() const {
         return mBuf;
+    }
+    size_t Size() const {
+        return mBuf.size();
     }
     std::vector<uint8_t> Take() {
         return std::move(mBuf);
@@ -68,6 +75,14 @@ class Reader {
             return false;
         }
         v = (uint32_t)lo | ((uint32_t)hi << 16);
+        return true;
+    }
+    bool U64(uint64_t& v) {
+        uint32_t lo, hi;
+        if (!U32(lo) || !U32(hi)) {
+            return false;
+        }
+        v = (uint64_t)lo | ((uint64_t)hi << 32);
         return true;
     }
     bool S8(int8_t& v) {
