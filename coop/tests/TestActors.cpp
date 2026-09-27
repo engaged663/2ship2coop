@@ -34,6 +34,8 @@ ActorRecord Record(uint16_t key, int joints = 20) {
     }
     r.colliders.push_back({ ActorCollider::kAc | ActorCollider::kOc, { 7, 8, 9 } });
     r.sfx.push_back(0x3812);
+    r.loopSfx = 0x3001;
+    r.loopSfxFlags = 2;
     r.extras = { 1, 2, 3 };
     return r;
 }
@@ -59,7 +61,8 @@ bool SameRecord(const ActorRecord& a, const ActorRecord& b) {
                 SameVec(a.rot, b.rot) && a.worldRotY == b.worldRotY && a.health == b.health &&
                 a.colorFilterParams == b.colorFilterParams && a.colorFilterTimer == b.colorFilterTimer &&
                 a.shadowAlpha == b.shadowAlpha && a.joints.size() == b.joints.size() &&
-                a.colliders.size() == b.colliders.size() && a.sfx == b.sfx && a.extras == b.extras;
+                a.colliders.size() == b.colliders.size() && a.sfx == b.sfx && a.extras == b.extras &&
+                a.loopSfx == b.loopSfx && a.loopSfxFlags == b.loopSfxFlags;
     for (int i = 0; same && i < 3; i++) {
         same = a.pos[i] == b.pos[i] && a.focus[i] == b.focus[i] && a.scale[i] == b.scale[i];
     }
@@ -151,8 +154,8 @@ TEST_CASE(ActorPacketRejectsGarbage) {
 
     // 33 joints written by hand: the count byte sits right after shadowAlpha.
     auto bytes = EncodeActorPackets(Frame(1, 0))[0];
-    // tail after it: [nCol=1][flags + 3 s16] [nSfx=1][u16] [nExtras=3][3 bytes] = 15 bytes
-    size_t jointCount = bytes.size() - 16;
+    // tail after it: [nCol=1][flags + 3 s16] [nSfx=1][u16] [loop u16 + u8] [nExtras=3][3 bytes] = 18 bytes
+    size_t jointCount = bytes.size() - 19;
     CHECK_EQ(bytes[jointCount], (uint8_t)0);
     bytes[jointCount] = 33;
     CHECK(!DecodeActorPacket(bytes.data(), bytes.size(), out));

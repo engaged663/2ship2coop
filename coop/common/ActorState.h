@@ -48,6 +48,8 @@ struct ActorRecord {
     std::vector<Vec3s16> joints; // skelAnime.jointTable
     std::vector<ActorCollider> colliders;
     std::vector<uint16_t> sfx;    // sounds it played this frame
+    uint16_t loopSfx = 0;         // actor.sfxId: the sound it keeps playing (0 = none)
+    uint8_t loopSfxFlags = 0;     // actor.audioFlags (how the engine plays loopSfx)
     std::vector<uint8_t> extras;  // per-enemy draw state (SharedActors.cpp)
 };
 

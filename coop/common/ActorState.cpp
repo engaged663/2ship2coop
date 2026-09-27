@@ -11,7 +11,7 @@ namespace {
 using namespace actor_limits;
 
 // Header: [type u8][playerId u8][scene s16][room s8][seq u16][part u8][parts u8][total u16][goneCount u8][gone u16...]
-// [count u8], then the records (WriteRecord).
+// [count u8], then the records (WriteRecord: every field of ActorRecord in order, lists as [count u8][items]).
 constexpr size_t kHeaderBytes = 1 + 1 + 2 + 1 + 2 + 1 + 1 + 2 + 1 + 1;
 
 bool Finite(float v, float limit) {
@@ -61,6 +61,8 @@ void WriteRecord(Writer& w, const ActorRecord& a) {
     for (uint16_t s : a.sfx) {
         w.U16(s);
     }
+    w.U16(a.loopSfx);
+    w.U8(a.loopSfxFlags);
     w.U8((uint8_t)a.extras.size());
     for (uint8_t e : a.extras) {
         w.U8(e);
@@ -120,7 +122,7 @@ bool ReadRecord(Reader& r, ActorRecord& a) {
             return false;
         }
     }
-    if (!r.U8(n) || n > kExtras) {
+    if (!r.U16(a.loopSfx) || !r.U8(a.loopSfxFlags) || !r.U8(n) || n > kExtras) {
         return false;
     }
     a.extras.resize(n);
