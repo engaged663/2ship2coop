@@ -1,7 +1,5 @@
 #include "Events.h"
 
-#include "Protocol.h"
-
 namespace coop {
 
 json MakeEvent(const char* type) {
@@ -12,7 +10,7 @@ std::string SerializeEvent(const json& ev) {
     return ev.dump(-1, ' ', false, json::error_handler_t::replace);
 }
 
-bool ParseEvent(const uint8_t* data, size_t size, json& out, std::string* error) {
+bool ParseEvent(const uint8_t* data, size_t size, json& out, std::string* error, size_t maxBytes) {
     auto fail = [error](const char* why) {
         if (error != nullptr) {
             *error = why;
@@ -22,7 +20,7 @@ bool ParseEvent(const uint8_t* data, size_t size, json& out, std::string* error)
     if (data == nullptr || size == 0) {
         return fail("empty event");
     }
-    if (size > kMaxEventBytes) {
+    if (size > maxBytes) {
         return fail("event too large");
     }
     json parsed = json::parse(data, data + size, nullptr, false);
@@ -66,6 +64,14 @@ double GetNumber(const json& ev, const char* key, double def) {
     }
     auto it = ev.find(key);
     return (it != ev.end() && it->is_number()) ? it->get<double>() : def;
+}
+
+bool GetBool(const json& ev, const char* key, bool def) {
+    if (!ev.is_object()) {
+        return def;
+    }
+    auto it = ev.find(key);
+    return (it != ev.end() && it->is_boolean()) ? it->get<bool>() : def;
 }
 
 } // namespace coop

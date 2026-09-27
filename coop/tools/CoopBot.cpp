@@ -128,7 +128,7 @@ class Bot {
             return;
         }
         json evt;
-        if (!ParseEvent(e.data.data(), e.data.size(), evt, nullptr)) {
+        if (!ParseEvent(e.data.data(), e.data.size(), evt, nullptr, kMaxServerEventBytes)) {
             return;
         }
         HandleEvent(evt);

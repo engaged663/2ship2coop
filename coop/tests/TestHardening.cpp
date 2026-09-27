@@ -213,7 +213,7 @@ TEST_CASE(InvalidFloodBeforeHelloDisconnects) {
 TEST_CASE(OversizedPacketNeverReassembled) {
     TestServer s;
     auto a = Join(s, "Alice");
-    a->SendRaw(std::string(6000, 'x'));  // over the event limit, under the transport limit
+    a->SendRaw(std::string(13000, 'x')); // over the event limit, under the transport limit
     a->SendRaw(std::string(40000, 'x')); // over the transport limit: ENet drops it
     s.PumpFor(500);
     auto* rc = s.server->Players().ByNick("Alice");

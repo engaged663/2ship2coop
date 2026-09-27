@@ -92,7 +92,7 @@ TEST_CASE(EventParseValidates) {
     CHECK(!coop::ParseEvent((const uint8_t*)"{\"x\":1}", 7, ev, &err));     // no "t"
     CHECK(!coop::ParseEvent((const uint8_t*)"{\"t\":5}", 7, ev, &err));     // "t" not a string
     CHECK(!coop::ParseEvent((const uint8_t*)"[1,2]", 5, ev, &err));         // not an object
-    std::string big(coop::kMaxEventBytes + 1, ' ');
+    std::string big(coop::kMaxClientEventBytes + 1, ' ');
     CHECK(!coop::ParseEvent((const uint8_t*)big.data(), big.size(), ev, &err));
 }
 

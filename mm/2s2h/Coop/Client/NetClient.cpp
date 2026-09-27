@@ -171,7 +171,7 @@ void NetClient::ThreadMain(std::string host, uint16_t port, std::string helloTex
                 mRunning = false;
             } else if (e.channel == kChannelEvents) {
                 Inbound in;
-                if (ParseEvent(e.data.data(), e.data.size(), in.event, nullptr)) {
+                if (ParseEvent(e.data.data(), e.data.size(), in.event, nullptr, kMaxServerEventBytes)) {
                     std::string type = EventType(in.event);
                     if (type == ev::kReject || type == ev::kKicked) {
                         serverReason = GetString(in.event, "reason");

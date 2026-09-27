@@ -93,7 +93,7 @@ struct TestClient {
                 disconnected = true;
             } else if (e.channel == coop::kChannelEvents) {
                 coop::json ev;
-                if (coop::ParseEvent(e.data.data(), e.data.size(), ev, nullptr)) {
+                if (coop::ParseEvent(e.data.data(), e.data.size(), ev, nullptr, coop::kMaxServerEventBytes)) {
                     events.push_back(ev);
                 }
             } else {
