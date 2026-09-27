@@ -3,7 +3,9 @@
 //   --mode circle: walks in circles around the target.
 //   --mode front: stands still 80 units in front of the target, facing it (easy to spot on screen).
 // It also answers "!ping" in the chat, pays every /gift it makes and accepts every gift.
-// Usage: 2ship-coop-bot [--host 127.0.0.1] [--port 7780] [--nick Bot] [--pass X] [--target Nick] [--mode mirror|circle|front]
+// --cmd "/gift Nick 20" sends that line 3 s after joining (handy to test commands without typing in-game).
+// Usage: 2ship-coop-bot [--host 127.0.0.1] [--port 7780] [--nick Bot] [--pass X] [--target Nick]
+//                       [--mode mirror|circle|front] [--cmd "/comando ..."]
 #include "common/Events.h"
 #include "common/PlayerState.h"
 #include "common/Protocol.h"
@@ -32,6 +34,7 @@ struct Options {
     std::string pass;
     std::string target;
     std::string mode = "mirror";
+    std::string cmd;
 };
 
 struct Known {
@@ -54,9 +57,10 @@ Options ParseArgs(int argc, char** argv) {
         else if (a == "--pass") { o.pass = v; i++; }
         else if (a == "--target") { o.target = v; i++; }
         else if (a == "--mode") { o.mode = v; i++; }
+        else if (a == "--cmd") { o.cmd = v; i++; }
         else {
             std::printf("Uso: 2ship-coop-bot [--host IP] [--port N] [--nick Bot] [--pass X] [--target Nick] "
-                        "[--mode mirror|circle|front]\n");
+                        "[--mode mirror|circle|front] [--cmd \"/comando ...\"]\n");
             std::exit(0);
         }
     }
@@ -172,6 +176,10 @@ class Bot {
         if (mMyId == 0) {
             return;
         }
+        if (!mOpt.cmd.empty() && ++mFramesSinceWelcome == 60) { // 3 s at 20 Hz
+            std::printf("Enviando: %s\n", mOpt.cmd.c_str());
+            Send({ { "t", ev::kCmd }, { "line", mOpt.cmd } });
+        }
         int targetId = 0;
         for (auto& [id, k] : mKnown) {
             bool wanted = mOpt.target.empty() || k.nick == mOpt.target;
@@ -237,6 +245,7 @@ class Bot {
     uint16_t mSeq = 0;
     float mAngle = 0.f;
     bool mLoggedFirstPose = false;
+    int mFramesSinceWelcome = 0;
     std::map<int, Known> mKnown;
     std::deque<PlayerState> mTargetStates;
 };

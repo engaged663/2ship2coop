@@ -86,6 +86,22 @@ TEST_CASE(TpTargetWithoutLocation) {
     CHECK(!a->WaitFor("tp", s, 200).has_value());
 }
 
+TEST_CASE(AdminTpMovesAnotherPlayer) {
+    TestServer s;
+    auto a = Join(s, "Alice");
+    auto b = Join(s, "Bob");
+    b->SendState(0x6E, 1, 0xDC00, 5.f, 6.f, 7.f);
+    s.PumpFor(100);
+    s.server->ExecuteConsoleLine("tp Alice Bob");
+    auto t = a->WaitFor("tp", s);
+    CHECK(t.has_value());
+    CHECK_EQ((*t)["scene"].get<int>(), 0x6E);
+    CHECK_EQ((*t)["pos"][0].get<float>(), 5.f);
+    a->Cmd("/tp Bob Alice"); // two-argument form is for ops only
+    CHECK(a->WaitForSys("error", s));
+    CHECK(!b->WaitFor("tp", s, 300).has_value());
+}
+
 TEST_CASE(TpFromConsoleRefused) {
     TestServer s;
     auto a = Join(s, "Alice");

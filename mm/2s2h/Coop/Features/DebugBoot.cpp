@@ -12,6 +12,8 @@ extern "C" {
 }
 
 #define CVAR_NAME "gCoop.Debug.BootToClockTown"
+// Optional: another entrance id to boot into (e.g. 54784 = North Clock Town). Default: South Clock Town.
+#define CVAR_ENTRANCE "gCoop.Debug.BootEntrance"
 
 static void RegisterDebugBoot() {
     COND_HOOK(OnConsoleLogoUpdate, CVarGetInteger(CVAR_NAME, 0), []() {
@@ -20,7 +22,8 @@ static void RegisterDebugBoot() {
         }
         gSaveContext.gameMode = GAMEMODE_NORMAL;
         gSaveContext.fileNum = 0xFF; // debug file slot: MapSelect_LoadGame creates the debug save
-        MapSelect_LoadGame((MapSelectState*)gGameState, ENTRANCE(SOUTH_CLOCK_TOWN, 0), 0);
+        u16 entrance = (u16)CVarGetInteger(CVAR_ENTRANCE, ENTRANCE(SOUTH_CLOCK_TOWN, 0));
+        MapSelect_LoadGame((MapSelectState*)gGameState, entrance, 0);
     });
 }
 

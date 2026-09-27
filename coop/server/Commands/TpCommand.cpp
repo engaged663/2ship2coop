@@ -1,4 +1,5 @@
 // /tp <jugador>: sends the caller the target's last known location; the game does the warp.
+// /tp <jugador> <destino> (ops and console): moves another player to <destino>.
 #include "server/CommandRegistry.h"
 #include "server/Server.h"
 
@@ -7,17 +8,31 @@
 namespace coop::server {
 
 static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
-    if (ctx.IsConsole()) {
-        ctx.Reply("Solo los jugadores pueden usar /tp.", level::kError);
+    RemoteClient* mover = ctx.sender;
+    std::string destination = args[0];
+    if (args.size() >= 2) {
+        if (!ctx.IsConsole() && !ctx.server.IsOp(*ctx.sender)) {
+            ctx.Reply("Solo los administradores pueden mover a otros jugadores.", level::kError);
+            return;
+        }
+        mover = ctx.server.Players().ByNick(args[0]);
+        if (mover == nullptr) {
+            ctx.Reply("No hay ningún jugador conectado llamado '" + args[0] + "'.", level::kError);
+            return;
+        }
+        destination = args[1];
+    } else if (ctx.IsConsole()) {
+        ctx.Reply("Desde la consola usa: /tp <jugador> <destino>", level::kError);
         return;
     }
-    RemoteClient* target = ctx.server.Players().ByNick(args[0]);
+
+    RemoteClient* target = ctx.server.Players().ByNick(destination);
     if (target == nullptr) {
-        ctx.Reply("No hay ningún jugador conectado llamado '" + args[0] + "'.", level::kError);
+        ctx.Reply("No hay ningún jugador conectado llamado '" + destination + "'.", level::kError);
         return;
     }
-    if (target == ctx.sender) {
-        ctx.Reply("No puedes teletransportarte a ti mismo.", level::kError);
+    if (target == mover) {
+        ctx.Reply("No se puede teletransportar a alguien hasta sí mismo.", level::kError);
         return;
     }
     if (!target->hasState || target->scene < 0) {
@@ -31,11 +46,12 @@ static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
     tp["pos"] = { target->pos[0], target->pos[1], target->pos[2] };
     tp["rot"] = target->rotY;
     tp["target"] = target->nick;
-    ctx.server.SendEvent(*ctx.sender, tp);
-    ctx.Reply("Teletransportando a " + target->nick + "...");
-    ctx.server.SendSystem(target, ctx.sender->nick + " se está teletransportando a ti.");
+    ctx.server.SendEvent(*mover, tp);
+    ctx.Reply("Teletransportando a " + mover->nick + " hasta " + target->nick + "...");
+    ctx.server.SendSystem(target, mover->nick + " se está teletransportando a ti.");
 }
 
-COOP_COMMAND(tp, "tp", "/tp <jugador>", "teletransportarte a un jugador", Perm::Player, 1, Run);
+COOP_COMMAND(tp, "tp", "/tp <jugador>", "teletransportarte a un jugador (admins: /tp <jugador> <destino>)",
+             Perm::Player, 1, Run);
 
 } // namespace coop::server
