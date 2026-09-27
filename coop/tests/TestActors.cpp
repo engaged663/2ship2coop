@@ -2,6 +2,7 @@
 #include "TestWorld.h"
 
 #include "common/ActorState.h"
+#include "server/World/RoomAuthority.h"
 
 #include <limits>
 #include <set>
@@ -168,4 +169,41 @@ TEST_CASE(ActorPacketStampAndPeek) {
     CHECK_EQ(scene, (int16_t)0x2D);
     CHECK_EQ(room, (int8_t)1);
     CHECK(!PeekActorHeader(p.data(), 4, scene, room));
+}
+
+static uint8_t Owner(const std::map<server::RoomKey, uint8_t>& owners, int16_t scene, int8_t room) {
+    auto it = owners.find({ scene, room });
+    return it == owners.end() ? 0 : it->second;
+}
+
+TEST_CASE(AuthorityIsTheOldestInTheRoom) {
+    using server::AuthMember;
+    std::vector<AuthMember> m = { { 1, 0x2D, 0, false, 500 }, { 2, 0x2D, 0, false, 100 }, { 3, 0x2D, 0, false, 900 },
+                                  { 4, 0x2D, 2, false, 800 } };
+    auto owners = server::ComputeAuthority(m);
+    CHECK_EQ(owners.size(), (size_t)2);
+    CHECK_EQ(Owner(owners, 0x2D, 0), (uint8_t)2);
+    CHECK_EQ(Owner(owners, 0x2D, 2), (uint8_t)4);
+    m.push_back({ 1, 0x10, 0, false, 100 }); // same id elsewhere does not matter; ties go to the lower id
+    m[2].sinceMs = 100;
+    owners = server::ComputeAuthority(m);
+    CHECK_EQ(Owner(owners, 0x2D, 0), (uint8_t)2);
+    CHECK_EQ(Owner(owners, 0x10, 0), (uint8_t)1);
+}
+
+TEST_CASE(AuthorityPassesWhenOwnerLeavesOrIsBusy) {
+    using server::AuthMember;
+    std::vector<AuthMember> m = { { 1, 0x2D, 0, false, 100 }, { 2, 0x2D, 0, false, 200 }, { 3, 0x2D, 0, false, 300 } };
+    m.erase(m.begin());
+    CHECK_EQ(Owner(server::ComputeAuthority(m), 0x2D, 0), (uint8_t)2);
+    m[0].busy = true;
+    CHECK_EQ(Owner(server::ComputeAuthority(m), 0x2D, 0), (uint8_t)3);
+    m[1].busy = true;
+    CHECK_EQ(Owner(server::ComputeAuthority(m), 0x2D, 0), (uint8_t)2); // everyone busy: the oldest keeps it
+}
+
+TEST_CASE(AuthorityIgnoresNegativeRooms) {
+    using server::AuthMember;
+    std::vector<AuthMember> m = { { 1, 0x2D, -1, false, 100 }, { 2, -1, 0, false, 100 } };
+    CHECK(server::ComputeAuthority(m).empty());
 }
