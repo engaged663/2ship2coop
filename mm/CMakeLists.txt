@@ -180,19 +180,6 @@ add_executable(${PROJECT_NAME} ${ALL_FILES})
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
-# [COOP] The server's headless host game: its own name and folder (host/<config>/2ship-host.exe), so it never
-# overwrites the players' x64/<config>/2ship.exe.
-if (COOP_HEADLESS)
-    foreach(CONFIG_TYPE ${CMAKE_CONFIGURATION_TYPES})
-        string(TOUPPER ${CONFIG_TYPE} CONFIG_U)
-        set_target_properties(${PROJECT_NAME} PROPERTIES
-            OUTPUT_NAME_${CONFIG_U} "2ship-host"
-            RUNTIME_OUTPUT_NAME_${CONFIG_U} "2ship-host"
-            ARCHIVE_OUTPUT_NAME_${CONFIG_U} "2ship-host"
-            RUNTIME_OUTPUT_DIRECTORY_${CONFIG_U} "${CMAKE_SOURCE_DIR}/host/${CONFIG_TYPE}"
-            ARCHIVE_OUTPUT_DIRECTORY_${CONFIG_U} "${CMAKE_SOURCE_DIR}/host/${CONFIG_TYPE}")
-    endforeach()
-endif()
 endif()
 
 set(ROOT_NAMESPACE 2s2h)

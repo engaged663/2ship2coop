@@ -60,6 +60,13 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     cfg.password = readString("password", cfg.password);
     cfg.motd = readString("motd", cfg.motd);
     cfg.hostToken = readString("hostToken", cfg.hostToken);
+    if (auto it = j.find("requireSameBuild"); it != j.end()) {
+        if (it->is_boolean()) {
+            cfg.requireSameBuild = it->get<bool>();
+        } else {
+            warn("requireSameBuild", "true o false");
+        }
+    }
     if (auto it = j.find("sharedEnemies"); it != j.end()) {
         if (it->is_boolean()) {
             cfg.sharedEnemies = it->get<bool>();

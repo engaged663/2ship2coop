@@ -183,12 +183,6 @@ add_compile_definitions(CONTROLLERBUTTONS_T=uint32_t)
 ################################################################################
 # Sub-projects
 ################################################################################
-# [COOP] Sub-project D: the server's headless host game (2ship-host.exe), in its own build directory:
-#   cmake -S . -B build/host ... -DCOOP_HEADLESS=ON
-option(COOP_HEADLESS "Build the co-op server's headless host game (no window, no GPU)" OFF)
-if (COOP_HEADLESS)
-    add_compile_definitions(COOP_HEADLESS)
-endif()
 add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
 target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT)
 

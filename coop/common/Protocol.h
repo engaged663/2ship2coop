@@ -6,7 +6,7 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 4; // v4: actor flags in the actor stream, the server's hosts (sub-project D)
+constexpr uint32_t kProtocolVersion = 5; // v5: full actor replication, NPC leases, exe build check (sub-project D3)
 constexpr uint16_t kDefaultPort = 7780; // UDP
 
 constexpr int kMaxPlayers = 4;
@@ -64,7 +64,7 @@ enum Channel : uint8_t {
 
 // Event names (JSON field "t"). Direction and fields are documented in coop/README.md.
 namespace ev {
-inline constexpr const char* kHello = "hello";             // C->S proto, nick, pass (+ host, token: the server's own game)
+inline constexpr const char* kHello = "hello";             // C->S proto, nick, pass, build (+ host, token: the server's own game)
 inline constexpr const char* kWelcome = "welcome";         // S->C id, nick, motd, players[]
 inline constexpr const char* kReject = "reject";           // S->C reason
 inline constexpr const char* kKicked = "kicked";           // S->C reason

@@ -8,6 +8,30 @@ namespace coop::server {
 
 namespace {
 
+// The executable every game in the world must share (sub-project D3): the first accepted one's, forgotten when
+// nobody is left. Games that send no build (bots, tools) are not checked.
+std::string sExpectedBuild;
+
+bool BuildAccepted(Server& server, RemoteClient& client, const std::string& build) {
+    if (!server.Config().requireSameBuild || build.empty()) {
+        return true;
+    }
+    if (server.Players().WelcomedAll().empty()) {
+        sExpectedBuild.clear();
+    }
+    if (sExpectedBuild.empty()) {
+        sExpectedBuild = build;
+        server.Log().Info("Versión del juego del servidor: " + build);
+        return true;
+    }
+    if (build == sExpectedBuild) {
+        return true;
+    }
+    server.Reject(client, "Tu juego no es el mismo ejecutable que el del servidor. Usad todos el mismo 2ship.exe "
+                          "(la misma versión del mod).");
+    return false;
+}
+
 json PlayerSummary(const RemoteClient& c) {
     return { { "id", c.id }, { "nick", c.nick }, { "scene", c.scene }, { "sceneName", c.sceneName } };
 }
@@ -52,6 +76,9 @@ void OnHello(Server& server, RemoteClient& client, const json& ev) {
         return server.Reject(client, "Versión incompatible: el servidor usa el protocolo v" +
                                          std::to_string(kProtocolVersion) + " y tu juego el v" +
                                          std::to_string(proto) + ". Usad la misma versión del mod.");
+    }
+    if (!BuildAccepted(server, client, GetString(ev, "build"))) {
+        return;
     }
     if (GetBool(ev, "host")) {
         return WelcomeHost(server, client, GetString(ev, "token"));

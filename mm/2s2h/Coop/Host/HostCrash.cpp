@@ -1,6 +1,8 @@
 // [COOP] The server's host has no window nor console: when it aborts, write the call stack next to it
-// (host-crash.txt) so the server's admin can see why. Host build only.
-#if defined(COOP_HEADLESS) && defined(_WIN32)
+// (host-crash.txt) so the server's admin can see why. Installed only in host mode (HostMode_ParseArgs).
+#include "HostMode.h"
+
+#if defined(_WIN32)
 #include <windows.h>
 #include <dbghelp.h>
 
@@ -45,12 +47,13 @@ void OnAbort(int) {
     WriteStack("abort");
 }
 
-struct Install {
-    Install() {
-        std::signal(SIGABRT, OnAbort);
-        _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-    }
-} sInstall;
-
 } // namespace
+
+void coop::client::HostCrash_Install() {
+    std::signal(SIGABRT, OnAbort);
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+}
+#else
+void coop::client::HostCrash_Install() {
+}
 #endif

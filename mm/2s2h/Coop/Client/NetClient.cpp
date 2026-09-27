@@ -1,6 +1,7 @@
 #include "NetClient.h"
 
 #include "common/Protocol.h"
+#include "common/BuildId.h"
 #include "common/Transport.h"
 
 #include <chrono>
@@ -28,6 +29,7 @@ void NetClient::Connect(const std::string& host, uint16_t port, const std::strin
     hello["proto"] = kProtocolVersion;
     hello["nick"] = nick;
     hello["pass"] = password;
+    hello["build"] = BuildId();
     Start(host, port, hello);
 }
 
@@ -37,6 +39,7 @@ void NetClient::ConnectHost(const std::string& host, uint16_t port, const std::s
     hello["nick"] = kHostNick;
     hello["host"] = true;
     hello["token"] = token;
+    hello["build"] = BuildId();
     Start(host, port, hello);
 }
 

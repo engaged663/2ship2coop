@@ -20,8 +20,10 @@
 #include "common/PlayerState.h"
 
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <fast/Fast3dWindow.h>
 #include <spdlog/spdlog.h>
 
+#include <cstdio>
 #include <cstdlib>
 #include <string>
 
@@ -70,14 +72,27 @@ bool HostMode_Enabled() {
     return sEnabled;
 }
 
-void HostMode_ParseArgs(int argc, char* argv[]) {
-    for (int i = 1; i + 2 < argc; i++) {
-        if (std::string(argv[i]) == "--coop-host") {
+void HostMode_ParseArgs(int& argc, char* argv[]) {
+    int kept = 1;
+    for (int i = 1; i < argc; i++) {
+        if (std::string(argv[i]) == "--coop-host" && i + 2 < argc) {
             sEnabled = true;
             sPort = (uint16_t)std::atoi(argv[i + 1]);
             sToken = argv[i + 2];
+            i += 2;
+            continue;
         }
+        argv[kept++] = argv[i];
     }
+    argc = kept;
+    if (!sEnabled) {
+        return;
+    }
+    // No window, no GPU; nobody reads its console, so its errors go to files next to it.
+    Fast::Fast3dWindow::SetHeadless(true);
+    (void)std::freopen("host-stderr.txt", "w", stderr);
+    std::setvbuf(stderr, nullptr, _IONBF, 0);
+    HostCrash_Install();
 }
 
 } // namespace coop::client
@@ -161,16 +176,7 @@ void HostTick() {
 } // namespace
 
 static void RegisterHostMode() {
-#ifdef COOP_HEADLESS
-    if (!sEnabled) { // started by hand (tests): the port and token come from the config
-        sEnabled = true;
-        sPort = (uint16_t)CVarGetInteger("gCoop.Port", coop::kDefaultPort);
-        sToken = CVarGetString("gCoop.HostMode.Token", "");
-    }
-#else
-    sEnabled = false; // only the host build (2ship-host.exe) can be a host
-#endif
-    if (!sEnabled) {
+    if (!sEnabled) { // a normal game: only --coop-host makes one a host
         return;
     }
     static bool sStarted = false;

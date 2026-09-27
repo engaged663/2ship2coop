@@ -66,6 +66,7 @@ bool Transport::Listen(uint16_t port, size_t maxPeers, std::string* err) {
         return false;
     }
     mHost->maximumPacketSize = kMaxPacketBytes; // nothing legitimate is bigger; don't reassemble floods
+    enet_host_compress_with_range_coder(mHost); // D3: actor memory is mostly repeated bytes
     return true;
 }
 
@@ -82,6 +83,7 @@ bool Transport::Connect(const std::string& host, uint16_t port, uint32_t* outPee
         Close();
         return false;
     }
+    enet_host_compress_with_range_coder(mHost); // the server compresses too (same library on both ends)
     ENetAddress address;
     if (enet_address_set_host(&address, host.c_str()) != 0) {
         SetError(err, "No se pudo resolver la dirección '" + host + "'");
