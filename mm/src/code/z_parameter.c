@@ -5540,7 +5540,7 @@ void Magic_Update(PlayState* play) {
 
         case MAGIC_STATE_CONSUME_LENS:
             // Slowly consume magic while Lens of Truth is active
-            if (!IS_PAUSED(&play->pauseCtx) && (msgCtx->msgMode == MSGMODE_NONE) &&
+            if (!COOP_WORLD_PAUSED(play) && (msgCtx->msgMode == MSGMODE_NONE) && // [COOP]
                 (play->gameOverCtx.state == GAMEOVER_INACTIVE) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
                 (play->transitionMode == TRANS_MODE_OFF) && !Play_InCsMode(play)) {
 
@@ -5589,7 +5589,7 @@ void Magic_Update(PlayState* play) {
             gSaveContext.magicState = MAGIC_STATE_CONSUME_GORON_ZORA;
             // fallthrough
         case MAGIC_STATE_CONSUME_GORON_ZORA:
-            if ((play->pauseCtx.state == PAUSE_STATE_OFF) && (play->pauseCtx.debugEditor == DEBUG_EDITOR_NONE) &&
+            if (!COOP_WORLD_PAUSED(play) && // [COOP]
                 (msgCtx->msgMode == MSGMODE_NONE) && (play->gameOverCtx.state == GAMEOVER_INACTIVE) &&
                 (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->transitionMode == TRANS_MODE_OFF)) {
                 if (!Play_InCsMode(play)) {
@@ -5611,7 +5611,7 @@ void Magic_Update(PlayState* play) {
             break;
 
         case MAGIC_STATE_CONSUME_GIANTS_MASK:
-            if (!IS_PAUSED(&play->pauseCtx) && (msgCtx->msgMode == MSGMODE_NONE) &&
+            if (!COOP_WORLD_PAUSED(play) && (msgCtx->msgMode == MSGMODE_NONE) && // [COOP]
                 (play->gameOverCtx.state == GAMEOVER_INACTIVE) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
                 (play->transitionMode == TRANS_MODE_OFF)) {
                 if (!Play_InCsMode(play)) {
@@ -8111,7 +8111,7 @@ void Interface_DrawTimers(PlayState* play) {
     OPEN_DISPS(play->state.gfxCtx);
 
     // Not satisfying any of these conditions will pause the timer
-    if (!IS_PAUSED(&play->pauseCtx) && (play->gameOverCtx.state == GAMEOVER_INACTIVE) &&
+    if (!COOP_WORLD_PAUSED(play) && (play->gameOverCtx.state == GAMEOVER_INACTIVE) && // [COOP]
         ((msgCtx->msgMode == MSGMODE_NONE) || ((msgCtx->msgMode != MSGMODE_NONE) && (msgCtx->currentTextId >= 0x1BB2) &&
                                                (msgCtx->currentTextId <= 0x1BB6))) &&
         !(player->stateFlags1 & PLAYER_STATE1_200) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
@@ -8651,7 +8651,7 @@ void Interface_UpdateBottleTimers(PlayState* play) {
     s32 pad[2];
 
     // Not satisfying any of these conditions will pause the bottle timer
-    if (!IS_PAUSED(&play->pauseCtx) && (play->gameOverCtx.state == GAMEOVER_INACTIVE) &&
+    if (!COOP_WORLD_PAUSED(play) && (play->gameOverCtx.state == GAMEOVER_INACTIVE) && // [COOP]
         ((msgCtx->msgMode == MSGMODE_NONE) || ((msgCtx->currentTextId >= 0x100) && (msgCtx->currentTextId <= 0x200)) ||
          ((msgCtx->currentTextId >= 0x1BB2) && (msgCtx->currentTextId <= 0x1BB6))) &&
         (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->transitionMode == TRANS_MODE_OFF) &&
@@ -9747,7 +9747,7 @@ void Interface_Update(PlayState* play) {
     }
 
     // Update perfect letters
-    if (!IS_PAUSED(&play->pauseCtx)) {
+    if (!COOP_WORLD_PAUSED(play)) { // [COOP]
         if (interfaceCtx->perfectLettersOn) {
             if (interfaceCtx->perfectLettersType == PERFECT_LETTERS_TYPE_1) {
                 Interface_UpdatePerfectLettersType1(play);
@@ -9760,7 +9760,7 @@ void Interface_Update(PlayState* play) {
     }
 
     // Update minigame State
-    if (!IS_PAUSED(&play->pauseCtx)) {
+    if (!COOP_WORLD_PAUSED(play)) { // [COOP]
         if (interfaceCtx->minigameState != MINIGAME_STATE_NONE) {
             switch (interfaceCtx->minigameState) {
                 case MINIGAME_STATE_COUNTDOWN_SETUP_3:

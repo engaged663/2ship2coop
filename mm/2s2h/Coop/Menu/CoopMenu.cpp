@@ -133,6 +133,13 @@ void DrawOptions() {
                             UIWidgets::CheckboxOptions().Color(THEME_COLOR));
     UIWidgets::CVarCheckbox("Mostrar mi propio nick encima de mi Link", "gCoop.ShowOwnNameTag",
                             UIWidgets::CheckboxOptions().Color(THEME_COLOR));
+    UIWidgets::CVarCheckbox(
+        "El inventario no pausa el juego (partida del servidor)", "gCoop.LiveMenu",
+        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
+            "Con el menú de pausa abierto el mundo sigue en directo detrás: Link, la cámara, el sonido y los demás "
+            "jugadores. Link no recibe los botones del menú, pero puede caer o recibir daño. El menú se cierra solo "
+            "si el juego necesita a Link (un diálogo, una cinemática, cambiar de escena, morir). Desactivado: el "
+            "menú sobre una imagen fija y Link esperando, como antes. Se aplica la próxima vez que abras el menú."));
     UIWidgets::CVarSliderFloat(
         "Tamaño del chat", "gCoop.Chat.Scale",
         UIWidgets::FloatSliderOptions().Color(THEME_COLOR).Min(0.8f).Max(3.0f).DefaultValue(1.4f).Format("%.1f"));

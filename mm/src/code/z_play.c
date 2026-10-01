@@ -972,6 +972,7 @@ void Play_UpdateMain(PlayState* this) {
     Input* input = this->state.input;
     s32 sp5C = false;
     u8 freezeFlashTimer;
+    s32 coopLiveMenu = false; // [COOP] the pause menu is open over the running world (LiveMenu.cpp)
 
     gSegments[4] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.mainKeepSlot].segment);
     gSegments[5] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
@@ -1026,6 +1027,15 @@ void Play_UpdateMain(PlayState* this) {
 
             sp5C = IS_PAUSED(&this->pauseCtx);
 
+            // [COOP] The pause menu of the server's world stops nothing: what is behind it (the world, Link included,
+            // and the camera) runs as if the game were not paused, with a controller nobody touches. The menu has
+            // the real one.
+            coopLiveMenu = Coop_LiveMenuBegin(this);
+            if (coopLiveMenu) {
+                sp5C = false;
+                Coop_LiveMenuInput(this, true);
+            }
+
             AnimTaskQueue_Reset(&this->animTaskQueue);
             Object_UpdateEntries(&this->objectCtx);
 
@@ -1072,12 +1082,28 @@ void Play_UpdateMain(PlayState* this) {
                 Rumble_SetUpdateEnabled(false);
             }
 
+            if (coopLiveMenu) {
+                // [COOP] The menu closes by itself if the game took Link or the screen, and what is open over it
+                // (the Bombers' Notebook: its text box went with the menu, or is now the game's) goes with it
+                Coop_LiveMenuInput(this, false);
+                if ((Coop_LiveMenuAfterWorld(this) != COOP_MENU_CLOSE_NO) && sBombersNotebookOpen) {
+                    sBombersNotebookOpen = false;
+                    this->pauseCtx.bombersNotebookOpen = false;
+                    sBombersNotebook.loadState = BOMBERS_NOTEBOOK_LOAD_STATE_NONE;
+                    sJustClosedBomberNotebook = true;
+                }
+            }
+
             Room_Noop(this, &this->roomCtx.curRoom, &input[1], 0);
             Room_Noop(this, &this->roomCtx.prevRoom, &input[1], 1);
             Skybox_Update(&this->skyboxCtx);
 
             if (IS_PAUSED(&this->pauseCtx)) {
-                KaleidoScopeCall_Update(this);
+                if (!coopLiveMenu) {
+                    KaleidoScopeCall_Update(this);
+                } else if (!sBombersNotebookOpen) { // [COOP] (the notebook, open over the menu, has the controller)
+                    Coop_LiveMenuUpdate(this);
+                }
             } else if (this->gameOverCtx.state != GAMEOVER_INACTIVE) {
                 GameOver_Update(this);
             }
@@ -1094,6 +1120,9 @@ void Play_UpdateMain(PlayState* this) {
     if (!sp5C || gDbgCamEnabled) {
         s32 i;
 
+        if (coopLiveMenu) { // [COOP] the menu's stick does not move the camera of the world behind it
+            Coop_LiveMenuInput(this, true);
+        }
         this->nextCamera = this->activeCamId;
         for (i = 0; i < NUM_CAMS; i++) {
             if ((i != this->nextCamera) && (this->cameraPtrs[i] != NULL)) {
@@ -1101,6 +1130,9 @@ void Play_UpdateMain(PlayState* this) {
             }
         }
         Camera_Update(this->cameraPtrs[this->nextCamera]);
+        if (coopLiveMenu) { // [COOP]
+            Coop_LiveMenuInput(this, false);
+        }
     }
 
     if (!sp5C) {
@@ -1144,7 +1176,14 @@ void Play_Update(PlayState* this) {
     }
     if (sBombersNotebookOpen) {
         BombersNotebook_Update(this, &sBombersNotebook, this->state.input);
-        Message_Update(this);
+        if (Coop_PauseLive(this)) {
+            // [COOP] The notebook, opened from the pause menu of the server's world, stops nothing either: the world
+            // runs behind it (not drawn: the notebook fills the screen). Its text boxes update in there.
+            Coop_LiveMenuOwnText(this);
+            Play_UpdateMain(this);
+        } else {
+            Message_Update(this);
+        }
     } else {
         Play_UpdateMain(this);
     }
@@ -1152,7 +1191,37 @@ void Play_Update(PlayState* this) {
 
 void Play_PostWorldDraw(PlayState* this) {
     if (IS_PAUSED(&this->pauseCtx)) {
-        KaleidoScopeCall_Draw(this);
+        if (Coop_PauseLive(this)) {
+            // [COOP] The pause menu of the server's world goes over the world drawn behind it: its commands (written
+            // to the opaque list, as always) run from the overlay list, after the opaque and the translucent things
+            // of the world and before the HUD. What it writes to the translucent list (only its view) is skipped:
+            // the world's view is still in use there.
+            GraphicsContext* gfxCtx = this->state.gfxCtx;
+            Gfx* opaHead;
+            Gfx* xluHead;
+            s32 letterboxSize = ShrinkWindow_Letterbox_GetSize();
+
+            OPEN_DISPS(gfxCtx);
+
+            opaHead = POLY_OPA_DISP;
+            xluHead = POLY_XLU_DISP;
+            POLY_OPA_DISP = Graph_GfxPlusOne(opaHead);
+            POLY_XLU_DISP = Graph_GfxPlusOne(xluHead);
+            gSPDisplayList(OVERLAY_DISP++, POLY_OPA_DISP);
+
+            // The black bars the camera of the running world may ask for do not cut the menu
+            ShrinkWindow_Letterbox_SetSize(0);
+            KaleidoScopeCall_Draw(this);
+            ShrinkWindow_Letterbox_SetSize(letterboxSize);
+
+            gSPEndDisplayList(POLY_OPA_DISP++);
+            Graph_BranchDlist(opaHead, POLY_OPA_DISP);
+            Graph_BranchDlist(xluHead, POLY_XLU_DISP);
+
+            CLOSE_DISPS(gfxCtx);
+        } else {
+            KaleidoScopeCall_Draw(this);
+        }
     }
 
     if (gSaveContext.gameMode == GAMEMODE_NORMAL) {
@@ -1205,11 +1274,15 @@ void Play_DrawMain(PlayState* this) {
     static bool lastAltAssets;
     static bool hasCapturedPauseBuffer;
     u8 recapturePauseBuffer = false;
+    // [COOP] The pause menu of the server's world goes over the running world, drawn every frame as if there were no
+    // menu, and not over a picture of it (LiveMenu.cpp; the menu itself: Play_PostWorldDraw)
+    s32 coopLiveMenu = Coop_PauseLive(this);
 
     // If the size has changed, alt assets toggled or dropped frames leading to the buffer not being copied,
     // set the prerender state back to setup to copy a new frame.
     // This requires not rendering kaleido during this copy to avoid kaleido itself being copied too.
-    if ((R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_PROCESS ||
+    if (!coopLiveMenu &&
+        (R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_PROCESS ||
          R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_READY) &&
         (lastPauseWidth != OTRGetGameRenderWidth() || lastPauseHeight != OTRGetGameRenderHeight() ||
          lastAltAssets != ResourceMgr_IsAltAssetsEnabled() || !hasCapturedPauseBuffer || sJustClosedBomberNotebook)) {
@@ -1223,7 +1296,16 @@ void Play_DrawMain(PlayState* this) {
         R_PAUSE_BG_PRERENDER_STATE = PAUSE_BG_PRERENDER_OFF;
     }
 
-    if ((R_PAUSE_BG_PRERENDER_STATE <= PAUSE_BG_PRERENDER_SETUP) && (gTransitionTileState <= TRANS_TILE_SETUP)) {
+    if (coopLiveMenu && ((R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_SETUP) ||
+                         (R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_PROCESS))) {
+        // [COOP] No picture to take: the menu's background is ready as soon as the menu asks for it. (Should this
+        // menu ever need the picture, the check above takes it then.)
+        R_PAUSE_BG_PRERENDER_STATE = PAUSE_BG_PRERENDER_READY;
+        hasCapturedPauseBuffer = false;
+    }
+
+    if (((R_PAUSE_BG_PRERENDER_STATE <= PAUSE_BG_PRERENDER_SETUP) || coopLiveMenu) &&
+        (gTransitionTileState <= TRANS_TILE_SETUP)) {
         if (this->skyboxCtx.shouldDraw || (this->roomCtx.curRoom.roomShape->base.type == ROOM_SHAPE_TYPE_IMAGE)) {
             func_8012CF0C(gfxCtx, false, true, 0, 0, 0);
         } else {
@@ -1268,7 +1350,9 @@ void Play_DrawMain(PlayState* this) {
         View_Apply(&this->view, 0xF);
 
         // Setup mirror mode matrix handling when we are not drawing kaleido
-        if (R_PAUSE_BG_PRERENDER_STATE <= PAUSE_BG_PRERENDER_SETUP && CVarGetInteger("gModes.MirroredWorld.State", 0)) {
+        // [COOP] ...or when the world is drawn behind it
+        if ((R_PAUSE_BG_PRERENDER_STATE <= PAUSE_BG_PRERENDER_SETUP || coopLiveMenu) &&
+            CVarGetInteger("gModes.MirroredWorld.State", 0)) {
             gSPSetExtraGeometryMode(POLY_OPA_DISP++, G_EX_INVERT_CULLING);
             gSPSetExtraGeometryMode(POLY_XLU_DISP++, G_EX_INVERT_CULLING);
             gSPMatrix(POLY_OPA_DISP++, this->view.shipMirrorProjectionPtr,
@@ -1365,7 +1449,7 @@ void Play_DrawMain(PlayState* this) {
             goto PauseRenderDraw;
         } else {
         PauseRenderDraw:
-            if (R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_READY) {
+            if ((R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_READY) && !coopLiveMenu) { // [COOP]
                 Gfx* sp8C = POLY_OPA_DISP;
 
                 FB_DrawFromFramebuffer(&sp8C, gPauseFrameBuffer, 255);

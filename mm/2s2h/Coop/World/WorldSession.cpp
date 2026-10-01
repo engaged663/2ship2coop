@@ -5,6 +5,7 @@
 #include "SaveBuilder.h"
 #include "WorldSync.h"
 
+#include "2s2h/Coop/Actors/CoopEngine.h"
 #include "2s2h/Coop/Chat/ChatModel.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
@@ -323,7 +324,10 @@ bool ReadyForNewWorld(bool keepLive) {
         return !keepLive || waitedEnough;
     }
     if (IS_PAUSED(&gPlayState->pauseCtx)) {
-        return false; // as soon as the player closes the menu
+        // The pause menu that stops nothing (LiveMenu.cpp) does not stop this either: it closes for the new world.
+        // Any other pause screen: as soon as the player closes it.
+        Coop_LiveMenuClose(gPlayState);
+        return false;
     }
     return (fields::PlayLive() && Warp_BlockedReason().empty()) || waitedEnough;
 }

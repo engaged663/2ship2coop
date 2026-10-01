@@ -5,6 +5,7 @@
  */
 
 #include "z_en_okarina_effect.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_UPDATE_DURING_OCARINA)
 
@@ -56,7 +57,8 @@ void func_8096B104(EnOkarinaEffect* this, PlayState* play) {
 void func_8096B174(EnOkarinaEffect* this, PlayState* play) {
     DECR(this->timer);
 
-    if ((play->pauseCtx.state == PAUSE_STATE_OFF) && (play->gameOverCtx.state == GAMEOVER_INACTIVE) &&
+    if (((play->pauseCtx.state == PAUSE_STATE_OFF) || Coop_PauseLive(play)) && // [COOP]
+        (play->gameOverCtx.state == GAMEOVER_INACTIVE) &&
         (play->msgCtx.msgLength == 0) && !FrameAdvance_IsEnabled(play) && (this->timer == 0)) {
         EnOkarinaEffect_SetupAction(this, func_8096B1FC);
     }

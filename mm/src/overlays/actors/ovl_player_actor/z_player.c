@@ -4041,6 +4041,9 @@ void Player_StartChangingHeldItem(Player* this, PlayState* play) {
     this->stateFlags3 &= ~PLAYER_STATE3_START_CHANGING_HELD_ITEM;
 }
 
+// [COOP] sPlayerHeldItemButtonIsHeldDown as Player_ProcessItemButtons last left it (see Player_UpdateItems)
+static s32 sCoopHeldItemButtonWasHeldDown = false;
+
 void Player_UpdateItems(Player* this, PlayState* play) {
     if ((this->actor.id == ACTOR_PLAYER) && !(this->stateFlags3 & PLAYER_STATE3_START_CHANGING_HELD_ITEM)) {
         if ((this->heldItemAction == this->itemAction) || (this->stateFlags1 & PLAYER_STATE1_400000)) {
@@ -4048,7 +4051,16 @@ void Player_UpdateItems(Player* this, PlayState* play) {
                 if ((this->csAction == PLAYER_CSACTION_NONE) && (play->bButtonAmmoPlusOne == 0) &&
                     (play->activeCamId == CAM_ID_MAIN)) {
                     if (!func_8082DA90(play) && (gSaveContext.timerStates[TIMER_ID_MINIGAME_2] != TIMER_STATE_STOP)) {
-                        Player_ProcessItemButtons(this, play);
+                        // [COOP] Behind the pause menu of the server's world nobody presses Link's buttons, and the
+                        // menu turns them on and off for its own pages: what Link wears and holds is looked at again
+                        // when it closes, as in the original. Meanwhile he keeps holding what he held (a drawn bow
+                        // is not shot by opening the menu).
+                        if (!Coop_PauseLive(play)) {
+                            Player_ProcessItemButtons(this, play);
+                            sCoopHeldItemButtonWasHeldDown = sPlayerHeldItemButtonIsHeldDown;
+                        } else {
+                            sPlayerHeldItemButtonIsHeldDown = sCoopHeldItemButtonWasHeldDown;
+                        }
                     }
                 }
             }
@@ -12861,7 +12873,8 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
             this->actionFunc(this, play);
         }
 
-        if (!var_v1) {
+        // [COOP] Link runs behind the pause menu of the server's world: the A and B labels are the menu's meanwhile
+        if (!var_v1 && !Coop_PauseLive(play)) {
             Player_UpdateInterface(play, this);
         }
 

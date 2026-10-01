@@ -1191,7 +1191,8 @@ void Environment_WipeRumbleRequests(void) {
 }
 
 void Environment_UpdateSkyboxRotY(PlayState* play) {
-    if (!IS_PAUSED(&play->pauseCtx) && ((play->skyboxId == SKYBOX_NORMAL_SKY) || (play->skyboxId == SKYBOX_3))) {
+    if (!COOP_WORLD_PAUSED(play) && // [COOP]
+        ((play->skyboxId == SKYBOX_NORMAL_SKY) || (play->skyboxId == SKYBOX_3))) {
         play->skyboxCtx.rot.y -= R_TIME_SPEED * 1.0e-4f;
     }
 }
@@ -1791,7 +1792,8 @@ void Environment_Update(PlayState* play, EnvironmentContext* envCtx, LightContex
 
     Environment_WipeRumbleRequests();
 
-    if (pauseCtx->state == PAUSE_STATE_OFF) {
+    // [COOP] The sky, the weather and the lights of the world drawn behind the pause menu of the server's world go on
+    if ((pauseCtx->state == PAUSE_STATE_OFF) || Coop_PauseLive(play)) {
         Environment_UpdateSkyboxRotY(play);
         Environment_UpdateRain(play);
         Environment_UpdateTimeBasedSequence(play);

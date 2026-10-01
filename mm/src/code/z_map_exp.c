@@ -1,6 +1,7 @@
 #include "global.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 s16 sPlayerInitPosX = 0;
 s16 sPlayerInitPosZ = 0;
@@ -268,7 +269,7 @@ void Map_Update(PlayState* play) {
 
     MapDisp_Update(play);
 
-    if (!IS_PAUSED(&play->pauseCtx)) {
+    if (!COOP_WORLD_PAUSED(play)) { // [COOP] Link moves behind the pause menu of the server's world
         if (Map_IsInDungeonScene(play)) {
             floor = MapDisp_GetPlayerStorey(player->actor.world.pos.y);
             if (floor != -1) {

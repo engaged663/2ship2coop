@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include "2s2h/BenPort.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #define DYNA_RAYCAST_FLOORS 1
@@ -3306,7 +3307,8 @@ f32 BgCheck_RaycastFloorDyna(DynaRaycast* dynaRaycast) {
 
     dynaActor = DynaPoly_GetActor(dynaRaycast->colCtx, *dynaRaycast->bgId);
     if ((result != BGCHECK_Y_MIN) && (dynaActor != NULL) && (dynaRaycast->play != NULL)) {
-        pauseState = (dynaRaycast->play->pauseCtx.state != PAUSE_STATE_OFF);
+        // [COOP] the floors of the world running behind the pause menu of the server's world move
+        pauseState = (dynaRaycast->play->pauseCtx.state != PAUSE_STATE_OFF) && !Coop_PauseLive(dynaRaycast->play);
         if (!pauseState) {
             pauseState = dynaRaycast->play->pauseCtx.debugEditor != DEBUG_EDITOR_NONE;
         }

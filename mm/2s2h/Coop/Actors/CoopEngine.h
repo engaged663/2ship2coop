@@ -44,8 +44,35 @@ s32 Coop_DropSuppressed(void);
 s32 Coop_InWorld(void);
 // The player's state flags without the ones that freeze the world (talking, item pick-ups, ocarina...).
 u32 Coop_FreezeStateFlags(u32 stateFlags1);
-// While the pause menu is open the world runs, but Link (and the horse he rides) waits: 1 = do not update this actor.
+// While a pause screen that is not the live menu (below) is open the world runs, but Link (and the horse he rides)
+// waits: 1 = do not update this actor. On the owls' map of the Song of Soaring he waits too.
 s32 Coop_HoldWhilePaused(PlayState* play, Actor* actor);
+
+// The pause menu of the server's world stops nothing (LiveMenu.cpp). Coop_PauseLive: that menu is open (the owls' map
+// of the Song of Soaring counts; the game over screens do not): the world, Link included, runs and is drawn behind it.
+s32 Coop_PauseLive(PlayState* play);
+// For the engine's "is the game paused?" checks that stop something of the world: paused, and not behind that menu.
+#define COOP_WORLD_PAUSED(play) (IS_PAUSED(&(play)->pauseCtx) && !Coop_PauseLive(play))
+// 1 = Link waits even behind the live menu (Coop_HoldWhilePaused asks).
+s32 Coop_LiveMenuHoldsLink(PlayState* play);
+// Play_UpdateMain, once a frame before the world runs: Coop_PauseLive, and keeps track of the menu opening and closing.
+s32 Coop_LiveMenuBegin(PlayState* play);
+// Around what runs behind the menu (the world, the camera). neutral = 1: controller 1 becomes one nobody touches;
+// 0: the real one is back.
+void Coop_LiveMenuInput(PlayState* play, s32 neutral);
+// After the world ran: the menu closes by itself (no animation) if the game took Link or the screen. Returns what it
+// did; something open over the menu (the Bombers' Notebook) is the caller's to close.
+#define COOP_MENU_CLOSE_NO 0
+#define COOP_MENU_CLOSE_DROP_TEXT 1 // closing; a text box still open was the menu's own and went with it
+#define COOP_MENU_CLOSE_KEEP_TEXT 2 // closing; the open text box is the game's
+s32 Coop_LiveMenuAfterWorld(PlayState* play);
+// The menu's update of this frame, instead of KaleidoScopeCall_Update: the game keeps its 20 frames a second with
+// the menu open, the menu keeps its own 30 updates a second.
+void Coop_LiveMenuUpdate(PlayState* play);
+// After the update of something with text boxes of its own open over the menu (the Bombers' Notebook).
+void Coop_LiveMenuOwnText(PlayState* play);
+// The co-op itself needs the screen (a new world arrived: a cycle reset, the moon): that menu closes now.
+void Coop_LiveMenuClose(PlayState* play);
 
 // The end of the game together (Features/Ending*.cpp). Coop_InEnding: this game plays the ending (everything of the
 // co-op stands aside, as the original). Coop_CutsceneHold: 1 = this frame the ending's cutscene waits for a player

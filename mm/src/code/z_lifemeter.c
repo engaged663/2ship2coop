@@ -5,6 +5,7 @@
 #include "2s2h/BenGui/HudEditor.h"
 #include "2s2h/BenGui/CosmeticEditor.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include <libultraship/bridge/consolevariablebridge.h>
 
 s16 sHeartsPrimColors[3][3] = { { 255, 70, 50 }, { 255, 190, 0 }, { 100, 100, 255 } };
@@ -475,7 +476,7 @@ void LifeMeter_UpdateSizeAndBeep(PlayState* play) {
         if (interfaceCtx->lifeSizeChange <= 0) {
             interfaceCtx->lifeSizeChange = 0;
             interfaceCtx->lifeSizeChangeDirection = 0;
-            if (!Player_InCsMode(play) && !IS_PAUSED(&play->pauseCtx) && LifeMeter_IsCritical() &&
+            if (!Player_InCsMode(play) && !COOP_WORLD_PAUSED(play) && LifeMeter_IsCritical() && // [COOP]
                 !Play_InCsMode(play)) {
                 if (GameInteractor_Should(VB_PLAY_LOW_HP_ALARM, true)) {
                     Audio_PlaySfx(NA_SE_SY_HITPOINT_ALARM);

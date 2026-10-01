@@ -7,7 +7,8 @@ Diseño completo: `docs/superpowers/specs/2026-09-26-coop-a-nucleo-online-design
 
 Estado: **A (núcleo online)**, **B (mundo compartido)**, **C1/D1** (enemigos compartidos, anfitrión del servidor) y
 **D3** (réplica completa de la memoria de enemigos y NPCs) hechos; además objetos del escenario compartidos, final del
-juego para todos, el tiempo nunca se detiene, pasajeros de Epona entre escenas y **grupos** (invitaciones, minijuegos,
+juego para todos, el tiempo nunca se detiene (ni con el inventario abierto: «menú en vivo»), pasajeros de Epona
+entre escenas y **grupos** (invitaciones, minijuegos,
 misiones, diálogos y cinemáticas compartidos; jefes para toda la escena: ver «Grupos, minijuegos y misiones»), con sus
 límites arreglados (actores de cinemática y efectos para quien mira, minijuegos Juntos / Cada uno / Por turnos,
 contactos, resultados y textos con los valores de quien habla). Pendiente: D2 (spec D).
@@ -31,6 +32,7 @@ contactos, resultados y textos con los valores de quien habla). Pendiente: D2 (s
 | `Events.h/.cpp` | eventos JSON `{"t": ...}`: crear, serializar, validar, getters seguros |
 | `PlayerState.h/.cpp` | stream binario de la pose (una lista de campos para codificar y decodificar) |
 | `EponaState.h/.cpp` | stream binario de Eponas independientes: propietario, secuencia, estado, posición y montaje |
+| `LiveMenu.h/.cpp` | reglas puras del menú en vivo: cuándo se cierra solo (`LiveMenuWatch`) y cuántas veces se actualiza por fotograma (`LiveMenu_Steps`) |
 | `ByteStream.h` | `Writer`/`Reader` little-endian |
 | `Text.h/.cpp` | reglas de nick, saneado de chat, troceado de comandos con comillas |
 | `I18n.h/.cpp` + `I18nMessages.inc` | idiomas (es/en/zh/ru): `Tr(Msg::X, {args})`; todos los textos del servidor, una línea por texto |
@@ -112,6 +114,7 @@ contactos, resultados y textos con los valores de quien habla). Pendiente: D2 (s
 | `Actors/ActorMemory.*`, `ProcessMemory.*`, `Leases.*` | D3: copia de la memoria por ranuras (máscara local por actor: la colisión dinámica es de cada juego); NPCs/enemigos prestados al jugador cercano y objetos del minijuego prestados a su director |
 | `Actors/PropSync.*` | jarrones, hierba (también la de campo y los grupos), cajas, rocas y rupias: roto/recogido para todos; lo que sueltan lo ven todos (**lista `kSharedProps`**) |
 | `Actors/TimeNeverStops.cpp` | en el mundo del servidor nada detiene el tiempo (pausa, ocarina, textos, máscaras): ganchos en z_actor/z_play/z_kankyo |
+| `Actors/LiveMenu.cpp` | **menú en vivo**: el menú de pausa (y el mapa de búhos) es solo una capa; Link sigue con un mando neutro, el mundo se dibuja detrás, sin silencio ni cambio de ritmo, y se cierra solo si el juego necesita a Link (`ForceClose`). Interruptor `gCoop.LiveMenu` |
 | `Actors/ActorRegistry.*` | C: los enemigos compartidos de la escena, su clave, esqueleto y colisiones |
 | `Actors/Authority.*` | C: la tabla `auth` en el juego |
 | `Actors/ActorSync.*` | C: la autoridad transmite; los demás aplican réplicas; objetivo = el Link más cercano |
@@ -141,6 +144,15 @@ contactos, resultados y textos con los valores de quien habla). Pendiente: D2 (s
   Canción de Doble Tiempo no cambia la hora local: la mueve el servidor para todos).
 - `mm/src/code/z_actor.c`, `z_collision_check.c`, `z_skelanime.c`, `z_en_item00.c`: ganchos de réplica (C/D3).
 - `mm/src/code/z_actor.c`, `z_play.c`, `z_kankyo.c`: el tiempo no se detiene en el mundo (`TimeNeverStops.cpp`).
+- Menú en vivo (`LiveMenu.cpp`, spec `2026-10-01-coop-menu-en-vivo-design.md`): `z_play.c` (`Play_UpdateMain`: mundo y
+  cámara con mando neutro, cierre forzado, pasos del menú; `Play_Update`: la libreta no para el mundo;
+  `Play_PostWorldDraw`: el menú se ejecuta desde `OVERLAY`; `Play_DrawMain`: mundo en directo, sin captura),
+  `z_kaleido_setup.c` y `z_message.c` (abrir sin cambiar ritmo ni silenciar), `z_kaleido_scope_call.c` (sin esperar
+  a las bandas negras; dibujar aunque el código "cargado" sea el de Link), `z_player.c` (ni etiquetas A/B ni
+  botones de objetos tras el menú) y las comprobaciones de pausa que paraban cosas del mundo, con
+  `COOP_WORLD_PAUSED` / `Coop_PauseLive`: `z_kankyo.c`, `z_parameter.c`, `z_lifemeter.c`, `z_map_exp.c`,
+  `z_bgcheck.c`, `ovl_En_Okarina_Effect`. `World/WorldSession.cpp` cierra ese menú cuando llega un mundo nuevo
+  (`Coop_LiveMenuClose`).
 - `mm/src/code/z_demo.c`: el final espera a los jugadores rezagados (`Coop_CutsceneHold`) y avisa del último plano
   (`Coop_OnFinale`). `mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipStoppingMoonCutscene.cpp`: en el mundo la
   Canción del Juramento la lleva `Features/Ending.cpp`.
@@ -322,6 +334,7 @@ Ciudad Reloj Sur, 54784 = Norte), `Debug.GrantHeartOnEnter` (prueba: +1 contened
 `Debug.FieldSelfTest` (prueba: leer y reescribir todos los campos no debe cambiar nada). Grupo (1 = sí, por defecto):
 `Group.Dialogues`, `Group.Cutscenes`, `Group.Minigames`, `Group.Rewards`, `Group.CinemaActors` (seguir los actores de
 cinemática de quien miras), `Group.Turns` (aviso "Te toca") y `Effects` (eco de efectos: mandar y recibir).
+`LiveMenu` (1 por defecto): el menú de pausa no pausa nada; 0 = como antes (imagen fija, Link esperando).
 
 ## Seguridad del servidor
 - Los paquetes malformados o desconocidos se registran (limpios, solo los 3 primeros) y a los 50 se expulsa al cliente.

@@ -2,6 +2,7 @@
 
 #include "z64.h"
 #include "z64shrink_window.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 void (*sKaleidoScopeUpdateFunc)(PlayState* play);
 void (*sKaleidoScopeDrawFunc)(PlayState* play);
@@ -40,7 +41,9 @@ void KaleidoScopeCall_Update(PlayState* play) {
     }
 
     if ((pauseCtx->state == PAUSE_STATE_OPENING_0) || (pauseCtx->state == PAUSE_STATE_OWL_WARP_0)) {
-        if (ShrinkWindow_Letterbox_GetSize() == 0) {
+        // [COOP] The camera of the world running behind the menu may keep asking for its black bars (a target
+        // locked on): that menu does not wait for them to go, it is drawn uncut over them (Play_PostWorldDraw)
+        if ((ShrinkWindow_Letterbox_GetSize() == 0) || Coop_PauseLive(play)) {
             R_PAUSE_BG_PRERENDER_STATE = PAUSE_BG_PRERENDER_SETUP;
             pauseCtx->mainState = PAUSE_MAIN_STATE_IDLE;
             pauseCtx->savePromptState = PAUSE_SAVEPROMPT_STATE_APPEARING;
@@ -82,7 +85,13 @@ void KaleidoScopeCall_Draw(PlayState* play) {
     if (R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_READY) {
         if (((play->pauseCtx.state >= PAUSE_STATE_OPENING_3) && (play->pauseCtx.state <= PAUSE_STATE_SAVEPROMPT)) ||
             ((play->pauseCtx.state >= PAUSE_STATE_GAMEOVER_3) && (play->pauseCtx.state <= PAUSE_STATE_UNPAUSE_SETUP))) {
-            if (gKaleidoMgrCurOvl == kaleidoScopeOvl) {
+            // [COOP] Link was just drawn behind the menu of the server's world, which made his code "the one loaded"
+            // (KaleidoScopeCall_LoadPlayer): on the N64 the menu's and his share their memory. Here both always are,
+            // so that menu is drawn anyway, once its first update has run (the owls' map is not ready before
+            // OWL_WARP_3; the original left those states out by the menu's code not being loaded yet).
+            if ((gKaleidoMgrCurOvl == kaleidoScopeOvl) ||
+                (Coop_PauseLive(play) && !((play->pauseCtx.state >= PAUSE_STATE_OWL_WARP_0) &&
+                                           (play->pauseCtx.state <= PAUSE_STATE_OWL_WARP_2)))) {
                 sKaleidoScopeDrawFunc(play);
             }
         }

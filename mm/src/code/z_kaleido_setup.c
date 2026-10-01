@@ -5,6 +5,7 @@
 #include "z64shrink_window.h"
 
 #include "overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include <string.h>
 
 s16 sKaleidoSetupRightPageIndex[] = {
@@ -131,15 +132,22 @@ void KaleidoSetup_Update(PlayState* play) {
             func_800F4A10(play);
             // Set next page mode to scroll left
             pauseCtx->nextPageMode = pauseCtx->pageIndex * 2 + 1;
-            Audio_SetPauseState(true);
+            if (!Coop_PauseLive(play)) { // [COOP] the pause menu of the server's world stops nothing (LiveMenu.cpp)
+                Audio_SetPauseState(true);
+            }
         }
 
         if (pauseCtx->state == PAUSE_STATE_OPENING_0) {
-            GameState_SetFramerateDivisor(&play->state, 2);
-            if (ShrinkWindow_Letterbox_GetSizeTarget() != 0) {
-                ShrinkWindow_Letterbox_SetSizeTarget(0);
+            if (Coop_PauseLive(play)) {
+                // [COOP] The game keeps its pace, its sounds and the black bars of its camera behind that menu
+                Audio_PlaySfx(NA_SE_SY_WIN_OPEN);
+            } else {
+                GameState_SetFramerateDivisor(&play->state, 2);
+                if (ShrinkWindow_Letterbox_GetSizeTarget() != 0) {
+                    ShrinkWindow_Letterbox_SetSizeTarget(0);
+                }
+                Audio_PlaySfx_PauseMenuOpenOrClose(SFX_PAUSE_MENU_OPEN);
             }
-            Audio_PlaySfx_PauseMenuOpenOrClose(SFX_PAUSE_MENU_OPEN);
         }
     }
 }

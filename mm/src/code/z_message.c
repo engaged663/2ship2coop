@@ -6001,6 +6001,12 @@ void Message_Update(PlayState* play) {
                             play->msgCtx.ocarinaMode = OCARINA_MODE_END;
                             gSaveContext.prevHudVisibility = HUD_VISIBILITY_A_B;
                             Interface_SetBButtonInterfaceDoAction(play, DO_ACTION_STOP);
+                            if (Coop_PauseLive(play)) {
+                                // [COOP] The owls' map of the server's world stops nothing, like its pause menu
+                                // (LiveMenu.cpp): the game keeps its pace, its sounds and its camera's black bars
+                                Audio_PlaySfx(NA_SE_SY_WIN_OPEN);
+                                break;
+                            }
                             GameState_SetFramerateDivisor(&play->state, 2);
                             if (ShrinkWindow_Letterbox_GetSizeTarget() != 0) {
                                 ShrinkWindow_Letterbox_SetSizeTarget(0);
