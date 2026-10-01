@@ -1,0 +1,415 @@
+diff --git a/include/fast/Fast3dWindow.h b/include/fast/Fast3dWindow.h
+index 7c16ca1f..6b58a485 100644
+--- a/include/fast/Fast3dWindow.h
++++ b/include/fast/Fast3dWindow.h
+@@ -23,10 +23,15 @@ enum WindowBackend {
+     FAST3D_DXGI_DX11 = 1,
+     FAST3D_SDL_OPENGL = 2,
+     FAST3D_SDL_METAL = 3,
++    FAST3D_HEADLESS = 100, // [COOP] no window, no GPU (only when Fast3dWindow::SetHeadless(true) was called)
+ };
+ 
+ class Fast3dWindow : public Ship::Window {
+   public:
++    // [COOP] Call before the window is created: the headless backend becomes the only one.
++    static void SetHeadless(bool headless);
++    static bool IsHeadless();
++
+     Fast3dWindow();
+     Fast3dWindow(std::vector<std::shared_ptr<Ship::GuiWindow>> guiWindows);
+     Fast3dWindow(std::shared_ptr<Ship::Gui> gui);
+diff --git a/include/fast/backends/gfx_headless.h b/include/fast/backends/gfx_headless.h
+new file mode 100644
+index 00000000..e5565735
+--- /dev/null
++++ b/include/fast/backends/gfx_headless.h
+@@ -0,0 +1,202 @@
++#pragma once
++// [COOP] Headless backends (sub-project D): no window, no GPU. Chosen at run time with Fast3dWindow::SetHeadless
++// (the co-op server's host game). The game still runs every frame, including its draw pass on the CPU (the
++// interpreter walks the display lists), but nothing is ever shown or sent to a graphics card.
++
++#include "fast/backends/gfx_window_manager_api.h"
++#include "fast/backends/gfx_rendering_api.h"
++
++#include <chrono>
++
++namespace Fast {
++
++class GfxWindowBackendHeadless final : public GfxWindowBackend {
++  public:
++    void Init(const char* gameName, const char* apiName, bool startFullScreen, uint32_t width, uint32_t height,
++              int32_t posX, int32_t posY) override;
++    void Close() override;
++    void SetKeyboardCallbacks(bool (*onKeyDown)(int), bool (*onKeyUp)(int), void (*onAllKeysUp)()) override {
++    }
++    void SetMouseCallbacks(bool (*onDown)(int), bool (*onUp)(int)) override {
++    }
++    void SetFullscreenChangedCallback(void (*cb)(bool)) override {
++    }
++    void SetFullscreen(bool fullscreen) override {
++    }
++    void GetActiveWindowRefreshRate(uint32_t* refreshRate) override {
++        *refreshRate = 60;
++    }
++    void SetCursorVisibility(bool visible) override {
++    }
++    void SetMousePos(int32_t x, int32_t y) override {
++    }
++    void GetMousePos(int32_t* x, int32_t* y) override {
++        *x = *y = 0;
++    }
++    void GetMouseDelta(int32_t* x, int32_t* y) override {
++        *x = *y = 0;
++    }
++    void GetMouseWheel(float* x, float* y) override {
++        *x = *y = 0.0f;
++    }
++    bool GetMouseState(uint32_t btn) override {
++        return false;
++    }
++    void SetMouseCapture(bool capture) override {
++    }
++    bool IsMouseCaptured() override {
++        return false;
++    }
++    void GetDimensions(uint32_t* width, uint32_t* height, int32_t* posX, int32_t* posY) override {
++        *width = mWidth;
++        *height = mHeight;
++        *posX = *posY = 0;
++    }
++    void SetDimensions(uint32_t width, uint32_t height, int32_t posX, int32_t posY) override {
++        mWidth = width;
++        mHeight = height;
++    }
++    Ship::WindowRect GetPrimaryMonitorRect() override {
++        return { 0, 0, (int32_t)mWidth, (int32_t)mHeight };
++    }
++    void HandleEvents() override {
++    }
++    bool IsFrameReady() override {
++        return true;
++    }
++    void SwapBuffersBegin() override;
++    void SwapBuffersEnd() override {
++    }
++    double GetTime() override;
++    int GetTargetFps() override {
++        return mTargetFps;
++    }
++    void SetTargetFps(int fps) override {
++        mTargetFps = fps > 0 ? fps : 20;
++    }
++    void SetMaxFrameLatency(int latency) override {
++    }
++    const char* GetKeyName(int scancode) override {
++        return "";
++    }
++    bool CanDisableVsync() override {
++        return false;
++    }
++    bool IsRunning() override {
++        return mIsRunning;
++    }
++    void Destroy() override {
++    }
++    bool IsFullscreen() override {
++        return false;
++    }
++
++  private:
++    uint32_t mWidth = 320;
++    uint32_t mHeight = 240;
++    std::chrono::steady_clock::time_point mStart = std::chrono::steady_clock::now();
++    std::chrono::steady_clock::time_point mNextFrame = mStart;
++};
++
++// Accepts every command of the interpreter and does nothing with it.
++class GfxRenderingAPIHeadless final : public GfxRenderingAPI {
++  public:
++    const char* GetName() override {
++        return "Headless";
++    }
++    int GetMaxTextureSize() override {
++        return 8192;
++    }
++    GfxClipParameters GetClipParameters() override {
++        return { false, false };
++    }
++    void UnloadShader(ShaderProgram* oldPrg) override {
++    }
++    void LoadShader(ShaderProgram* newPrg) override {
++    }
++    void ClearShaderCache() override {
++    }
++    ShaderProgram* CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) override;
++    ShaderProgram* LookupShader(uint64_t shaderId0, uint64_t shaderId1) override;
++    void ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs, bool usedTextures[2]) override {
++        *numInputs = 0;
++        usedTextures[0] = usedTextures[1] = false;
++    }
++    uint32_t NewTexture() override {
++        return ++mTextures;
++    }
++    void SelectTexture(int tile, uint32_t textureId) override {
++    }
++    void UploadTexture(const uint8_t* rgba32Buf, uint32_t width, uint32_t height) override {
++    }
++    void SetSamplerParameters(int sampler, bool linearFilter, uint32_t cms, uint32_t cmt) override {
++    }
++    void SetDepthTestAndMask(bool depthTest, bool zUpd) override {
++    }
++    void SetZmodeDecal(bool decal) override {
++    }
++    void SetViewport(int x, int y, int width, int height) override {
++    }
++    void SetScissor(int x, int y, int width, int height) override {
++    }
++    void SetUseAlpha(bool useAlpha) override {
++    }
++    void DrawTriangles(float bufVbo[], size_t bufVboLen, size_t bufVboNumTris) override {
++    }
++    void Init() override {
++    }
++    void OnResize() override {
++    }
++    void StartFrame() override {
++    }
++    void EndFrame() override {
++    }
++    void FinishRender() override {
++    }
++    int CreateFramebuffer() override {
++        return ++mFramebuffers;
++    }
++    void UpdateFramebufferParameters(int fbId, uint32_t width, uint32_t height, uint32_t msaaLevel, bool openglInvertY,
++                                     bool renderTarget, bool hasDepthBuffer, bool canExtractDepth) override {
++    }
++    void StartDrawToFramebuffer(int fbId, float noiseScale) override {
++    }
++    void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
++                         int dstX1, int dstY1) override {
++    }
++    void ClearFramebuffer(bool color, bool depth) override {
++    }
++    void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
++    void ResolveMSAAColorBuffer(int fbIdTarget, int fbIdSrc) override {
++    }
++    std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
++    GetPixelDepth(int fbId, const std::set<std::pair<float, float>>& coordinates) override;
++    void* GetFramebufferTextureId(int fbId) override {
++        return nullptr;
++    }
++    void SelectTextureFb(int fbId) override {
++    }
++    void DeleteTexture(uint32_t texId) override {
++    }
++    void SetTextureFilter(FilteringMode mode) override {
++        mFilter = mode;
++    }
++    FilteringMode GetTextureFilter() override {
++        return mFilter;
++    }
++    void SetSrgbMode() override {
++    }
++    ImTextureID GetTextureById(int id) override {
++        return 0;
++    }
++    void SetCurrentPrimDepth(float depth) override {
++    }
++
++  private:
++    uint32_t mTextures = 0;
++    int mFramebuffers = 0;
++    FilteringMode mFilter = FILTER_NONE;
++};
++
++} // namespace Fast
++
+diff --git a/src/fast/Fast3dGui.cpp b/src/fast/Fast3dGui.cpp
+index 237a502a..f0c03f42 100644
+--- a/src/fast/Fast3dGui.cpp
++++ b/src/fast/Fast3dGui.cpp
+@@ -51,6 +51,9 @@ void Fast3dGui::Init(GuiWindowInitData windowImpl) {
+ }
+ 
+ bool Fast3dGui::SupportsViewports() {
++    if (mImpl.Backend == WindowBackend::FAST3D_HEADLESS) {
++        return false; // [COOP] no window system
++    }
+ #ifdef __linux__
+     const char* currentDesktop = std::getenv("XDG_CURRENT_DESKTOP");
+     if (currentDesktop && std::string(currentDesktop) == "gamescope") {
+@@ -197,6 +200,19 @@ void Fast3dGui::ImGuiBackendShutdown() {
+ 
+ void Fast3dGui::ImGuiBackendNewFrame() {
+     switch (mImpl.Backend) {
++        case WindowBackend::FAST3D_HEADLESS: { // [COOP]
++            ImGuiIO& io = ImGui::GetIO();
++            io.DisplaySize = ImVec2(320.0f, 240.0f);
++            io.DeltaTime = 1.0f / 20.0f;
++            if (!io.Fonts->IsBuilt()) {
++                unsigned char* pixels = nullptr;
++                int width = 0;
++                int height = 0;
++                io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
++                io.Fonts->SetTexID((ImTextureID)1);
++            }
++            break;
++        }
+ #ifdef ENABLE_OPENGL
+         case WindowBackend::FAST3D_SDL_OPENGL:
+             ImGui_ImplOpenGL3_NewFrame();
+diff --git a/src/fast/Fast3dWindow.cpp b/src/fast/Fast3dWindow.cpp
+index 2b77a5f2..1850d22a 100644
+--- a/src/fast/Fast3dWindow.cpp
++++ b/src/fast/Fast3dWindow.cpp
+@@ -12,6 +12,7 @@
+ #include "fast/backends/gfx_direct3d_common.h"
+ #include "fast/backends/gfx_direct3d11.h"
+ #include "fast/backends/gfx_window_manager_api.h"
++#include "fast/backends/gfx_headless.h" // [COOP]
+ 
+ #include "fast/Fast3dGui.h"
+ 
+@@ -21,6 +22,18 @@ namespace Fast {
+ 
+ extern void GfxSetInstance(std::shared_ptr<Interpreter> gfx);
+ 
++namespace {
++bool sHeadless = false; // [COOP]
++} // namespace
++
++void Fast3dWindow::SetHeadless(bool headless) {
++    sHeadless = headless;
++}
++
++bool Fast3dWindow::IsHeadless() {
++    return sHeadless;
++}
++
+ Fast3dWindow::Fast3dWindow(std::shared_ptr<Ship::Gui> gui, std::shared_ptr<FastMouseStateManager> mouseStateManager)
+     : Ship::Window(gui, mouseStateManager) {
+     mWindowManagerApi = nullptr;
+@@ -28,6 +41,10 @@ Fast3dWindow::Fast3dWindow(std::shared_ptr<Ship::Gui> gui, std::shared_ptr<FastM
+     mInterpreter = std::make_shared<Interpreter>();
+     GfxSetInstance(mInterpreter);
+ 
++    if (sHeadless) { // [COOP] the co-op server's host game: no window at all
++        AddAvailableWindowBackend(WindowBackend::FAST3D_HEADLESS);
++        return;
++    }
+ #ifdef _WIN32
+     AddAvailableWindowBackend(WindowBackend::FAST3D_DXGI_DX11);
+ #endif
+@@ -134,9 +151,14 @@ uint16_t Fast3dWindow::GetPixelDepth(float x, float y) {
+ }
+ 
+ void Fast3dWindow::InitWindowManager() {
+-    SetWindowBackend(GetSavedWindowBackend());
++    // [COOP] The headless backend is never saved as the choice of a normal game (it is not offered there).
++    SetWindowBackend(sHeadless ? (int32_t)WindowBackend::FAST3D_HEADLESS : GetSavedWindowBackend());
+ 
+     switch (GetWindowBackend()) {
++        case WindowBackend::FAST3D_HEADLESS: // [COOP]
++            mWindowManagerApi = new GfxWindowBackendHeadless();
++            mRenderingApi = new GfxRenderingAPIHeadless();
++            break;
+ #ifdef ENABLE_DX11
+         case WindowBackend::FAST3D_DXGI_DX11:
+             mWindowManagerApi = new GfxWindowBackendDXGI();
+@@ -401,6 +423,8 @@ std::string Fast3dWindow::GetWindowBackendName() {
+             return "OpenGL";
+         case WindowBackend::FAST3D_SDL_METAL:
+             return "Metal";
++        case WindowBackend::FAST3D_HEADLESS:
++            return "Headless";
+         default:
+             return "";
+     }
+diff --git a/src/fast/backends/gfx_headless.cpp b/src/fast/backends/gfx_headless.cpp
+new file mode 100644
+index 00000000..16e9d116
+--- /dev/null
++++ b/src/fast/backends/gfx_headless.cpp
+@@ -0,0 +1,80 @@
++// [COOP] See gfx_headless.h. The interpreter still walks every display list (matrices, vertices, texture loads),
++// so the game's draw pass behaves as usual; only the final GPU calls do nothing.
++#include "fast/backends/gfx_headless.h"
++#include "fast/Fast3dGui.h"
++#include "ship/Context.h"
++
++#include <map>
++#include <thread>
++
++namespace Fast {
++
++// Each backend defines its own ShaderProgram: ours only remembers its ids.
++struct ShaderProgram {
++    uint64_t id0;
++    uint64_t id1;
++};
++
++namespace {
++std::map<std::pair<uint64_t, uint64_t>, ShaderProgram> sShaders;
++} // namespace
++
++void GfxWindowBackendHeadless::Init(const char* gameName, const char* apiName, bool startFullScreen, uint32_t width,
++                                    uint32_t height, int32_t posX, int32_t posY) {
++    mWidth = width > 0 ? width : 320;
++    mHeight = height > 0 ? height : 240;
++    mStart = std::chrono::steady_clock::now();
++    mNextFrame = mStart;
++    mIsRunning = true;
++    // The GUI (ImGui) still runs its frames (the game's menus are never shown, but some code asks it things).
++    GuiWindowInitData impl = {};
++    impl.Backend = WindowBackend::FAST3D_HEADLESS;
++    std::dynamic_pointer_cast<Fast3dGui>(Ship::Context::GetRawInstance()->GetWindow()->GetGui())->Init(impl);
++}
++
++void GfxWindowBackendHeadless::Close() {
++    mIsRunning = false;
++}
++
++// Keeps the game at its own speed (20 logic frames per second) instead of the screen's refresh.
++void GfxWindowBackendHeadless::SwapBuffersBegin() {
++    using namespace std::chrono;
++    auto period = nanoseconds(1000000000LL / (mTargetFps > 0 ? mTargetFps : 20));
++    mNextFrame += period;
++    auto now = steady_clock::now();
++    if (mNextFrame < now - period) {
++        mNextFrame = now; // far behind (a slow frame): do not try to catch up
++    }
++    std::this_thread::sleep_until(mNextFrame);
++}
++
++double GfxWindowBackendHeadless::GetTime() {
++    return std::chrono::duration<double>(std::chrono::steady_clock::now() - mStart).count();
++}
++
++ShaderProgram* GfxRenderingAPIHeadless::CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) {
++    ShaderProgram& prg = sShaders[{ shaderId0, shaderId1 }];
++    prg = { shaderId0, shaderId1 };
++    return &prg;
++}
++
++ShaderProgram* GfxRenderingAPIHeadless::LookupShader(uint64_t shaderId0, uint64_t shaderId1) {
++    auto it = sShaders.find({ shaderId0, shaderId1 });
++    return it == sShaders.end() ? nullptr : &it->second;
++}
++
++void GfxRenderingAPIHeadless::ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) {
++    std::fill(rgba16Buf, rgba16Buf + (size_t)width * height, (uint16_t)0);
++}
++
++std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
++GfxRenderingAPIHeadless::GetPixelDepth(int fbId, const std::set<std::pair<float, float>>& coordinates) {
++    std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff> out;
++    for (const auto& c : coordinates) {
++        out[c] = 0;
++    }
++    return out;
++}
++
++} // namespace Fast
++

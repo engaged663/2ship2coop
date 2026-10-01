@@ -75,3 +75,12 @@ _packages/
 
 build/
 .cache
+# [COOP] local test tooling, builds and logs (never commit these)
+/game_compiled
+/.superpowers/sdd/coop-tools
+/.superpowers/backup
+server.json
+bans.json
+ops.json
+world.json
+players.json
