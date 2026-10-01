@@ -28,6 +28,7 @@
 #include "overlays/effects/ovl_Effect_Ss_Hahen/z_eff_ss_hahen.h"
 
 #include "2s2h/BenPort.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 
@@ -1376,6 +1377,7 @@ void Boss07_Init(Actor* thisx, PlayState* play2) {
         Actor_Spawn(&play->actorCtx, play, ACTOR_BOSS_07, this->actor.world.pos.x, this->actor.world.pos.y,
                     this->actor.world.pos.z, 0, 0, 0, MAJORA_PARAMS(MAJORA_TYPE_BATTLE_HANDLER));
         play->specialEffects = (void*)sMajoraEffects;
+        Coop_AddActorRegion(&this->actor, sMajoraEffects, sizeof(sMajoraEffects)); // [COOP] its effects travel with it
 
         for (i = 0; i < MAJORA_EFFECT_COUNT; i++) {
             sMajoraEffects[i].type = MAJORA_EFFECT_NONE;

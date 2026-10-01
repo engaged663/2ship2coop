@@ -1,6 +1,7 @@
 #include "WorldStore.h"
 
 #include "common/Hex.h"
+#include "common/I18n.h"
 
 namespace coop::server {
 
@@ -91,20 +92,20 @@ bool WorldStore::ParseFields(const json& fields, FieldSet& out, std::string* err
         return false;
     };
     if (!fields.is_object()) {
-        return fail("los campos del mundo no son un objeto");
+        return fail(Tr(Msg::WsFieldsNotObject));
     }
     FieldSet parsed;
     for (const FieldDef& def : kFields) {
         auto it = fields.find(def.name);
         if (it == fields.end() || !it->is_string()) {
-            return fail(std::string("falta el campo '") + def.name + "'");
+            return fail(Tr(Msg::WsMissingField, { def.name }));
         }
         std::vector<uint8_t> bytes;
         if (!FromHex(it->get<std::string>(), bytes)) {
-            return fail(std::string("el campo '") + def.name + "' no es hexadecimal");
+            return fail(Tr(Msg::WsNotHex, { def.name }));
         }
         if (bytes.size() != def.size) {
-            return fail(std::string("el campo '") + def.name + "' debe tener " + std::to_string(def.size) + " bytes");
+            return fail(Tr(Msg::WsBadSize, { def.name, std::to_string(def.size) }));
         }
         parsed.push_back(std::move(bytes));
     }
@@ -125,15 +126,15 @@ bool WorldStore::FromJson(const json& saved, std::string* err) {
         return false;
     };
     if (!saved.is_object()) {
-        return fail("no es un objeto");
+        return fail(Tr(Msg::NotAnObject));
     }
     int64_t cycle = GetInt(saved, "cycle", 0);
     if (cycle < 1 || cycle > 1000000) {
-        return fail("ciclo inválido");
+        return fail(Tr(Msg::WsBadCycle));
     }
     auto fields = saved.find("fields");
     if (fields == saved.end()) {
-        return fail("falta 'fields'");
+        return fail(Tr(Msg::MissingFields));
     }
     FieldSet current;
     if (!ParseFields(*fields, current, err)) {

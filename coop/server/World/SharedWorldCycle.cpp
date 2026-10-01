@@ -12,7 +12,7 @@ namespace coop::server {
 
 void SharedWorld::TickCycle(int64_t now) {
     if (mResetting && now >= mComputeDeadlineMs) {
-        mServer.Log().Warn("Un juego no calculó el nuevo ciclo a tiempo; se pide a otro.");
+        mServer.Log().Warn(Tr(Msg::ComputeLate));
         NextComputer();
     }
     if (mVote.Active()) {
@@ -31,16 +31,14 @@ void SharedWorld::RequestJump(RemoteClient& c) {
     uint32_t next = clock::NextHalfDay(mClock.Abs(now));
     if (mResetting || next >= clock::kMoonAbs) {
         if (!mResetting) {
-            mServer.SendSystem(&c, "La Canción del Doble Tiempo no puede adelantar el tiempo más allá de la última "
-                                   "noche.",
-                               level::kWarn);
+            mServer.SendSystem(&c, Tr(Msg::DoubleTimeLimit), level::kWarn);
         }
         SendClock(&c, false); // that game already put its time back: this confirms it
         return;
     }
     mClock.Set(next, now);
     mDirty = true;
-    Announce(c.nick + " ha tocado la Canción del Doble Tiempo: " + clock::Format(next) + ".", level::kInfo, nullptr);
+    Announce(Tr(Msg::DoubleTimePlayed, { c.nick, clock::Format(next) }), level::kInfo, nullptr);
     SendClock(nullptr, true);
 }
 
@@ -51,9 +49,7 @@ void SharedWorld::RequestSpeed(RemoteClient& c, bool inverted) {
     if (inverted != mClock.Inverted()) {
         mClock.SetInverted(inverted, Now());
         mDirty = true;
-        Announce(c.nick + (inverted ? " ha ralentizado el tiempo (Canción del Tiempo Invertida)."
-                                    : " ha devuelto el tiempo a su velocidad normal."),
-                 level::kInfo, nullptr);
+        Announce(Tr(inverted ? Msg::InvertedOn : Msg::InvertedOff, { c.nick }), level::kInfo, nullptr);
     }
     SendClock(nullptr, false);
 }
@@ -63,36 +59,34 @@ void SharedWorld::ProposeSot(RemoteClient& c) {
         return;
     }
     if (mResetting) {
-        mServer.SendSystem(&c, "Ya se está volviendo al Amanecer del Primer Día.", level::kWarn);
+        mServer.SendSystem(&c, Tr(Msg::ResetAlready), level::kWarn);
         return;
     }
     if (mVote.Active()) {
-        mServer.SendSystem(&c, "Ya hay una votación en marcha: escribe /si o /no.", level::kWarn);
+        mServer.SendSystem(&c, Tr(Msg::VoteAlready), level::kWarn);
         return;
     }
     int64_t now = Now();
     mVote.Start(c.peer, now, mServer.Config().voteTimeoutMs);
     if (InWorld().size() > 1) {
-        Announce(c.nick + " quiere volver al Amanecer del Primer Día. Escribe /si o /no (" +
-                     std::to_string(mVote.SecondsLeft(now)) + " s).",
-                 level::kInfo, nullptr);
+        Announce(Tr(Msg::VoteProposed, { c.nick, std::to_string(mVote.SecondsLeft(now)) }), level::kInfo, nullptr);
     }
     EvaluateVote();
 }
 
 void SharedWorld::Vote(RemoteClient& c, bool yes) {
     if (!mVote.Active()) {
-        mServer.SendSystem(&c, "No hay ninguna votación en marcha.", level::kWarn);
+        mServer.SendSystem(&c, Tr(Msg::VoteNone), level::kWarn);
         return;
     }
     if (!c.inWorld) {
-        mServer.SendSystem(&c, "Solo votan los jugadores que están en la partida del servidor.", level::kWarn);
+        mServer.SendSystem(&c, Tr(Msg::VoteOnlyPlayers), level::kWarn);
         return;
     }
     mVote.Cast(c.peer, yes);
     std::vector<uint32_t> eligible = EligiblePeers();
-    Announce(c.nick + " vota " + (yes ? "sí" : "no") + " (" + std::to_string(mVote.Yes(eligible)) + " sí, " +
-                 std::to_string(mVote.No(eligible)) + " no, de " + std::to_string(eligible.size()) + ").",
+    Announce(Tr(Msg::VoteCast, { c.nick, Tr(yes ? Msg::VoteYesWord : Msg::VoteNoWord), std::to_string(mVote.Yes(eligible)),
+                     std::to_string(mVote.No(eligible)), std::to_string(eligible.size()) }),
              level::kInfo, nullptr);
     EvaluateVote();
 }
@@ -105,18 +99,18 @@ void SharedWorld::EvaluateVote() {
     uint32_t proposer = mVote.Proposer();
     mVote.Cancel();
     if (result == SotVote::Result::Failed) {
-        Announce("La votación para volver al Amanecer del Primer Día no ha salido adelante.", level::kWarn, nullptr);
+        Announce(Tr(Msg::VoteFailed), level::kWarn, nullptr);
         return;
     }
     RemoteClient* p = mServer.Players().ByPeer(proposer);
-    BeginReset(p != nullptr ? p->nick : "votación", proposer);
+    BeginReset(p != nullptr ? p->nick : Tr(Msg::VoteSourceWord), proposer);
 }
 
 void SharedWorld::BeginReset(const std::string& by, uint32_t preferredPeer) {
     mResetting = true;
     mTried.clear();
     UpdateClock(); // stops while resetting
-    Announce("Volvéis al Amanecer del Primer Día (" + by + ").", level::kOk, nullptr);
+    Announce(Tr(Msg::ResetBy, { by }), level::kOk, nullptr);
     AskCompute(preferredPeer);
 }
 
@@ -153,21 +147,21 @@ void SharedWorld::NextComputer() {
 void SharedWorld::AbortReset() {
     mResetting = false;
     mComputer = 0;
-    Announce("No se pudo volver al Amanecer del Primer Día: ningún juego respondió.", level::kError, nullptr);
+    Announce(Tr(Msg::ResetFailed), level::kError, nullptr);
     UpdateClock();
     EnterWaiting();
 }
 
 void SharedWorld::CycleResult(RemoteClient& c, const json& ev) {
     if (!mResetting || c.peer != mComputer) {
-        mServer.NoteInvalid(c, "cycle_result sin haberlo pedido el servidor");
+        mServer.NoteInvalid(c, Tr(Msg::InvCycleUnasked));
         return;
     }
     FieldSet fields;
-    std::string err = "falta 'fields'";
+    std::string err = Tr(Msg::MissingFields);
     auto it = ev.find("fields");
     if (it == ev.end() || !WorldStore::ParseFields(*it, fields, &err)) {
-        mServer.NoteInvalid(c, "cycle_result inválido: " + err);
+        mServer.NoteInvalid(c, Tr(Msg::InvCycle, { err }));
         NextComputer();
         return;
     }
@@ -182,7 +176,7 @@ void SharedWorld::CycleResult(RemoteClient& c, const json& ev) {
     for (RemoteClient* p : Receivers()) {
         mServer.SendEvent(*p, FullEvent(*p, "sot"));
     }
-    mServer.Log().Info("Empieza el ciclo " + std::to_string(mStore.Cycle()) + ".");
+    mServer.Log().Info(Tr(Msg::CycleStarted, { std::to_string(mStore.Cycle()) }));
     EnterWaiting();
 }
 
@@ -195,40 +189,76 @@ void SharedWorld::MoonFalls() {
     mClock.Set(0, now);
     mClock.SetInverted(false, now);
     Flush();
-    Announce("La luna ha caído. Volvéis al Amanecer del Primer Día con lo que teníais al empezar el ciclo.",
-             level::kWarn, nullptr);
+    Announce(Tr(Msg::MoonFell), level::kWarn, nullptr);
     for (RemoteClient* p : Receivers()) {
         mServer.SendEvent(*p, FullEvent(*p, "moon"));
     }
 }
 
+void SharedWorld::CrashMoon() {
+    if (mStore.Exists() && !mResetting) {
+        MoonFalls();
+    }
+}
+
+// The ending ended with the Dawn of a New Day: as the original, the world goes on from the Dawn of the First Day
+// with what the Song of Time keeps (computed by a game, as for the Song of Time).
+void SharedWorld::FinishGame(RemoteClient& by) {
+    if (!mStore.Exists() || mResetting || !by.inWorld || by.host) {
+        return;
+    }
+    mVote.Cancel();
+    BeginReset(Tr(Msg::FinishBy, { by.nick }), by.peer);
+}
+
 bool SharedWorld::SetTime(uint32_t abs, const std::string& by, std::string* err) {
     if (!mStore.Exists()) {
-        *err = "Todavía no hay mundo: lo creará el primer jugador que entre en la partida del servidor.";
+        *err = Tr(Msg::NoWorldCreate);
         return false;
     }
     if (mResetting) {
-        *err = "Se está volviendo al Amanecer del Primer Día; espera un momento.";
+        *err = Tr(Msg::ResetWait);
         return false;
     }
     mClock.Set(abs, Now());
     mDirty = true;
-    Announce("La hora ha cambiado: " + clock::Format(abs) + " (" + by + ").", level::kInfo, nullptr);
+    Announce(Tr(Msg::TimeChanged, { clock::Format(abs), by }), level::kInfo, nullptr);
     SendClock(nullptr, true);
+    return true;
+}
+
+bool SharedWorld::SetClockStopped(bool stopped, const std::string& by, std::string* err) {
+    if (!mStore.Exists()) {
+        *err = Tr(Msg::NoWorldCreate);
+        return false;
+    }
+    if (mResetting) {
+        *err = Tr(Msg::ResetWait);
+        return false;
+    }
+    bool was = !mClock.Running();
+    if (stopped == was) {
+        *err = Tr(stopped ? Msg::ClockAlreadyStopped : Msg::ClockAlreadyRunning);
+        return false;
+    }
+    mClock.SetRunning(!stopped, Now());
+    mDirty = true;
+    Announce(Tr(stopped ? Msg::ClockStopped : Msg::ClockResumed, { by }), level::kInfo, nullptr);
+    SendClock(nullptr, false);
     return true;
 }
 
 bool SharedWorld::Restart(const std::string& by, std::string* err) {
     if (!mStore.Exists()) {
-        *err = "Todavía no hay mundo: lo creará el primer jugador que entre en la partida del servidor.";
+        *err = Tr(Msg::NoWorldCreate);
         return false;
     }
     if (mResetting) {
-        *err = "Ya se está volviendo al Amanecer del Primer Día.";
+        *err = Tr(Msg::ResetAlready);
         return false;
     }
     if (InWorld().empty()) {
-        *err = "No hay nadie en la partida: el nuevo ciclo lo calcula el juego de un jugador.";
+        *err = Tr(Msg::RestartNobody);
         return false;
     }
     mVote.Cancel();

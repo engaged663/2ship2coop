@@ -13,6 +13,7 @@
 #include "overlays/actors/ovl_En_Horse_Game_Check/z_en_horse_game_check.h"
 #include "objects/object_horse_link_child/object_horse_link_child.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Coop/Features/CoopEponaHooks.h"
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
@@ -3660,16 +3661,20 @@ void EnHorse_CheckFloors(EnHorse* this, PlayState* play) {
 
 void EnHorse_MountDismount(EnHorse* this, PlayState* play) {
     s32 mountSide = EnHorse_GetMountSide(this, play);
+    s32 proxy = Coop_EponaIsProxy(&this->actor);
 
-    if ((mountSide != 0) && !(this->stateFlags & ENHORSE_UNRIDEABLE)) {
+    if ((mountSide != 0) && ((!proxy && !(this->stateFlags & ENHORSE_UNRIDEABLE)) ||
+                             (proxy && Coop_EponaIsProxyRideable(&this->actor)))) {
         Actor_SetRideActor(play, &this->actor, mountSide);
     }
 
     if ((this->playerControlled == false) && (Actor_HasRider(play, &this->actor) == true)) {
         this->noInputTimer = 26;
         this->noInputTimerMax = 26;
-        this->playerControlled = true;
-        EnHorse_Freeze(this, play);
+        this->playerControlled = proxy ? false : true;
+        if (!proxy) {
+            EnHorse_Freeze(this, play);
+        }
     } else if ((this->playerControlled == true) && (Actor_HasNoRider(play, &this->actor) == true)) {
         this->noInputTimer = 35;
         this->noInputTimerMax = 35;
@@ -3686,6 +3691,12 @@ void EnHorse_StickDirection(Vec2f* curStick, f32* stickMag, s16* angle) {
 }
 
 void EnHorse_UpdateStick(EnHorse* this, PlayState* play) {
+    if (Coop_EponaIsProxy(&this->actor)) {
+        this->lastStick = this->curStick;
+        this->curStick.x = 0.0f;
+        this->curStick.z = 0.0f;
+        return;
+    }
     Input* input = &play->state.input[this->unk_52C];
 
     this->lastStick = this->curStick;
@@ -4203,6 +4214,8 @@ void EnHorse_Update(Actor* thisx, PlayState* play2) {
     Vec3f dustVel = { 0.0f, 1.0f, 0.0f };
     Player* player = GET_PLAYER(play);
 
+    Coop_EponaBeforeProxyUpdate(this, play);
+
     if (this->type == HORSE_TYPE_2) {
         Actor_SetScale(&this->actor, 0.00648f);
     } else if (this->type == HORSE_TYPE_DONKEY) {
@@ -4231,6 +4244,8 @@ void EnHorse_Update(Actor* thisx, PlayState* play2) {
     }
 
     sActionFuncs[this->action](this, play);
+
+    Coop_EponaAfterProxyUpdate(this, play);
 
     this->stateFlags &= ~ENHORSE_OBSTACLE;
     this->unk_3EC = thisx->world.rot.y;
@@ -4453,6 +4468,10 @@ s32 EnHorse_MountSideCheck(EnHorse* this, PlayState* play, Player* player) {
 }
 
 s32 EnHorse_GetMountSide(EnHorse* this, PlayState* play) {
+    if (Coop_EponaIsProxy(&this->actor)) {
+        return Coop_EponaIsProxyRideable(&this->actor) ? EnHorse_MountSideCheck(this, play, GET_PLAYER(play)) : 0;
+    }
+
     if (this->action != ENHORSE_ACTION_IDLE) {
         return 0;
     }

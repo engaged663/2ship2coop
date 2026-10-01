@@ -11,6 +11,7 @@
 #include "overlays/effects/ovl_Effect_Ss_Hitmark/z_eff_ss_hitmark.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/object_knight/object_knight.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 #define FLAGS                                                                                 \
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
@@ -650,6 +651,8 @@ void EnKnight_Init(Actor* thisx, PlayState* play) {
         s32 i;
 
         play->specialEffects = sEnKnightEffects;
+        // [COOP] its effects travel with it
+        Coop_AddActorRegion(&this->actor, sEnKnightEffects, sizeof(sEnKnightEffects));
 
         for (i = 0; i < ARRAY_COUNT(sEnKnightEffects); i++) {
             sEnKnightEffects[i].active = false;

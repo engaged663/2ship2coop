@@ -12,11 +12,16 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     std::ifstream in(path);
     if (!in.is_open()) {
         nlohmann::json defaults = {
-            { "port", cfg.port }, { "maxPlayers", cfg.maxPlayers }, { "password", cfg.password }, { "motd", cfg.motd },
-            { "sharedEnemies", cfg.sharedEnemies }
+            { "language", LangCode(GetLang()) }, { "port", cfg.port }, { "maxPlayers", cfg.maxPlayers },
+            { "password", cfg.password }, { "motd", cfg.motd },
+            { "sharedEnemies", cfg.sharedEnemies }, { "sharedProps", cfg.sharedProps },
+            { "endingForAll", cfg.endingForAll }, { "groups", cfg.groups },
+            { "bossCutscenes", cfg.bossCutscenes }, { "inviteSeconds", cfg.inviteMs / 1000 },
+            { "effects", cfg.effects }
         };
         std::ofstream file(path);
         file << defaults.dump(4) << '\n';
+        cfg.language = GetLang();
         out = cfg;
         return true;
     }
@@ -24,14 +29,23 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
     if (j.is_discarded() || !j.is_object()) {
         if (err != nullptr) {
-            *err = path + " no es un JSON válido";
+            *err = Tr(Msg::ConfigInvalidJson, { path });
         }
         return false;
     }
     std::string warnings;
-    auto warn = [&](const char* key, const char* expected) {
-        warnings += (warnings.empty() ? "" : "; ") + path + ": '" + key + "' debe ser " + expected +
-                    "; se usa el valor por defecto";
+    cfg.language = GetLang();
+    if (auto it = j.find("language"); it != j.end()) {
+        Lang lang;
+        if (it->is_string() && ParseLang(it->get<std::string>(), lang)) {
+            cfg.language = lang;
+            SetLang(lang); // the warnings below are already in this language
+        } else {
+            warnings += Tr(Msg::BadLangConfig, { path });
+        }
+    }
+    auto warn = [&](const char* key, Msg expected) {
+        warnings += (warnings.empty() ? "" : "; ") + Tr(Msg::ConfigWarn, { path, key, Tr(expected) });
     };
     auto readInt = [&](const char* key, int def, int min, int max) {
         auto it = j.find(key);
@@ -39,7 +53,7 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
             return def;
         }
         if (!it->is_number_integer() || it->get<int64_t>() < min || it->get<int64_t>() > max) {
-            warn(key, "un número entero");
+            warn(key, Msg::ExpectInt);
             return def;
         }
         return it->get<int>();
@@ -50,7 +64,7 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
             return def;
         }
         if (!it->is_string()) {
-            warn(key, "un texto entre comillas");
+            warn(key, Msg::ExpectString);
             return def;
         }
         return it->get<std::string>();
@@ -64,21 +78,46 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
         if (it->is_boolean()) {
             cfg.requireSameBuild = it->get<bool>();
         } else {
-            warn("requireSameBuild", "true o false");
+            warn("requireSameBuild", Msg::ExpectBool);
         }
     }
-    if (auto it = j.find("sharedEnemies"); it != j.end()) {
-        if (it->is_boolean()) {
-            cfg.sharedEnemies = it->get<bool>();
-        } else {
-            warn("sharedEnemies", "true o false");
+    auto readBool = [&](const char* key, bool& value) {
+        if (auto it = j.find(key); it != j.end()) {
+            if (it->is_boolean()) {
+                value = it->get<bool>();
+            } else {
+                warn(key, Msg::ExpectBool);
+            }
         }
-    }
+    };
+    readBool("sharedEnemies", cfg.sharedEnemies);
+    readBool("sharedProps", cfg.sharedProps);
+    readBool("endingForAll", cfg.endingForAll);
+    readBool("groups", cfg.groups);
+    readBool("bossCutscenes", cfg.bossCutscenes);
+    cfg.inviteMs = readInt("inviteSeconds", cfg.inviteMs / 1000, 10, 600) * 1000;
+    readBool("effects", cfg.effects);
     if (err != nullptr) {
         *err = warnings;
     }
     out = cfg;
     return true;
+}
+
+bool SaveConfigLanguage(const std::string& path, Lang language) {
+    std::ifstream in(path);
+    nlohmann::json j = in.is_open() ? nlohmann::json::parse(in, nullptr, false) : nlohmann::json::object();
+    if (j.is_discarded() || !j.is_object()) {
+        return false;
+    }
+    in.close();
+    j["language"] = LangCode(language);
+    std::ofstream file(path);
+    if (!file.is_open()) {
+        return false;
+    }
+    file << j.dump(4) << '\n';
+    return file.good();
 }
 
 } // namespace coop::server

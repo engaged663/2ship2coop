@@ -1,6 +1,6 @@
 #pragma once
-// Shared enemies (sub-project C): the room's owner sends their state every frame; the other games turn them into
-// replicas that copy it instead of running their own logic. The owner's enemies chase the nearest Link.
+// [COOP] Sub-project D3: whoever simulates a replicated actor (the owner of its room, or the player it is lent to)
+// sends its memory every frame; the other games show a copy that never runs its own logic (ActorSync.cpp).
 #include "ActorRegistry.h"
 
 struct Actor;
@@ -9,8 +9,10 @@ struct PlayState;
 
 namespace coop::client {
 
-void ActorSync_FrameEnd();                      // CoopInit.cpp: sends the frame of every room we own
-void ActorSync_OnDestroyed(TrackedActor& actor); // ActorRegistry.cpp: remembered as gone for the other games
-TrackedActor* ActorSync_Updating();              // the enemy of ours whose update is running (nullptr if none)
+void ActorSync_FrameEnd();                        // CoopInit.cpp: sends what we simulate
+void ActorSync_OnDestroyed(TrackedActor& actor);  // ActorRegistry.cpp: remembered as gone for the other games
+void ActorSync_ForgetPointersTo(const Actor* actor); // ActorRegistry.cpp: copies stop pointing at a destroyed actor
+TrackedActor* ActorSync_Updating();               // the replicated actor of ours whose update runs (nullptr if none)
+Actor* ActorSync_AnyUpdating();                   // any actor whose update runs now (nullptr between updates)
 
 } // namespace coop::client

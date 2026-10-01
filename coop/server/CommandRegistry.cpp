@@ -14,8 +14,13 @@ static std::map<std::string, CommandDef>& CommandTable() {
     return table;
 }
 
+static std::map<std::string, std::string>& AliasTable() {
+    static std::map<std::string, std::string> table;
+    return table;
+}
+
 std::string CommandContext::SenderName() const {
-    return sender != nullptr ? sender->nick : "Servidor";
+    return sender != nullptr ? sender->nick : Tr(Msg::ConsoleName);
 }
 
 void CommandContext::Reply(const std::string& text, const char* level) {
@@ -26,8 +31,17 @@ void RegisterCommand(const CommandDef& def) {
     CommandTable()[ToLower(def.name)] = def;
 }
 
+void RegisterAlias(const std::string& alias, const std::string& target) {
+    AliasTable()[ToLower(alias)] = ToLower(target);
+}
+
 const CommandDef* FindCommand(const std::string& name) {
-    auto it = CommandTable().find(ToLower(name));
+    std::string key = ToLower(name);
+    auto alias = AliasTable().find(key);
+    if (alias != AliasTable().end()) {
+        key = alias->second;
+    }
+    auto it = CommandTable().find(key);
     return it != CommandTable().end() ? &it->second : nullptr;
 }
 
@@ -66,20 +80,20 @@ void ExecuteCommandLine(Server& server, RemoteClient* sender, const std::string&
     CommandContext ctx{ server, sender };
     const CommandDef* def = FindCommand(name);
     if (def == nullptr) {
-        ctx.Reply("Comando desconocido: /" + name + ". Escribe /help para ver la lista.", level::kError);
+        ctx.Reply(Tr(Msg::UnknownCommand, { name }), level::kError);
         return;
     }
     if (!HasPermission(server, sender, def->perm)) {
-        ctx.Reply("No tienes permiso para usar /" + def->name + ".", level::kError);
+        ctx.Reply(Tr(Msg::NoPermission, { def->name }), level::kError);
         return;
     }
     std::vector<std::string> args(tokens.begin() + 1, tokens.end());
     if ((int)args.size() < def->minArgs) {
-        ctx.Reply("Uso: " + def->usage, level::kError);
+        ctx.Reply(Tr(Msg::UsageLine, { Tr(def->usage) }), level::kError);
         return;
     }
     if (sender != nullptr) {
-        server.Log().Info(sender->nick + " usó: " + SanitizeChat(line, 120));
+        server.Log().Info(Tr(Msg::LogCommandUsed, { sender->nick, SanitizeChat(line, 120) }));
     }
     def->fn(ctx, args);
 }

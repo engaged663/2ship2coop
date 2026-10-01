@@ -1,6 +1,7 @@
 #include "ActorImage.h"
 
 #include "ByteStream.h"
+#include "SlotCodec.h"
 
 #include <algorithm>
 #include <cmath>
@@ -13,7 +14,7 @@ using namespace image_limits;
 
 // Packet: [type u8][playerId u8][scene s16][room s8][seq u16][part u8][parts u8][flags u8: 1 = alive list]
 //         [aliveCount u8][alive u32...][goneCount u8][gone u32...][recordCount u8][records...]
-// Record: [key u32][actorId u16][flags u8: 1 masks, 2 sfx, 4 spawn]
+// Record: [key u32][actorId u16][flags u8: 1 masks, 2 sfx, 4 spawn, 8 continuation]
 //         [acMask u8][ocMask u8] (masks) [n u8][sfx u16...] (sfx)
 //         [actorId u16][params s16][pos f32 x3][rot s16 x3][parentKey u32] (spawn)
 //         [spanCount u8] then spans: [region u8][first u16][count u8] + per slot [kind u8][payload]
@@ -29,12 +30,14 @@ constexpr size_t kChunkSlots = 32;    // a span is cut in pieces this big when a
 constexpr uint8_t kRecMasks = 1;
 constexpr uint8_t kRecSfx = 2;
 constexpr uint8_t kRecSpawn = 4;
+constexpr uint8_t kRecContinuation = 8;
 
 size_t PayloadBytes(SlotKind kind) {
     switch (kind) {
         case SlotKind::Raw:
             return 8;
         case SlotKind::Exe:
+        case SlotKind::Scene:
             return 4;
         case SlotKind::Actor:
             return 7;
@@ -74,6 +77,7 @@ void WriteSlot(Writer& w, const Slot& s) {
             w.U64(s.value);
             break;
         case SlotKind::Exe:
+        case SlotKind::Scene:
             w.U32((uint32_t)s.value);
             break;
         case SlotKind::Actor:
@@ -92,7 +96,9 @@ void WriteSlot(Writer& w, const Slot& s) {
 
 void WriteRecord(Writer& w, const ActorImageRecord& r) {
     size_t sfx = std::min<size_t>(r.sfx.size(), kSfx);
-    uint8_t flags = (HasMasks(r) ? kRecMasks : 0) | (sfx > 0 ? kRecSfx : 0) | (r.hasSpawn ? kRecSpawn : 0);
+    uint8_t flags = r.continuation ? kRecContinuation
+                                   : (uint8_t)((HasMasks(r) ? kRecMasks : 0) | (sfx > 0 ? kRecSfx : 0) |
+                                               (r.hasSpawn ? kRecSpawn : 0));
     w.U32(r.key);
     w.U16(r.actorId);
     w.U8(flags);
@@ -163,7 +169,8 @@ bool ReadSlot(Reader& r, Slot& s) {
     switch (s.kind) {
         case SlotKind::Raw:
             return r.U64(s.value);
-        case SlotKind::Exe: {
+        case SlotKind::Exe:
+        case SlotKind::Scene: {
             uint32_t v = 0;
             if (!r.U32(v)) {
                 return false;
@@ -197,9 +204,12 @@ bool ReadSlot(Reader& r, Slot& s) {
 
 bool ReadRecord(Reader& r, ActorImageRecord& out) {
     uint8_t flags = 0;
-    if (!r.U32(out.key) || !r.U16(out.actorId) || !r.U8(flags) || (flags & ~(kRecMasks | kRecSfx | kRecSpawn))) {
+    if (!r.U32(out.key) || !r.U16(out.actorId) || !r.U8(flags) ||
+        (flags & ~(kRecMasks | kRecSfx | kRecSpawn | kRecContinuation)) ||
+        ((flags & kRecContinuation) && flags != kRecContinuation)) {
         return false;
     }
+    out.continuation = (flags & kRecContinuation) != 0;
     if ((flags & kRecMasks) && (!r.U8(out.acMask) || !r.U8(out.ocMask))) {
         return false;
     }
@@ -258,6 +268,18 @@ bool ReadRecord(Reader& r, ActorImageRecord& out) {
 
 } // namespace
 
+void WriteImageSlot(Writer& w, const Slot& s) {
+    WriteSlot(w, s);
+}
+
+bool ReadImageSlot(Reader& r, Slot& s) {
+    return ReadSlot(r, s);
+}
+
+size_t ImageSlotBytes(const Slot& s) {
+    return 1 + PayloadBytes(s.kind);
+}
+
 std::vector<std::vector<uint8_t>> EncodeActorImage(const ActorImagePacket& frame) {
     std::vector<ActorImagePacket> packets;
     auto newPacket = [&]() -> ActorImagePacket& {
@@ -299,6 +321,7 @@ std::vector<std::vector<uint8_t>> EncodeActorImage(const ActorImagePacket& frame
             ActorImageRecord piece;
             piece.key = rec.key;
             piece.actorId = rec.actorId;
+            piece.continuation = !first;
             if (first) {
                 piece.acMask = rec.acMask;
                 piece.ocMask = rec.ocMask;
@@ -423,6 +446,9 @@ Slot ClassifySlot(uint64_t raw, const PointerResolver& resolver) {
     }
     if (resolver.LinkRef(raw, v)) {
         return { SlotKind::Link, v };
+    }
+    if (resolver.SceneOffset(raw, v)) {
+        return { SlotKind::Scene, v };
     }
     if (resolver.IsMapped(raw)) {
         return { SlotKind::Keep, 0 };

@@ -13,7 +13,7 @@ bool TakeEntry(Server& server, RemoteClient& client) {
     if (client.worldEntryBudget.Take(server.NowMs())) {
         return true;
     }
-    server.NoteInvalid(client, "demasiadas entradas y salidas de la partida del servidor");
+    server.NoteInvalid(client, Tr(Msg::InvWorldFlood));
     return false;
 }
 

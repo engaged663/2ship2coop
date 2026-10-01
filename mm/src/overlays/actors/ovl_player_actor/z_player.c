@@ -10,6 +10,7 @@
 #include "z64quake.h"
 #include "z64rumble.h"
 #include "z64shrink_window.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include <string.h>
 
 #include "overlays/actors/ovl_Arms_Hook/z_arms_hook.h"
@@ -14021,7 +14022,9 @@ s32 func_808482E0(PlayState* play, Player* this) {
 
         this->av1.actionVar1 = 1;
         Message_StartTextbox(play, giEntry->textId, &this->actor);
+        Coop_OnGetItem(play, this->getItemId, this->interactRangeActor); // [COOP] a prize the group may share
         Item_Give(play, giEntry->itemId);
+        Coop_OnGetItemEnd(); // [COOP]
 
         if ((this->getItemId >= GI_MASK_DEKU) && (this->getItemId <= GI_MASK_KAFEIS_MASK)) {
             Audio_PlayFanfare(NA_BGM_GET_NEW_MASK);

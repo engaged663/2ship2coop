@@ -6,7 +6,7 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 5; // v5: full actor replication, NPC leases, exe build check (sub-project D3)
+constexpr uint32_t kProtocolVersion = 12; // v12: effects echo, results, talk values; v11: groups; v10: the ending
 constexpr uint16_t kDefaultPort = 7780; // UDP
 
 constexpr int kMaxPlayers = 4;
@@ -52,16 +52,43 @@ constexpr int kActorStreamBurst = 400;    // actor stream packets per player: bu
 constexpr int kActorStreamPerSecond = 300; // ...and sustained rate (D3: full memory, several parts per room)
 constexpr int kHostActorStreamBurst = 2000;    // the server's own games simulate whole scenes
 constexpr int kHostActorStreamPerSecond = 1500;
-constexpr int kLeaseBurst = 60;            // lease_req/lease_drop/echo events per player: burst...
-constexpr int kLeasePerSecond = 40;        // ...and sustained rate (a request per nearby NPC twice a second)
-constexpr int kMaxLeasesPerPlayer = 16;
+constexpr int kLeaseBurst = 160;           // lease_req/lease_drop/echo events per player: burst...
+constexpr int kLeasePerSecond = 120;       // ...and sustained rate (a request per held actor twice a second: a
+                                           // director's full hand of kMaxLeasesPerPlayer is 96 a second)
+constexpr int kMaxLeasesPerPlayer = 48;    // a minigame's director borrows its NPC and props (the beavers' rings)
 constexpr uint32_t kRuntimeKeyBits = 0xC0000000u; // keys of runtime/derived actors (only list actors are lent)
 constexpr int kMaxActorId = 0x2FF;         // above every actor of the game's table
 constexpr int kHitBurst = 30;             // hit + hurt events per player: burst...
 constexpr int kHitPerSecond = 20;         // ...and sustained rate
 constexpr int kDropBurst = 20;            // drop events per player: burst...
 constexpr int kDropPerSecond = 10;        // ...and sustained rate
+// Shared props (pots, grass, crates, rupees lying around) and the ending
+constexpr int kPropBurst = 200;            // prop/item events per player: burst...
+constexpr int kPropPerSecond = 100;        // ...and sustained rate (a spin attack in a field of grass)
+constexpr size_t kMaxPropsPerScene = 4000; // what the server remembers as gone per occupied scene
+// The end of the game (EndingHandlers.cpp)
+constexpr int kEndingBurst = 80;          // ending, ending_sync, cinema, rooftop events per player: burst...
+constexpr int kEndingPerSecond = 40;      // ...and sustained rate (the cinema camera goes 20 times a second)
+constexpr int kRooftopMaxMs = 600000;     // the rooftop's countdown (the original starts it at 5 minutes)
 constexpr int kMaxHurtDamage = 0x40;      // 4 hearts: more than any enemy of the list does
+// Groups and activities (GroupHandlers.cpp, ActivityHandlers.cpp)
+constexpr int kInviteBurst = 10;          // /invitar, /aceptar, /rechazar per player: burst...
+constexpr double kInvitePerSecond = 1.0;  // ...and sustained rate
+constexpr int kActivityBurst = 120;       // act, act_hud, follow, talk, title per player: burst...
+constexpr int kActivityPerSecond = 60;    // ...and sustained rate (act_hud goes 10 times a second)
+constexpr int kRewardBurst = 10;          // act_reward per player: burst...
+constexpr double kRewardPerSecond = 2.0;  // ...and sustained rate (a minigame's rupees go every half second)
+constexpr int kMaxRewardRupees = 500;     // rupees in one act_reward
+constexpr int kMaxActivityKey = 32;       // characters of an activity key ([a-z0-9_])
+constexpr int kMaxActivityName = 64;      // characters of its name
+constexpr int kInviteMs = 60000;          // an invitation lasts this long (server.json inviteSeconds)
+// Groups' fixes (docs/superpowers/specs/2026-09-30-coop-grupos-limites-design.md)
+constexpr int kEffectBurst = 60;             // effects packets per player: burst...
+constexpr int kEffectPerSecond = 40;         // ...and sustained rate (a game sends at most one per frame)
+constexpr int kCinemaActorsMs = 1000;        // a game's actor frames pass this long after its last "cinema": its
+                                             // cutscene actors, for who watches (whoever owns the room)
+constexpr size_t kMaxTalkVarsHex = 512;      // "vars" of a talk event: the talker's text values, in hex
+constexpr int64_t kMaxActivityCs = 36000000; // centiseconds of a minigame's time (100 hours)
 
 enum Channel : uint8_t {
     kChannelEvents = 0, // reliable + ordered, JSON events
@@ -77,7 +104,7 @@ inline constexpr const char* kReject = "reject";           // S->C reason
 inline constexpr const char* kKicked = "kicked";           // S->C reason
 inline constexpr const char* kJoin = "join";               // S->C id, nick
 inline constexpr const char* kLeave = "leave";             // S->C id, nick, reason
-inline constexpr const char* kLoc = "loc";                 // C->S scene, room, entrance, sceneName, timeStopped, busy; S->C id, scene, sceneName
+inline constexpr const char* kLoc = "loc";                 // C->S scene, room, entrance, sceneName, timeStopped, busy; S->C id, scene, sceneName, entrance
 inline constexpr const char* kChat = "chat";               // C->S text; S->C from, text
 inline constexpr const char* kPm = "pm";                   // S->C from, to, text
 inline constexpr const char* kCmd = "cmd";                 // C->S line
@@ -113,6 +140,43 @@ inline constexpr const char* kLeaseDrop = "lease_drop"; // C->S scene, room, key
 inline constexpr const char* kLeases = "leases";        // S->C scene, list [[room, key, id]]: who simulates which NPC
 inline constexpr const char* kEcho = "echo";            // C->S->C scene, room, id, params, pos[3], rot[3] (+ from):
                                                         // every game creates its own copy (warps, hearts, fairies)
+// Admin commands (sub-project D3: /unlockall, /give)
+inline constexpr const char* kUnlockAll = "unlock_all"; // S->C nick: give this player every item, song and heart
+inline constexpr const char* kGive = "give";            // S->C nick, amount: rupees to the wallet, the rest to the bank
+// Shared props and the ending (PropSync.cpp, Ending.cpp)
+inline constexpr const char* kProp = "prop";     // C->S scene, key, child: gone (child -1 a prop of the room's list,
+                                                 // 0..15 a grass group's grass, -2 field grass, -3 a shared item,
+                                                 // -4 grass that grows back was cut: not remembered);
+                                                 // S->C + from
+inline constexpr const char* kProps = "props";   // C->S scene (just arrived); S->C scene, list [[key, child]...]
+inline constexpr const char* kItem = "item";     // C->S scene, key, id, params, pos[3]: an item a prop dropped
+                                                 // (everyone sees it, the first to pick it up gets it); S->C + from
+// The end of the game, together (Ending.cpp, EndingMode.cpp, RooftopTimer.cpp, MajoraCinema.cpp)
+inline constexpr const char* kEnding = "ending"; // C->S stage (1 the Clock Tower's rooftop, 2 Majora's lair,
+                                                 // 3 Majora defeated, 4 the ending); S->C + from, nick
+inline constexpr const char* kEndingSync = "ending_sync"; // C->S seg, scene, cs, frame: where this game is in the
+                                                          // ending's cutscenes; S->C + from
+inline constexpr const char* kEndingDone = "ending_done"; // C->S (the ending is over): the world starts a new cycle
+inline constexpr const char* kRooftop = "rooftop";        // C->S ms (the rooftop's countdown started here);
+                                                          // S->C ms (what is left; -1: stopped)
+inline constexpr const char* kCinema = "cinema";          // C->S eye[3], at[3], fov, roll, fill[4], bgm, scope, blur:
+                                                          // the camera of a cutscene; S->C + from
+// Groups and activities (docs/superpowers/specs/2026-09-30-coop-grupos-actividades-design.md)
+inline constexpr const char* kGroup = "group";          // S->C id (0: none), leader, members [[id, nick]...], activity, name
+inline constexpr const char* kInvite = "invite";        // S->C from, nick, activity, name, ms
+inline constexpr const char* kInviteEnd = "invite_end"; // S->C from, nick, reason (accepted, declined, expired, cancelled, full)
+inline constexpr const char* kAct = "act";              // C->S state (here, start, end, result, none), key, name, score,
+                                                        // cs, won; S->C + from, nick
+inline constexpr const char* kActHud = "act_hud";       // C->S key, score, hidden, status, mstate, perfect, ammo, b, bomb,
+                                                        // chu, arrows, frozen, sub, pos[3], rot, timer{}; S->C + from
+inline constexpr const char* kActReward = "act_reward"; // C->S gi | rupees; S->C + from, nick
+inline constexpr const char* kFollow = "follow";        // C->S entrance, cs, trans, scope, key; S->C + from
+inline constexpr const char* kTalk = "talk";            // C->S op (open, id, page, choice, close), id, page, choice,
+                                                        // scope, vars; S->C + from
+inline constexpr const char* kTitle = "title";          // C->S tex, x, y, w, h, scope: a boss's title card; S->C + from
+// Epona
+inline constexpr const char* kEponaCall = "epona_call"; // C->S (+from stamped): one owner horse call
+inline constexpr const char* kEponaPassenger = "epona_passenger"; // C->S owner, horse, mounted; S->owner +from
 } // namespace ev
 
 // Levels used by "sys" events.

@@ -8,6 +8,7 @@
 #include "interface/parameter_static/parameter_static.h"
 #include "z64save.h"
 #include "BenPort.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/BenGui/CosmeticEditor.h"
 #include "assets/archives/schedule_dma_static/schedule_dma_static_yar.h"
@@ -19,6 +20,8 @@
 
 #include "2s2h_assets.h"
 #include <libultraship/bridge/consolevariablebridge.h>
+
+extern void Coop_EponaSongPlayed(PlayState* play);
 
 const char* gBombersNotebookPhotos[] = {
     gBombersNotebookPhotoAnjuTex,
@@ -2381,6 +2384,8 @@ void Message_Decode(PlayState* play) {
     u16 curChar;
     u8 index2 = 0;
 
+    Coop_OnMessageDecode(play, true); // [COOP] a mirrored text shows the talker's values
+
     // BENTODO do this somewhere else
     gSaveContext.options.language = LANGUAGE_ENG;
 
@@ -3254,6 +3259,8 @@ void Message_Decode(PlayState* play) {
     } else {
         Message_DecodeNES(play);
     }
+
+    Coop_OnMessageDecode(play, false); // [COOP]
 }
 
 void func_80150A84(PlayState* play) {
@@ -4880,6 +4887,7 @@ void Message_DrawMain(PlayState* play, Gfx** gfxP) {
                     Message_CloseTextbox(play);
                     if (msgCtx->songPlayed == OCARINA_SONG_EPONAS) {
                         gHorsePlayedEponasSong = true;
+                        Coop_EponaSongPlayed(play);
                     }
 
                     if (msgCtx->ocarinaAction == OCARINA_ACTION_FREE_PLAY_DONE) {

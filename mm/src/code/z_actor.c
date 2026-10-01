@@ -1018,6 +1018,7 @@ void TitleCard_ContextInit(GameState* gameState, TitleCardContext* titleCtx) {
 
 void TitleCard_InitBossName(GameState* gameState, TitleCardContext* titleCtx, TexturePtr texture, s16 x, s16 y,
                             u8 width, u8 height) {
+    Coop_OnBossTitleCard((PlayState*)gameState, texture, x, y, width, height); // [COOP] everyone in the boss's room
     titleCtx->texture = texture;
     titleCtx->x = x;
     titleCtx->y = y;
@@ -1595,7 +1596,7 @@ s32 Player_SetCsAction(PlayState* play, Actor* csActor, u8 csAction) {
         return false;
     }
 
-    Player* player = GET_PLAYER(play);
+    Player* player = Coop_CsActionTarget(play, csActor); // [COOP] a cutscene our camera shows: our Link acts in it
 
     if ((player->csAction == PLAYER_CSACTION_5) ||
         ((csAction == PLAYER_CSACTION_END) && (player->csAction == PLAYER_CSACTION_NONE))) {
@@ -1620,7 +1621,7 @@ s32 Player_SetCsAction(PlayState* play, Actor* csActor, u8 csAction) {
  * Player must leave the cutscene action state and enter it again before halting actors can be toggled.
  */
 s32 Player_SetCsActionWithHaltedActors(PlayState* play, Actor* csActor, u8 csAction) {
-    Player* player = GET_PLAYER(play);
+    Player* player = Coop_CsActionTarget(play, csActor); // [COOP] the same Link as Player_SetCsAction
 
     if (Player_SetCsAction(play, csActor, csAction)) {
         player->cv.haltActorsDuringCsAction = true;
@@ -2748,6 +2749,8 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
     } else {
         if (!Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
             Actor_Kill(actor);
+        } else if (Coop_HoldWhilePaused(play, actor)) { // [COOP] the world runs behind the pause menu, Link waits
+            CollisionCheck_ResetDamage(&actor->colChkInfo);
         } else if (((params->freezeExceptionFlag != 0) && !(actor->flags & params->freezeExceptionFlag)) ||
                    (((!params->freezeExceptionFlag) != 0) &&
                     (!(actor->flags & ACTOR_FLAG_FREEZE_EXCEPTION) ||
@@ -2862,7 +2865,7 @@ void Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
 
     categoryFreezeMaskP = sCategoryFreezeMasks;
 
-    if (player->stateFlags2 & PLAYER_STATE2_USING_OCARINA) {
+    if ((player->stateFlags2 & PLAYER_STATE2_USING_OCARINA) && !Coop_InWorld()) { // [COOP] the ocarina stops nothing
         params.freezeExceptionFlag = ACTOR_FLAG_UPDATE_DURING_OCARINA;
     } else {
         params.freezeExceptionFlag = 0;
@@ -2876,7 +2879,7 @@ void Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
 
     for (category = 0, entry = actorCtx->actorLists; category < ACTORCAT_MAX;
          entry++, categoryFreezeMaskP++, category++) {
-        params.canFreezeCategory = *categoryFreezeMaskP & player->stateFlags1;
+        params.canFreezeCategory = *categoryFreezeMaskP & Coop_FreezeStateFlags(player->stateFlags1); // [COOP]
         params.actor = entry->first;
 
         while (params.actor != NULL) {
@@ -3840,6 +3843,7 @@ Actor* Actor_SpawnAsChildAndCutscene(ActorContext* actorCtx, PlayState* play, s1
     }
 
     Actor_AddToCategory(actorCtx, actor, profile->type);
+    Coop_OnActorSpawned(actor); // [COOP]
 
     {
         uintptr_t sp20 = gSegments[6];

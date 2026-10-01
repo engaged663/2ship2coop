@@ -1241,6 +1241,7 @@ s32 CollisionCheck_SetAC(struct PlayState* play, CollisionCheckContext* colChkCt
         return -1;
     }
     sACResetFuncs[col->shape](play, col);
+    Coop_OnColliderRegistered(col, 1); // [COOP]
 
     if ((col->actor != NULL) && (col->actor->update == NULL)) {
         return -1;
@@ -1267,6 +1268,7 @@ s32 CollisionCheck_SetAC_SAC(struct PlayState* play, CollisionCheckContext* colC
         return -1;
     }
     sACResetFuncs[col->shape](play, col);
+    Coop_OnColliderRegistered(col, 1); // [COOP]
 
     if ((col->actor != NULL) && (col->actor->update == NULL)) {
         return -1;
@@ -1312,6 +1314,7 @@ s32 CollisionCheck_SetOC(struct PlayState* play, CollisionCheckContext* colChkCt
         return -1;
     }
     sOCResetFuncs[col->shape](play, col);
+    Coop_OnColliderRegistered(col, 0); // [COOP]
 
     if ((col->actor != NULL) && (col->actor->update == NULL)) {
         return -1;
@@ -1338,6 +1341,7 @@ s32 CollisionCheck_SetOC_SAC(struct PlayState* play, CollisionCheckContext* colC
         return -1;
     }
     sOCResetFuncs[col->shape](play, col);
+    Coop_OnColliderRegistered(col, 0); // [COOP]
 
     if ((col->actor != NULL) && (col->actor->update == NULL)) {
         return -1;

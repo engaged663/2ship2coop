@@ -1,5 +1,7 @@
 #include "WorldOps.h"
 
+#include "I18n.h"
+
 #include <algorithm>
 #include <limits>
 
@@ -146,14 +148,14 @@ json ToJson(const Ops& ops) {
 }
 
 bool FromJson(const json& ev, Ops& out, std::string* err) {
-    auto fail = [err](const char* why) {
+    auto fail = [err](const std::string& why) {
         if (err != nullptr) {
             *err = why;
         }
         return false;
     };
     if (!ev.is_object()) {
-        return fail("no es un objeto");
+        return fail(Tr(Msg::NotAnObject));
     }
     auto list = [&ev](const char* key) -> const json* {
         auto it = ev.find(key);
@@ -163,33 +165,33 @@ bool FromJson(const json& ev, Ops& out, std::string* err) {
     int64_t v[4] = {};
     if (const json* bits = list("bits")) {
         if (!bits->is_array()) {
-            return fail("'bits' no es una lista");
+            return fail(Tr(Msg::OpsNotList, { "bits" }));
         }
         for (const json& e : *bits) {
             if (!ReadInts(e, 4, v) || !IsU16(v[0]) || !IsU16(v[1]) || !IsU8(v[2]) || !IsU8(v[3])) {
-                return fail("cambio de bits mal formado");
+                return fail(Tr(Msg::OpsBadBits));
             }
             ops.bits.push_back({ (uint16_t)v[0], (uint16_t)v[1], (uint8_t)v[2], (uint8_t)v[3] });
         }
     }
     if (const json* bytes = list("bytes")) {
         if (!bytes->is_array()) {
-            return fail("'bytes' no es una lista");
+            return fail(Tr(Msg::OpsNotList, { "bytes" }));
         }
         for (const json& e : *bytes) {
             if (!ReadInts(e, 3, v) || !IsU16(v[0]) || !IsU16(v[1]) || !IsU8(v[2])) {
-                return fail("cambio de byte mal formado");
+                return fail(Tr(Msg::OpsBadBytes));
             }
             ops.bytes.push_back({ (uint16_t)v[0], (uint16_t)v[1], (uint8_t)v[2] });
         }
     }
     if (const json* adds = list("adds")) {
         if (!adds->is_array()) {
-            return fail("'adds' no es una lista");
+            return fail(Tr(Msg::OpsNotList, { "adds" }));
         }
         for (const json& e : *adds) {
             if (!ReadInts(e, 3, v) || !IsU16(v[0]) || !IsU16(v[1]) || !IsS32(v[2])) {
-                return fail("suma mal formada");
+                return fail(Tr(Msg::OpsBadAdds));
             }
             ops.adds.push_back({ (uint16_t)v[0], (uint16_t)v[1], (int32_t)v[2] });
         }

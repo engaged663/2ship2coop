@@ -4,6 +4,7 @@
 
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Features/Ending.h"
 
 #include "common/Protocol.h"
 
@@ -79,6 +80,13 @@ void OnLost(const std::string& reason) {
 } // namespace
 
 void PuppetManager_Update(PlayState* play) {
+    if (coop::client::EndingMode_Active()) {
+        // The ending: every game shows its own Link in the same shots; the others would stand on top of him
+        for (auto& [id, body] : sBodies) {
+            KillActor(body);
+        }
+        return;
+    }
     if (gSaveContext.gameMode != GAMEMODE_NORMAL) {
         return;
     }

@@ -71,7 +71,8 @@ std::vector<std::pair<std::pair<int, int>, Slot>> SlotsOf(const std::vector<Acto
     return out;
 }
 
-// A fake process: exe at 0x140000000 (1 MiB), one actor (key 7) at 0x20000, a Link at 0x30000, mapped 0x50000.
+// A fake process: exe at 0x140000000 (1 MiB), one actor (key 7) at 0x20000, a Link at 0x30000, mapped 0x50000,
+// scene paths at 0x40000 (three nodes).
 class FakeResolver : public PointerResolver {
   public:
     bool ExeOffset(uint64_t a, uint64_t& off) const override {
@@ -91,6 +92,13 @@ class FakeResolver : public PointerResolver {
     bool LinkRef(uint64_t a, uint64_t& v) const override {
         if (a >= 0x30000 && a < 0x31000) {
             v = LinkRefValue(2, (uint32_t)(a - 0x30000));
+            return true;
+        }
+        return false;
+    }
+    bool SceneOffset(uint64_t a, uint64_t& off) const override {
+        if (a >= 0x40000 && a < 0x40018) { // three 8-byte nodes
+            off = (a - 0x40000) / 8;
             return true;
         }
         return false;
@@ -184,16 +192,19 @@ TEST_CASE(ActorImageSplitsBigActors) {
     }
     int spawns = 0;
     int sfx = 0;
+    int heads = 0;
     for (const auto& p : decoded) {
         for (const auto& r : p.records) {
             if (r.key == 5) {
                 spawns += r.hasSpawn ? 1 : 0;
                 sfx += (int)r.sfx.size();
+                heads += r.continuation ? 0 : 1;
             }
         }
     }
     CHECK_EQ(spawns, 1); // only the first piece
     CHECK_EQ(sfx, 1);
+    CHECK_EQ(heads, 1); // the others say they only carry more slots (their masks are not "none")
     CHECK_EQ(SlotsOf(decoded, 1).size(), (size_t)10);
     CHECK_EQ(SlotsOf(decoded, 6).size(), (size_t)4);
 }
@@ -290,6 +301,7 @@ TEST_CASE(SlotClassification) {
     CHECK(ClassifySlot(0x140000123ull, r) == (Slot{ SlotKind::Exe, 0x123 }));
     CHECK(ClassifySlot(0x20010, r) == (Slot{ SlotKind::Actor, ActorRefValue(7, 0, 0x10) }));
     CHECK(ClassifySlot(0x30A88, r) == (Slot{ SlotKind::Link, LinkRefValue(2, 0xA88) }));
+    CHECK(ClassifySlot(0x40008, r) == (Slot{ SlotKind::Scene, 1 }));
     CHECK(ClassifySlot(0x50008, r) == (Slot{ SlotKind::Keep, 0 }));
     // Plain data: floats, small numbers, anything unmapped.
     uint64_t twoFloats = 0;

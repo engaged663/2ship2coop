@@ -1068,7 +1068,13 @@ void AnimTaskQueue_AddLoadPlayerFrame(PlayState* play, PlayerAnimationHeader* an
         if (animData == NULL) {
             return;
         }
-        memcpy(ram, (uintptr_t)animData + (((sizeof(Vec3s) * limbCount + 2) * frame)), sizeof(Vec3s) * limbCount + 2);
+        // 2S2H [Port] Clamp the frame against the animation's length: a frame past the end (e.g. a rider
+        // copying a horse's frame count from a longer animation) reads past the animation data.
+        s16 animFrameCount = playerAnimHeader->common.frameCount;
+        if (animFrameCount > 0 && frame >= animFrameCount) {
+            frame = animFrameCount - 1;
+        }
+        memcpy(ram, (s16*)((uintptr_t)animData + (((sizeof(Vec3s) * limbCount + 2) * frame))), sizeof(Vec3s) * limbCount + 2);
     }
 }
 

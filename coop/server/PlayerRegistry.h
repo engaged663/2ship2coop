@@ -64,10 +64,24 @@ struct RemoteClient {
     TokenBucket actorBudget{ kActorStreamBurst, kActorStreamPerSecond };
     TokenBucket hitBudget{ kHitBurst, kHitPerSecond };
     TokenBucket dropBudget{ kDropBurst, kDropPerSecond };
+    TokenBucket propBudget{ kPropBurst, kPropPerSecond }; // pots, grass, items (PropHandlers.cpp)
+    TokenBucket endingBudget{ kEndingBurst, kEndingPerSecond }; // the end of the game (EndingHandlers.cpp)
     std::string authSent;     // the last "auth" it got (serialized): only changes are sent
     // Full replication (sub-project D3)
     TokenBucket leaseBudget{ kLeaseBurst, kLeasePerSecond };
     std::string leasesSent;   // the last "leases" it got (serialized)
+    // Groups and activities (GroupHandlers.cpp, ActivityHandlers.cpp)
+    std::string activityKey;      // what it runs or stands next to ("act"), "" = nothing
+    std::string activityName;
+    bool activityRunning = false; // it runs that activity now (act start .. act end)
+    TokenBucket inviteBudget{ kInviteBurst, kInvitePerSecond };
+    TokenBucket activityBudget{ kActivityBurst, kActivityPerSecond };
+    TokenBucket rewardBudget{ kRewardBurst, kRewardPerSecond };
+    TokenBucket effectBudget{ kEffectBurst, kEffectPerSecond }; // effects echo (EffectHandlers.cpp)
+    int64_t cinemaMs = -1; // when its last "cinema" was accepted (-1: never): its actor frames pass meanwhile
+
+    // Epona calls: monotonically increasing for one connection.
+    uint32_t eponaLastCallSequence = 0;
 };
 
 class PlayerRegistry {

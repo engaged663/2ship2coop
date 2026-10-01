@@ -6,6 +6,7 @@
 #include "2s2h/Coop/Chat/ChatModel.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
+#include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/Features/Warp.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 
@@ -179,7 +180,7 @@ void OnClock(const json& ev) {
         return;
     }
     Store(ev);
-    if (GetBool(ev, "jump") && WorldSession_InWorld()) {
+    if (GetBool(ev, "jump") && WorldSession_InWorld() && !EndingMode_Active()) {
         ApplyJump(sAbs);
     }
 }
@@ -230,8 +231,8 @@ void ClockSync_Reset() {
 }
 
 void ClockSync_FrameStart() {
-    if (!sHave || !WorldSession_Active() || !PoseCapture_InGameplay()) {
-        return;
+    if (!sHave || !WorldSession_Active() || !PoseCapture_InGameplay() || EndingMode_Active()) {
+        return; // the ending's cutscenes set their own time of day
     }
     uint32_t serverAbs = ServerAbs();
     InterceptSongs();

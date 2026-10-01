@@ -12,6 +12,7 @@
 #include "overlays/actors/ovl_Item_B_Heart/z_item_b_heart.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 
@@ -606,6 +607,8 @@ void Boss02_Init(Actor* thisx, PlayState* play) {
     if (TWINMOLD_GET_TYPE(&this->actor) == TWINMOLD_TYPE_BATTLE_HANDLER) {
         sTwinmoldBattleHandler = this;
         play->specialEffects = (void*)sTwinmoldEffects;
+        // [COOP] its effects travel with it
+        Coop_AddActorRegion(&this->actor, sTwinmoldEffects, sizeof(sTwinmoldEffects));
         this->actor.update = Boss02_BattleHandler_Update;
         this->actor.draw = Boss02_BattleHandler_Draw;
         this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;

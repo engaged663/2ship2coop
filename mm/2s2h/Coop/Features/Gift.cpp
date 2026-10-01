@@ -1,5 +1,6 @@
 // Game side of "/gift": pay when the server asks (gift_debit), receive up to the wallet size
 // (gift_credit) and take back whatever did not fit or was not delivered (gift_refund).
+#include "2s2h/Coop/Activities/Activities.h"
 #include "2s2h/Coop/Chat/ChatModel.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
@@ -35,7 +36,9 @@ void OnDebit(const coop::json& ev) {
     int amount = (int)coop::GetInt(ev, "amount");
     int paid = 0;
     if (PoseCapture_InGameplay() && amount > 0 && CurrentRupees() >= amount) {
+        coop::client::Rewards_SuppressBegin(); // a gift is not a group prize
         Rupees_ChangeBy((s16)-amount);
+        coop::client::Rewards_SuppressEnd();
         paid = amount;
     }
     Reply(coop::ev::kGiftPaid, coop::GetInt(ev, "gid"), "paid", paid);
@@ -47,7 +50,9 @@ void OnCredit(const coop::json& ev) {
     if (PoseCapture_InGameplay() && amount > 0) {
         accepted = std::clamp(CUR_CAPACITY(UPG_WALLET) - CurrentRupees(), 0, amount);
         if (accepted > 0) {
+            coop::client::Rewards_SuppressBegin(); // a gift is not a group prize
             Rupees_ChangeBy((s16)accepted);
+            coop::client::Rewards_SuppressEnd();
         }
     }
     Reply(coop::ev::kGiftRecv, coop::GetInt(ev, "gid"), "accepted", accepted);
@@ -60,7 +65,9 @@ void OnRefund(const coop::json& ev) {
     }
     std::string reason = coop::GetString(ev, "reason");
     if (PoseCapture_InGameplay()) {
+        coop::client::Rewards_SuppressBegin(); // a gift is not a group prize
         Rupees_ChangeBy((s16)amount);
+        coop::client::Rewards_SuppressEnd();
         Chat_Add(ChatKind::Warn,
                  "Se te han devuelto " + std::to_string(amount) + " rupias" + (reason.empty() ? "." : " (" + reason + ")."));
     } else {

@@ -12,32 +12,31 @@ namespace {
 void Op(CommandContext& ctx, const std::vector<std::string>& args) {
     RemoteClient* target = ctx.server.Players().ByNick(args[0]);
     if (target == nullptr) {
-        ctx.Reply("'" + args[0] + "' no está conectado. El permiso se vincula a su IP: repite 'op' cuando entre.",
-                  level::kError);
+        ctx.Reply(Tr(Msg::OpNotConnected, { args[0] }), level::kError);
         return;
     }
     if (!ctx.server.Access().AddOp(target->nick, target->ip)) {
-        ctx.Reply(target->nick + " ya era administrador.", level::kWarn);
+        ctx.Reply(Tr(Msg::OpAlready, { target->nick }), level::kWarn);
         return;
     }
-    ctx.Reply(target->nick + " ahora es administrador (IP " + target->ip + ").", level::kOk);
-    ctx.server.SendSystem(target, "Ahora eres administrador del servidor.", level::kOk);
+    ctx.Reply(Tr(Msg::OpDone, { target->nick, target->ip }), level::kOk);
+    ctx.server.SendSystem(target, Tr(Msg::OpNotice), level::kOk);
 }
 
 void Deop(CommandContext& ctx, const std::vector<std::string>& args) {
     if (!ctx.server.Access().RemoveOp(args[0])) {
-        ctx.Reply(args[0] + " no era administrador.", level::kWarn);
+        ctx.Reply(Tr(Msg::DeopNone, { args[0] }), level::kWarn);
         return;
     }
-    ctx.Reply(args[0] + " ya no es administrador.", level::kOk);
+    ctx.Reply(Tr(Msg::DeopDone, { args[0] }), level::kOk);
     if (RemoteClient* target = ctx.server.Players().ByNick(args[0])) {
-        ctx.server.SendSystem(target, "Ya no eres administrador del servidor.", level::kWarn);
+        ctx.server.SendSystem(target, Tr(Msg::DeopNotice), level::kWarn);
     }
 }
 
 } // namespace
 
-COOP_COMMAND(op, "op", "/op <jugador>", "dar permisos de administrador", Perm::Console, 1, Op);
-COOP_COMMAND(deop, "deop", "/deop <jugador>", "quitar permisos de administrador", Perm::Console, 1, Deop);
+COOP_COMMAND(op, "op", Msg::OpUsage, Msg::OpHelp, Perm::Console, 1, Op);
+COOP_COMMAND(deop, "deop", Msg::DeopUsage, Msg::DeopHelp, Perm::Console, 1, Deop);
 
 } // namespace coop::server

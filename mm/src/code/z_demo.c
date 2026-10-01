@@ -9,6 +9,7 @@
 #include "overlays/actors/ovl_En_Elf/z_en_elf.h"
 #include <string.h>
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include <libultraship/log/luslog.h>
 
 s16 sCutsceneQuakeIndex;
@@ -416,6 +417,7 @@ void CutsceneCmd_Misc(PlayState* play, CutsceneContext* csCtx, CsCmdMisc* cmd) {
 
         case CS_MISC_FINALE:
             csCtx->curFrame = cmd->startFrame - 1; // the cutscene runs forever
+            Coop_OnFinale(play);                   // [COOP] the co-op world goes on from here
             break;
 
         default:
@@ -1471,6 +1473,9 @@ void Cutscene_ProcessScript(PlayState* play, CutsceneContext* csCtx, u8* script)
 
 void CutsceneHandler_RunScript(PlayState* play, CutsceneContext* csCtx) {
     if (gSaveContext.save.cutsceneIndex >= 0xFFF0) {
+        if (Coop_CutsceneHold(play)) { // [COOP] the ending waits for a player who is behind
+            return;
+        }
         csCtx->curFrame++;
         Cutscene_ProcessScript(play, csCtx, (u8*)play->csCtx.script);
     }

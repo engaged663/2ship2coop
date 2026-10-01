@@ -3,6 +3,8 @@
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Features/Cinema.h"
+#include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 
 #include "common/Protocol.h"
@@ -22,11 +24,13 @@ int8_t sLastRoom = -2;
 bool sLastTimeStopped = false;
 bool sLastBusy = false;
 
-// Paused, reading a text or in a cutscene: the enemies we simulate would freeze for everyone, so the server hands
-// our rooms to someone else meanwhile (sub-project C).
+// In a cutscene: the enemies we simulate would freeze for everyone, so the server hands our rooms to someone else
+// meanwhile (sub-project C). The pause menu, texts and the ocarina stop nothing in the server's world. A boss's room
+// is the exception (its cutscenes run in the game that runs it, and it must never change hands in the middle), and so
+// is a cutscene of ours the whole scene is watching (a miniboss's).
 bool Busy() {
-    return IS_PAUSED(&gPlayState->pauseCtx) || gPlayState->msgCtx.msgMode != MSGMODE_NONE ||
-           Player_InCsMode(gPlayState);
+    return Player_InCsMode(gPlayState) && !coop::client::BossArena_Is(gPlayState->sceneId) &&
+           !coop::client::Cinema_DirectingScene();
 }
 
 void Reset() {
@@ -42,7 +46,8 @@ void LocationTick() {
     }
     int16_t scene = gPlayState->sceneId;
     int8_t room = gPlayState->roomCtx.curRoom.num;
-    bool timeStopped = gPlayState->envCtx.sceneTimeSpeed == 0;
+    // The original stops time in some scenes (the Moon); from Oath to Order on the giants hold the moon
+    bool timeStopped = gPlayState->envCtx.sceneTimeSpeed == 0 || coop::client::Ending_StopsTime();
     bool busy = Busy();
     if (scene == sLastScene && room == sLastRoom && timeStopped == sLastTimeStopped && busy == sLastBusy) {
         return;

@@ -1,6 +1,7 @@
 #include "Transport.h"
 
 #include "Protocol.h"
+#include "I18n.h"
 
 #include <enet/enet.h>
 
@@ -52,7 +53,7 @@ Transport::~Transport() {
 bool Transport::Listen(uint16_t port, size_t maxPeers, std::string* err) {
     Close();
     if (!AcquireEnet()) {
-        SetError(err, "No se pudo inicializar la red (enet_initialize)");
+        SetError(err, Tr(Msg::NetInitFail));
         return false;
     }
     mEnetInitialized = true;
@@ -61,7 +62,7 @@ bool Transport::Listen(uint16_t port, size_t maxPeers, std::string* err) {
     address.port = port;
     mHost = enet_host_create(&address, maxPeers, kChannelCount, 0, 0);
     if (mHost == nullptr) {
-        SetError(err, "No se pudo abrir el puerto UDP " + std::to_string(port) + " (¿ya está en uso?)");
+        SetError(err, Tr(Msg::NetPortFail, { std::to_string(port) }));
         Close();
         return false;
     }
@@ -73,27 +74,27 @@ bool Transport::Listen(uint16_t port, size_t maxPeers, std::string* err) {
 bool Transport::Connect(const std::string& host, uint16_t port, uint32_t* outPeer, std::string* err) {
     Close();
     if (!AcquireEnet()) {
-        SetError(err, "No se pudo inicializar la red (enet_initialize)");
+        SetError(err, Tr(Msg::NetInitFail));
         return false;
     }
     mEnetInitialized = true;
     mHost = enet_host_create(nullptr, 1, kChannelCount, 0, 0);
     if (mHost == nullptr) {
-        SetError(err, "No se pudo crear el socket UDP");
+        SetError(err, Tr(Msg::NetSocketFail));
         Close();
         return false;
     }
     enet_host_compress_with_range_coder(mHost); // the server compresses too (same library on both ends)
     ENetAddress address;
     if (enet_address_set_host(&address, host.c_str()) != 0) {
-        SetError(err, "No se pudo resolver la dirección '" + host + "'");
+        SetError(err, Tr(Msg::NetResolveFail, { host }));
         Close();
         return false;
     }
     address.port = port;
     ENetPeer* peer = enet_host_connect(mHost, &address, kChannelCount, 0);
     if (peer == nullptr) {
-        SetError(err, "No se pudo iniciar la conexión");
+        SetError(err, Tr(Msg::NetConnectFail));
         Close();
         return false;
     }

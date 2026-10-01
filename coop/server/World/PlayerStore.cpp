@@ -3,6 +3,7 @@
 #include "JsonFile.h"
 
 #include "common/Text.h"
+#include "common/I18n.h"
 
 #include <filesystem>
 #include <system_error>
@@ -86,7 +87,7 @@ void PlayerStore::LoadAll(std::string* warnings) {
         json saved;
         PlayerRecord record;
         if (!LoadJsonFile(entry.path().string(), saved, nullptr) || !ParseRecord(saved, record)) {
-            AddWarning(warnings, "players/" + entry.path().filename().string() + " no es válido; se ignora");
+            AddWarning(warnings, Tr(Msg::PlayerFileInvalid, { entry.path().filename().string() }));
             continue;
         }
         std::string key = KeyOf(ToLower(entry.path().stem().string()));

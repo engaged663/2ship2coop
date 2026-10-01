@@ -1,7 +1,7 @@
 // 2ship-coop-server: dedicated co-op server for 2 Ship 2 Harkinian.
 // Files live in the working directory: server.json (settings), bans.json, ops.json, world.json + players/
 // (the shared world, see World/SharedWorld.h) and logs/server.log.
-// Usage: 2ship-coop-server [--port N]
+// Usage: 2ship-coop-server [--port N] [--lang es|en|zh|ru]
 #include "server/AccessLists.h"
 #include "server/Logger.h"
 #include "server/Server.h"
@@ -84,7 +84,15 @@ int main(int argc, char** argv) {
             if (ParseInt(argv[i + 1], port) && port > 0 && port <= 65535) {
                 config.port = (uint16_t)port;
             } else {
-                log.Warn(std::string("--port inválido: ") + argv[i + 1]);
+                log.Warn(coop::Tr(coop::Msg::BadPortArg, { argv[i + 1] }));
+            }
+        } else if (std::string(argv[i]) == "--lang") {
+            coop::Lang lang;
+            if (coop::ParseLang(argv[i + 1], lang)) {
+                config.language = lang;
+                coop::SetLang(lang);
+            } else {
+                log.Warn(coop::Tr(coop::Msg::BadLangArg, { argv[i + 1] }));
             }
         }
     }
@@ -96,6 +104,7 @@ int main(int argc, char** argv) {
         log.Warn(accessWarnings);
     }
 
+    config.configPath = "server.json";
     config.worldPath = "world.json";
     config.playersDir = "players";
     Server server(config, access, log);
@@ -103,7 +112,7 @@ int main(int argc, char** argv) {
         log.Error(err);
         return 1;
     }
-    log.Info("Escribe 'help' para ver los comandos de la consola.");
+    log.Info(coop::Tr(coop::Msg::ConsoleHint));
 
     std::thread(ConsoleThread).detach();
     while (server.IsRunning()) {
@@ -119,7 +128,7 @@ int main(int argc, char** argv) {
             }
         }
         if (gStopRequested.exchange(false)) {
-            server.Stop("servidor cerrado por el administrador");
+            server.Stop(coop::Tr(coop::Msg::StopByAdmin));
         }
     }
     return 0;

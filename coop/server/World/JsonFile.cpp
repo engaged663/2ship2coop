@@ -1,5 +1,7 @@
 #include "JsonFile.h"
 
+#include "common/I18n.h"
+
 #include <filesystem>
 #include <fstream>
 #include <system_error>
@@ -19,15 +21,15 @@ bool LoadJsonFile(const std::string& path, json& out, std::string* err, bool* mi
         *missing = !exists;
     }
     if (!exists) {
-        return fail(path + " no existe");
+        return fail(Tr(Msg::FileMissing, { path }));
     }
     std::ifstream in(path, std::ios::binary);
     if (!in.is_open()) {
-        return fail("no se pudo abrir " + path);
+        return fail(Tr(Msg::FileOpenFail, { path }));
     }
     json parsed = json::parse(in, nullptr, false);
     if (parsed.is_discarded()) {
-        return fail(path + " no es JSON válido");
+        return fail(Tr(Msg::FileNotJson, { path }));
     }
     out = std::move(parsed);
     return true;
@@ -44,18 +46,18 @@ bool SaveJsonFile(const std::string& path, const json& value, std::string* err) 
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
         if (!out.is_open()) {
-            return fail("no se pudo escribir " + tmp);
+            return fail(Tr(Msg::FileWriteFail, { tmp }));
         }
         out << value.dump(1, '\t', false, json::error_handler_t::replace) << '\n';
         out.flush();
         if (!out.good()) {
-            return fail("no se pudo escribir " + tmp);
+            return fail(Tr(Msg::FileWriteFail, { tmp }));
         }
     }
     std::error_code ec;
     std::filesystem::rename(tmp, path, ec);
     if (ec) {
-        return fail("no se pudo reemplazar " + path + ": " + ec.message());
+        return fail(Tr(Msg::FileReplaceFail, { path, ec.message() }));
     }
     return true;
 }

@@ -27,6 +27,7 @@
 #include "z_obj_takaraya_wall.h"
 #include "objects/object_takaraya_objects/object_takaraya_objects.h"
 
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
@@ -282,6 +283,9 @@ void ObjTakarayaWall_Init(Actor* thisx, PlayState* play) {
     s32 j;
 
     Actor_ProcessInitChain(&this->actor, sInitChain);
+    // [COOP] the maze lives in these tables: who watches sees the same one as who plays
+    Coop_AddActorRegion(&this->actor, sTakarayaWallHeights, sizeof(sTakarayaWallHeights));
+    Coop_AddActorRegion(&this->actor, sTakarayaWallStates, sizeof(sTakarayaWallStates));
 
     for (i = 0; i < TAKARAYA_WALL_ROWS; i++) {
         for (j = 0; j < TAKARAYA_WALL_COLUMNS; j++) {

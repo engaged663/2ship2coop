@@ -18,6 +18,7 @@
 #include "interface/week_static/week_static.h"
 #include "misc/title_static/title_static.h"
 #include "BenPort.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include <string.h>
 #include "2s2h/BenGui/HudEditor.h"
 #include "2s2h/BenGui/CosmeticEditor.h"
@@ -5170,6 +5171,7 @@ void Health_GiveHearts(s16 hearts) {
 }
 
 void Rupees_ChangeBy(s16 rupeeChange) {
+    Coop_OnRupeesChanged(rupeeChange); // [COOP] the rupees a group's minigame gives go to the group
     gSaveContext.rupeeAccumulator += rupeeChange;
 }
 

@@ -5,6 +5,7 @@
 #include "z64malloc.h"
 #include "global.h"
 
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 
 void EffectSs_Reset(EffectSs* effectSs);
@@ -176,6 +177,8 @@ void EffectSs_Spawn(PlayState* play, s32 type, s32 priority, void* initData) {
     u32 overlaySize;
     EffectSsOverlay* overlayEntry = &gEffectSsOverlayTable[type];
     EffectSsProfile* profile;
+
+    Coop_OnEffectSpawn(play, type, priority, initData); // [COOP] the other games of the scene create it too
 
     if (EffectSs_FindSlot(priority, &index) != 0) {
         // Abort because we couldn't find a suitable slot to add this effect in

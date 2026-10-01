@@ -30,7 +30,7 @@ void OnCommand(Server& server, RemoteClient& client, const json& ev) {
     }
     std::string line = GetString(ev, "line");
     if (line.size() > (size_t)kCommandMaxChars) {
-        server.SendSystem(&client, "Comando demasiado largo.", level::kError);
+        server.SendSystem(&client, Tr(Msg::CommandTooLong), level::kError);
         return;
     }
     ExecuteCommandLine(server, &client, line);

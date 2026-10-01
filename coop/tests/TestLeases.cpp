@@ -120,6 +120,24 @@ TEST_CASE(LeaseDroppedOrExpired) {
     CHECK_EQ(Holder(t.s, *t.a, 8, 1500), (uint8_t)0); // 8 was never renewed
 }
 
+// A minigame's director keeps its NPC and props (up to kMaxLeasesPerPlayer) and asks for each twice a second: the
+// budget must cover a full hand, or the server would drop renewals and the same props would expire again and again.
+TEST_CASE(LeaseBudgetCoversAFullHand) {
+    Town t;
+    const uint32_t hand = (uint32_t)kMaxLeasesPerPlayer;
+    for (uint32_t key = 1; key <= hand; key++) {
+        t.b->Send(LeaseReq(key, 500, true));
+    }
+    CHECK_EQ(Holder(t.s, *t.a, hand), t.b->id);
+    for (int renewal = 0; renewal < 2; renewal++) {
+        for (uint32_t key = 1; key <= hand; key++) {
+            t.b->Send(LeaseReq(key, 500, true));
+        }
+    }
+    t.b->Send({ { "t", "lease_drop" }, { "scene", kScene }, { "room", 0 }, { "key", 1 } });
+    CHECK_EQ(Holder(t.s, *t.a, 1), (uint8_t)0); // heard after three rounds of requests in a row
+}
+
 TEST_CASE(LeaseGoesWhenTheHolderLeaves) {
     Town t;
     t.b->Send(LeaseReq(7, 150));
@@ -137,9 +155,14 @@ TEST_CASE(LeaseRequestsAreChecked) {
     t.b->Send(LeaseReq(7, 150, false, 0, 0x2D)); // not its scene
     t.b->Send(LeaseReq(7, 150, false, 99));      // impossible room
     t.b->Send(LeaseReq(7, -5));                  // impossible distance
-    t.b->Send(LeaseReq(0x80000001u, 150));       // runtime actors are never lent on their own
     CHECK_EQ(Holder(t.s, *t.a, 7), (uint8_t)0xFF);
-    CHECK_EQ(Holder(t.s, *t.a, 0x80000001u, 0), (uint8_t)0xFF);
+    // A runtime actor (Epona: the rider's) is lent to whoever asks first and only they renew it.
+    t.b->Send(LeaseReq(0x80000001u, 150));
+    CHECK_EQ(Holder(t.s, *t.a, 0x80000001u), t.b->id);
+    t.c->Send(LeaseReq(0x80000001u, 10, true));
+    // No new "leases" says c took it (0xFF: nothing changed; or b still holds it).
+    uint8_t holder = Holder(t.s, *t.a, 0x80000001u);
+    CHECK(holder == 0xFF || holder == t.b->id);
 }
 
 TEST_CASE(HitGoesToTheLessee) {
@@ -166,6 +189,23 @@ TEST_CASE(LesseeStreamIsRelayed) {
     CHECK(GetsImage(t.s, *t.c, 50));
     SendImage(*t.a, 0); // the owner too
     CHECK(GetsImage(t.s, *t.b));
+}
+
+// A game showing its cutscene to others sends its cutscene actors too (spec grupos-limites §3), whoever owns the
+// room: its frames pass while its "cinema" keeps coming.
+TEST_CASE(CutsceneDirectorStreamIsRelayed) {
+    Town t;
+    SendImage(*t.b, 0); // neither owner nor lessee, no cutscene
+    CHECK(!GetsImage(t.s, *t.a));
+    t.b->Send({ { "t", "cinema" }, { "eye", Arr(1.0, 2.0, 3.0) }, { "at", Arr(4.0, 5.0, 6.0) }, { "fov", 60.0 },
+                { "scope", "scene" } });
+    t.s.PumpFor(50);
+    SendImage(*t.b, 0);
+    CHECK(GetsImage(t.s, *t.a));
+    t.s.PumpFor(kCinemaActorsMs + 200); // its camera stopped coming
+    t.a->rawStreams.clear();
+    SendImage(*t.b, 0);
+    CHECK(!GetsImage(t.s, *t.a));
 }
 
 TEST_CASE(HostsNeverBorrow) {

@@ -218,7 +218,7 @@ TEST_CASE(EventSizeLimitsDependOnDirection) {
     CHECK(GetBool(json{ { "b", true } }, "b"));
     CHECK(!GetBool(json{ { "b", 1 } }, "b"));
     CHECK(GetBool(json{ { "b", 1 } }, "c", true));
-    CHECK_EQ(kProtocolVersion, 5u); // v5: full actor replication (D3)
+    CHECK_EQ(kProtocolVersion, 12u); // v12: effects, results, talk values; v11: groups and activities
 }
 
 TEST_CASE(StolenSwordsComeBackToTheWorld) {

@@ -9,6 +9,8 @@
 struct EnHorse;
 struct EnIn;
 
+s32 EnHorse_Spawn(struct EnHorse* horse, PlayState* play);
+
 typedef void (*EnHorseActionFunc)(struct EnHorse*, PlayState*);
 typedef void (*EnHorsePostdrawFunc)(struct EnHorse*, PlayState*);
 typedef void (*EnHorseCsFunc)(struct EnHorse*, PlayState*, CsCmdActorCue*);

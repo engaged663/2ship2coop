@@ -1,6 +1,7 @@
 #include "AccessLists.h"
 
 #include "common/Text.h"
+#include "common/I18n.h"
 
 #include <nlohmann/json.hpp>
 
@@ -66,14 +67,14 @@ void AccessLists::Load(std::string* warnings) {
     if (!mBansPath.empty()) {
         nlohmann::json bans = ReadJson(mBansPath);
         if (!bans.is_array()) {
-            Warn(warnings, mBansPath + " no es una lista JSON; se ignora");
+            Warn(warnings, Tr(Msg::BansNotList, { mBansPath }));
         } else {
             for (auto& b : bans) {
                 BanEntry entry;
                 if (!b.is_object() || !ReadField(b, "nick", entry.nick) || !ReadField(b, "ip", entry.ip) ||
                     !ReadField(b, "reason", entry.reason) || !ReadField(b, "date", entry.date) ||
                     (entry.nick.empty() && entry.ip.empty())) {
-                    Warn(warnings, mBansPath + ": se ignora una entrada inválida");
+                    Warn(warnings, Tr(Msg::BansBadEntry, { mBansPath }));
                     continue;
                 }
                 mBans.push_back(entry);
@@ -83,14 +84,13 @@ void AccessLists::Load(std::string* warnings) {
     if (!mOpsPath.empty()) {
         nlohmann::json ops = ReadJson(mOpsPath);
         if (!ops.is_array()) {
-            Warn(warnings, mOpsPath + " no es una lista JSON; se ignora");
+            Warn(warnings, Tr(Msg::BansNotList, { mOpsPath }));
         } else {
             for (auto& o : ops) {
                 OpEntry entry;
                 if (!o.is_object() || !ReadField(o, "nick", entry.nick) || !ReadField(o, "ip", entry.ip) ||
                     entry.nick.empty() || entry.ip.empty()) {
-                    Warn(warnings, mOpsPath + ": se ignora una entrada sin nick o sin IP (usa 'op <jugador>' "
-                                              "en la consola con el jugador conectado)");
+                    Warn(warnings, Tr(Msg::OpsBadEntry, { mOpsPath }));
                     continue;
                 }
                 mOps.push_back(entry);

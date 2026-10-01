@@ -56,6 +56,7 @@
 #include "overlays/actors/ovl_Item_B_Heart/z_item_b_heart.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/object_water_effect/object_water_effect.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 
@@ -507,6 +508,7 @@ void Boss03_Init(Actor* thisx, PlayState* play2) {
     sGyorgBossInstance = this;
 
     play->specialEffects = sGyorgEffects;
+    Coop_AddActorRegion(&this->actor, sGyorgEffects, sizeof(sGyorgEffects)); // [COOP] its effects travel with it
 
     for (i = 0; i < ARRAY_COUNT(sGyorgEffects); i++) {
         sGyorgEffects[i].type = GYORG_EFFECT_NONE;

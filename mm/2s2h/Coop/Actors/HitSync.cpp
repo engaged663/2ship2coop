@@ -11,7 +11,9 @@
 #include "ActorSync.h"
 #include "Authority.h"
 #include "CoopEngine.h"
+#include "Leases.h"
 
+#include "2s2h/Coop/Activities/Activities.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
@@ -29,6 +31,8 @@
 extern "C" {
 #include "functions.h"
 #include "variables.h"
+#include "overlays/actors/ovl_En_Bom/z_en_bom.h"
+#include "overlays/actors/ovl_En_Bom_Chu/z_en_bom_chu.h"
 }
 
 namespace coop::client {
@@ -86,6 +90,16 @@ int ElementCount(Collider* col) {
     return col->shape == COLSHAPE_JNTSPH ? std::min(((ColliderJntSph*)col)->count, 32) : 1;
 }
 
+// The actor a collision pass named is still in that list of this game (never read before knowing: it may be gone).
+bool InList(const Actor* who, uint8_t category) {
+    for (Actor* a = gPlayState->actorCtx.actorLists[category].first; a != nullptr; a = a->next) {
+        if (a == who) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Writes an attack into collider/element exactly as CollisionCheck_SetATvsAC would, then lets the engine compute
 // the damage and effect from the target's damage table.
 void InjectHit(Collider* col, ColliderElement* elem, Actor* attacker, uint32_t dmgFlags, uint8_t effect,
@@ -112,6 +126,31 @@ void InjectHit(Collider* col, ColliderElement* elem, Actor* attacker, uint32_t d
     }
 }
 
+// Writes a contact (OC) as CollisionCheck_SetOCvsOC does, with a real actor of the kind that touched it: our Link for
+// a Link, or an explosive of the same kind made right there (a basket holds a bomb; a bombchu blows up at once).
+void InjectContact(Collider* col, ColliderElement* elem, uint16_t attackerId, const Vec3f& pos) {
+    Actor* standIn = nullptr;
+    if (attackerId == ACTOR_PLAYER) {
+        standIn = gPlayState->actorCtx.actorLists[ACTORCAT_PLAYER].first;
+    } else if (attackerId == ACTOR_EN_BOM) {
+        standIn = ActorRegistry_SpawnUntracked(ACTOR_EN_BOM, pos, BOMB_TYPE_BODY);
+    } else if (attackerId == ACTOR_EN_BOM_CHU) {
+        standIn = ActorRegistry_SpawnUntracked(ACTOR_EN_BOM_CHU, pos, 0);
+        if (standIn != nullptr) {
+            ((EnBomChu*)standIn)->timer = 1; // blows up on its next update, as it did on the guest's screen
+        }
+    }
+    if (standIn == nullptr) {
+        return;
+    }
+    col->ocFlags1 |= OC1_HIT;
+    col->oc = standIn;
+    elem->ocElemFlags |= OCELEM_HIT;
+    if (standIn->category == ACTORCAT_PLAYER) {
+        col->ocFlags2 |= OC2_HIT_PLAYER;
+    }
+}
+
 json DamageFields(const char* type, uint32_t dmgFlags, uint8_t effect, uint8_t damage, uint8_t hitEffect,
                   const Vec3s& pos) {
     json ev = MakeEvent(type);
@@ -125,7 +164,28 @@ json DamageFields(const char* type, uint32_t dmgFlags, uint8_t effect, uint8_t d
 
 } // namespace
 
+void HitSync_ClearMarks(TrackedActor& t) {
+    // After a copy's new state is written: the hit flags of its colliders are stale (its own logic never runs to
+    // read them); ReportReplicaHits already took the ones from this game's attacks.
+    for (size_t c = 0; c < t.colliders.size() && c < 4; c++) {
+        Collider* col = t.colliders[c];
+        col->acFlags &= ~AC_HIT;
+        col->ocFlags1 &= ~OC1_HIT; // the contacts its owner's memory brought are not ours to report
+        col->oc = nullptr;
+        for (int e = 0; e < ElementCount(col); e++) {
+            if (ColliderElement* elem = Element(col, e); elem != nullptr) {
+                elem->acElemFlags &= ~ACELEM_HIT;
+                elem->acHitElem = nullptr;
+                elem->ocElemFlags &= ~OCELEM_HIT;
+            }
+        }
+    }
+}
+
 void HitSync_ReportReplicaHits(TrackedActor& t) {
+    if (t.cinema) {
+        return; // a cutscene actor we watch: nothing of ours reaches the game that shows it
+    }
     for (size_t c = 0; c < t.colliders.size() && c < 4; c++) {
         Collider* col = t.colliders[c];
         if (t.hitCooldown[c] > 0) {
@@ -150,6 +210,7 @@ void HitSync_ReportReplicaHits(TrackedActor& t) {
             ev["scene"] = gPlayState->sceneId;
             ev["room"] = t.room;
             ev["key"] = t.key;
+            ev["root"] = t.rootKey; // the server routes hits by family (a lent NPC is simulated by its lessee)
             ev["col"] = c;
             ev["elem"] = e;
             ev["attackerId"] = (elem->acHit != nullptr && elem->acHit->actor != nullptr) ? elem->acHit->actor->id : 0;
@@ -159,6 +220,46 @@ void HitSync_ReportReplicaHits(TrackedActor& t) {
                         at.dmgFlags);
             break; // one hit per collider and frame, like the engine
         }
+    }
+    // Contacts (Juntos): our Link or one of our explosives touched a target of the minigame a mate runs here.
+    if (!Guest_ContactTarget(t)) {
+        return;
+    }
+    Actor* link = gPlayState->actorCtx.actorLists[ACTORCAT_PLAYER].first;
+    for (size_t c = 0; c < t.colliders.size() && c < 4; c++) {
+        Collider* col = t.colliders[c];
+        if (t.ocCooldown[c] > 0) {
+            t.ocCooldown[c]--;
+        }
+        if (!(col->ocFlags1 & OC1_HIT) || col->oc == nullptr) {
+            if (t.ocCooldown[c] == 0) {
+                t.ocLast[c] = nullptr; // nothing touches it any more: the next explosive is a new one
+            }
+            continue;
+        }
+        Actor* who = col->oc;
+        col->ocFlags1 &= ~OC1_HIT;
+        bool ours = who == link || (InList(who, ACTORCAT_EXPLOSIVES) && ActorRegistry_Get(who) == nullptr);
+        bool again = who != link && who == t.ocLast[c]; // the same bomb still resting on it: it counted already
+        if (!ours || again || t.ocCooldown[c] > 0) {
+            continue;
+        }
+        t.ocCooldown[c] = kHitCooldownFrames;
+        t.ocLast[c] = who;
+        Vec3s pos = { (s16)who->world.pos.x, (s16)who->world.pos.y, (s16)who->world.pos.z };
+        json ev = DamageFields(ev::kHit, 0, 0, 0, 0, pos);
+        ev["scene"] = gPlayState->sceneId;
+        ev["room"] = t.room;
+        ev["key"] = t.key;
+        ev["root"] = t.rootKey;
+        ev["col"] = c;
+        ev["elem"] = 0;
+        ev["attackerId"] = who == link ? (int)ACTOR_PLAYER : (int)who->id;
+        ev["form"] = GET_PLAYER_FORM;
+        ev["oc"] = true;
+        NetClient::Get().SendEvent(ev);
+        SPDLOG_INFO("[Coop] Contact with replica {} of room {} (actor {:#x})", t.key, (int)t.room,
+                    (uint16_t)(who == link ? ACTOR_PLAYER : who->id));
     }
 }
 
@@ -172,6 +273,12 @@ void HitSync_InjectPending(TrackedActor& t) {
         Collider* col = t.colliders[h.col];
         ColliderElement* elem = Element(col, h.elem);
         if (elem == nullptr) {
+            continue;
+        }
+        if (h.oc) {
+            if (Director_Running() != nullptr) { // only the game that runs a minigame takes contacts
+                InjectContact(col, elem, h.attackerId, { (f32)h.pos[0], (f32)h.pos[1], (f32)h.pos[2] });
+            }
             continue;
         }
         Actor* attacker = PuppetManager_Actor(h.from);
@@ -206,7 +313,7 @@ void HitSync_PuppetUpdate(Actor* puppet, uint8_t playerId, PlayState* play) {
     cyl->elem.acElemFlags &= ~ACELEM_HIT;
     // Its body can be hit while we simulate enemies next to it (never while it is invincible or not drawn).
     bool owner = false;
-    for (int8_t room = 0; room <= actor_limits::kRoomMax && !owner; room++) {
+    for (int8_t room = 0; room <= image_limits::kRoomMax && !owner; room++) {
         owner = Authority_IsMine(room);
     }
     if (owner && puppet->draw != nullptr && p->invincibilityTimer <= 0) {
@@ -231,7 +338,9 @@ extern "C" s32 Coop_OnKnockback(PlayState* play, Actor* actor, f32 speed, s16 ya
         return false;
     }
     uint8_t to = (uint8_t)COOP_PUPPET_GET_PLAYER_ID(&gCoopPlayerOverride->actor);
-    Vec3s pos = { (s16)actor->world.pos.x, (s16)actor->world.pos.y, (s16)actor->world.pos.z };
+    // The engine calls this with a NULL source actor too (Majora's whip): fall back to the victim's position.
+    const Vec3f& at = actor != nullptr ? actor->world.pos : gCoopPlayerOverride->actor.world.pos;
+    Vec3s pos = { (s16)at.x, (s16)at.y, (s16)at.z };
     coop::json ev = DamageFields(coop::ev::kHurt, 0, 0, (uint8_t)std::min<u32>(damage, 255), 0, pos);
     ev["to"] = to;
     ev["kind"] = "knock";
@@ -253,13 +362,14 @@ Vec3s PosOf(const json& ev) {
     return out;
 }
 
-// The owner: a hit another player made on our enemy, applied before that enemy's next update.
+// The owner: a hit another player made on our actor, applied before its next update. The server routes it by the
+// family (root key) of a lent NPC; what it names is the key of the collider's actor.
 void OnHit(const json& ev) {
     if (!InWorld() || GetInt(ev, "scene", -1) != gPlayState->sceneId) {
         return;
     }
-    TrackedActor* t = ActorRegistry_Find((int8_t)GetInt(ev, "room", -1), (uint16_t)GetInt(ev, "key"));
-    if (t == nullptr || t->actor->update == nullptr || !Authority_IsMine(t->room) || t->pendingHits.size() >= 8) {
+    TrackedActor* t = ActorRegistry_Find((uint32_t)GetInt(ev, "key"));
+    if (t == nullptr || t->actor->update == nullptr || !Leases_IsMine(*t) || t->pendingHits.size() >= 8) {
         return;
     }
     PendingHit h;
@@ -274,6 +384,8 @@ void OnHit(const json& ev) {
     h.pos[0] = pos.x;
     h.pos[1] = pos.y;
     h.pos[2] = pos.z;
+    h.oc = GetBool(ev, "oc");
+    h.attackerId = (uint16_t)GetInt(ev, "attackerId");
     t->pendingHits.push_back(h);
 }
 

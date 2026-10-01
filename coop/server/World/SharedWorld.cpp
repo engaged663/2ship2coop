@@ -87,7 +87,7 @@ void SharedWorld::Load() {
     bool missing = false;
     if (!LoadJsonFile(mWorldPath, saved, &err, &missing)) {
         if (missing) {
-            mServer.Log().Info("Todavía no hay mundo: lo creará el primer jugador que entre en la partida.");
+            mServer.Log().Info(Tr(Msg::NoWorldLog));
         } else {
             Quarantine(err);
         }
@@ -101,14 +101,13 @@ void SharedWorld::Load() {
     uint32_t abs = (uint32_t)std::clamp<int64_t>(GetInt(savedClock, "abs", 0), 0, clock::kMoonAbs);
     mClock.Set(abs, Now());
     mClock.SetInverted(GetBool(savedClock, "inv"), Now());
-    mServer.Log().Info("Mundo cargado: ciclo " + std::to_string(mStore.Cycle()) + ", " + clock::Format(abs) + ".");
+    mServer.Log().Info(Tr(Msg::WorldLoaded, { std::to_string(mStore.Cycle()), clock::Format(abs) }));
 }
 
 void SharedWorld::Quarantine(const std::string& why) {
     std::error_code ec;
     std::filesystem::rename(mWorldPath, mWorldPath + ".bad", ec);
-    mServer.Log().Error(mWorldPath + " está dañado (" + why + "); se ha apartado como " + mWorldPath +
-                        ".bad y el primer jugador que entre creará un mundo nuevo.");
+    mServer.Log().Error(Tr(Msg::WorldCorrupt, { mWorldPath, why }));
 }
 
 void SharedWorld::Flush() {
@@ -118,11 +117,11 @@ void SharedWorld::Flush() {
         json saved = mStore.ToJson();
         saved["clock"] = json{ { "abs", mClock.Abs(now) }, { "inv", mClock.Inverted() } };
         if (!SaveJsonFile(mWorldPath, saved, &err)) {
-            mServer.Log().Error("No se pudo guardar el mundo: " + err);
+            mServer.Log().Error(Tr(Msg::WorldSaveFail, { err }));
         }
     }
     if (!mPlayers.SaveAll(&err)) {
-        mServer.Log().Error("No se pudo guardar a los jugadores: " + err);
+        mServer.Log().Error(Tr(Msg::PlayersSaveFail, { err }));
     }
     mDirty = false;
     mLastSaveMs = now;
@@ -132,11 +131,9 @@ void SharedWorld::Tick() {
     int64_t now = Now();
     if (mCreator != 0 && now >= mCreatorDeadlineMs) {
         if (RemoteClient* late = mServer.Players().ByPeer(mCreator)) {
-            mServer.SendSystem(late, "Tu juego no creó el mundo a tiempo; lo creará otro jugador. Vuelve a entrar en "
-                                     "la partida del servidor.",
-                               level::kWarn);
+            mServer.SendSystem(late, Tr(Msg::CreatorLate), level::kWarn);
         }
-        mServer.Log().Warn("El juego encargado de crear el mundo no respondió a tiempo.");
+        mServer.Log().Warn(Tr(Msg::CreatorLateLog));
         NextCreator();
     }
     TickCycle(now);
@@ -162,7 +159,7 @@ void SharedWorld::Enter(RemoteClient& c) {
         }
         c.inWorld = true;
         mServer.SendEvent(c, FullEvent(c, ""));
-        mServer.Log().Info("El anfitrión " + std::to_string(c.id) + " sigue la partida del servidor.");
+        mServer.Log().Info(Tr(Msg::HostFollows, { std::to_string(c.id) }));
         return;
     }
     if (!mStore.Exists() && mCreator == 0) {
@@ -171,15 +168,12 @@ void SharedWorld::Enter(RemoteClient& c) {
     }
     if (!mStore.Exists() || mResetting) {
         mWaiting.push_back(c.peer);
-        mServer.SendSystem(&c,
-                           mResetting ? "Se está volviendo al Amanecer del Primer Día; entrarás en cuanto termine."
-                                      : "Se está creando el mundo; entrarás en cuanto esté listo.",
-                           level::kInfo);
+        mServer.SendSystem(&c, Tr(mResetting ? Msg::WaitReset : Msg::WaitCreate), level::kInfo);
         return;
     }
     c.inWorld = true;
     mServer.SendEvent(c, FullEvent(c, ""));
-    Announce(c.nick + " entra en la partida del servidor.", level::kInfo, &c);
+    Announce(Tr(Msg::PlayerEntered, { c.nick }), level::kInfo, &c);
     UpdateClock();
 }
 
@@ -194,7 +188,7 @@ void SharedWorld::AssignCreator(RemoteClient& c) {
     ev["you"] = json{ { "inv", nullptr }, { "stale", false } };
     ev["reset"] = "";
     mServer.SendEvent(c, ev);
-    mServer.Log().Info(c.nick + " crea el mundo del servidor.");
+    mServer.Log().Info(Tr(Msg::WorldCreating, { c.nick }));
 }
 
 void SharedWorld::NextCreator() {
@@ -227,14 +221,14 @@ void SharedWorld::EnterWaiting() {
 
 void SharedWorld::Create(RemoteClient& c, const json& ev) {
     if (c.peer != mCreator || mStore.Exists()) {
-        mServer.NoteInvalid(c, "world_init sin haberlo pedido el servidor");
+        mServer.NoteInvalid(c, Tr(Msg::InvWorldInitUnasked));
         return;
     }
     FieldSet fields;
     std::string err = "falta 'fields'";
     auto it = ev.find("fields");
     if (it == ev.end() || !WorldStore::ParseFields(*it, fields, &err)) {
-        mServer.NoteInvalid(c, "world_init inválido: " + err);
+        mServer.NoteInvalid(c, Tr(Msg::InvWorldInit, { err }));
         return;
     }
     int64_t now = Now();
@@ -244,7 +238,7 @@ void SharedWorld::Create(RemoteClient& c, const json& ev) {
     mClock.Set(0, now);
     mClock.SetInverted(false, now);
     c.inWorld = true;
-    mServer.Log().Info("Mundo creado por " + c.nick + ".");
+    mServer.Log().Info(Tr(Msg::WorldCreated, { c.nick }));
     Flush();
     EnterWaiting();
     UpdateClock();
@@ -265,7 +259,7 @@ void SharedWorld::Leave(RemoteClient& c, bool disconnected) {
     if (mResetting && c.peer == mComputer) {
         NextComputer();
     }
-    std::string text = c.nick + " sale de la partida del servidor.";
+    std::string text = Tr(Msg::PlayerLeftWorld, { c.nick });
     if (disconnected) {
         mServer.Log().Info(text); // the others already see "se ha ido"
     } else {
@@ -340,13 +334,13 @@ void SharedWorld::Upload(RemoteClient& c, const json& ev) {
         return; // a host has no inventory of its own
     }
     if (!c.invBudget.Take(Now())) {
-        mServer.NoteInvalid(c, "demasiadas subidas de inventario");
+        mServer.NoteInvalid(c, Tr(Msg::InvInventoryFlood));
         return;
     }
     auto inv = ev.find("inv");
     if (inv == ev.end() || !inv->is_object() || SerializeEvent(*inv).size() > kMaxInventoryBytes ||
         NestedDeeperThan(*inv, kMaxInventoryDepth)) {
-        mServer.NoteInvalid(c, "inventario inválido o demasiado grande");
+        mServer.NoteInvalid(c, Tr(Msg::InvInventory));
         return;
     }
     if (GetInt(ev, "cycle", -1) != mStore.Cycle()) {
@@ -415,46 +409,45 @@ std::string SharedWorld::StopReason() {
         return "";
     }
     if (mResetting) {
-        return "se está volviendo al Amanecer del Primer Día";
+        return Tr(Msg::StopReset);
     }
     for (RemoteClient* p : InWorld()) {
         if (p->timeStopped) {
-            return p->nick + " está en un lugar donde el tiempo no corre";
+            return Tr(Msg::StopPlayerPlace, { p->nick });
         }
     }
-    return "no hay nadie en la partida";
+    return Tr(Msg::StopNobody);
 }
 
 std::string SharedWorld::TimeText() {
     if (!mStore.Exists()) {
-        return "Todavía no hay mundo: lo creará el primer jugador que entre en la partida del servidor.";
+        return Tr(Msg::NoWorldCreate);
     }
-    std::string text = clock::Format(ClockAbs()) + " · " +
-                       (mClock.Inverted() ? "tiempo ralentizado" : "velocidad normal") + " · ciclo " +
-                       std::to_string(mStore.Cycle());
+    std::string text = Tr(Msg::TimeLine, { clock::Format(ClockAbs()), Tr(mClock.Inverted() ? Msg::TimeSlow : Msg::TimeNormal),
+                                          std::to_string(mStore.Cycle()) });
     std::string why = StopReason();
     if (!why.empty()) {
-        text += " · parado: " + why;
+        text += Tr(Msg::TimeStoppedSuffix, { why });
     }
     return text;
 }
 
 std::string SharedWorld::Describe() {
     if (!mStore.Exists()) {
-        return mCreator != 0 ? "Se está creando el mundo." : "Todavía no hay mundo.";
+        return Tr(mCreator != 0 ? Msg::DescribeCreating : Msg::DescribeNone);
     }
     std::string names;
     for (RemoteClient* p : InWorld()) {
         names += (names.empty() ? "" : ", ") + p->nick;
     }
-    std::string text = "Mundo: " + TimeText();
-    text += "\nEn la partida: " + (names.empty() ? std::string("nadie") : names);
-    text += "\nJugadores guardados: " + std::to_string(mPlayers.Count());
+    std::string text = Tr(Msg::DescWorld, { TimeText() });
+    text += Tr(Msg::DescInGame, { names.empty() ? Tr(Msg::Nobody) : names });
+    text += Tr(Msg::DescSaved, { std::to_string(mPlayers.Count()) });
     if (mVote.Active()) {
-        text += "\nVotación de la Canción del Tiempo en marcha (" + std::to_string(mVote.SecondsLeft(Now())) + " s).";
+        text += Tr(Msg::DescVote, { std::to_string(mVote.SecondsLeft(Now())) });
     }
     if (!mWorldPath.empty()) {
-        text += "\nArchivo: " + mWorldPath;
+        text += Tr(Msg::DescFile, { mWorldPath });
     }
     return text;
 }

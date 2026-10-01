@@ -25,6 +25,7 @@ typedef struct {
 #include "global.h"
 #include "sys_cfb.h"
 #include "BenPort.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/gameplay_field_keep/gameplay_field_keep.h"
 
@@ -1220,8 +1221,11 @@ void Environment_UpdateTime(PlayState* play, EnvironmentContext* envCtx, PauseCo
                             GameOverContext* gameOverCtx) {
     u16 time;
 
-    if (!sEnvIsTimeStopped && (pauseCtx->state == PAUSE_STATE_OFF) && (gameOverCtx->state == GAMEOVER_INACTIVE)) {
-        if ((msgCtx->msgMode == MSGMODE_NONE) || (msgCtx->currentTextId == 0xF7) || (msgCtx->currentTextId == 0x20D2) ||
+    // [COOP] In the server's world the clock also runs behind the pause menu and during texts.
+    if (!sEnvIsTimeStopped && ((pauseCtx->state == PAUSE_STATE_OFF) || Coop_InWorld()) &&
+        (gameOverCtx->state == GAMEOVER_INACTIVE)) {
+        if (Coop_InWorld() || (msgCtx->msgMode == MSGMODE_NONE) || (msgCtx->currentTextId == 0xF7) ||
+            (msgCtx->currentTextId == 0x20D2) ||
             (msgCtx->currentTextId == 0x140C) ||
             ((msgCtx->currentTextId >= 0x100) && (msgCtx->currentTextId <= 0x200)) ||
             (gSaveContext.gameMode == GAMEMODE_END_CREDITS)) {

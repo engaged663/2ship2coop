@@ -119,6 +119,10 @@ static void EnCoopPuppet_Init(Actor* thisx, PlayState* play) {
     play->playerInit(p, play, gPlayerSkeletons[form]);
     D_801F59E0 = savedHandIndex;
 
+    // The engine only gives Fierce Deity his larger scale to ACTOR_PLAYER (func_80123140); a puppet keeps the
+    // default 0.01 and looks tiny.
+    Actor_SetScale(&p->actor, form == PLAYER_FORM_FIERCE_DEITY ? 0.015f : 0.01f);
+
     p->maskObjectSegment = ZeldaArena_Malloc(0x3800);
     p->getItemDrawIdPlusOne = GID_NONE + 1;
     // Sub-project A: puppets never block or hit anything (the shield collider is registered while drawing).

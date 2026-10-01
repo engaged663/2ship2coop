@@ -5,5 +5,7 @@
 namespace coop {
 
 constexpr uint8_t kStreamActors = 2; // ActorImage.h (sub-project D3; ActorState.h was C1's format)
+constexpr uint8_t kStreamEponaState = 3; // EponaState.h: owner-authoritative horse list
+constexpr uint8_t kStreamEffects = 4; // EffectImage.h: particles echoed to the other games of the scene
 
 } // namespace coop

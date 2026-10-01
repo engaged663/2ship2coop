@@ -40,6 +40,7 @@ u8 sMotionBlurStatus;
 #include "overlays/gamestates/ovl_opening/z_opening.h"
 #include "overlays/gamestates/ovl_file_choose/z_file_select.h"
 #include "debug.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "BenPort.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
@@ -1028,9 +1029,16 @@ void Play_UpdateMain(PlayState* this) {
             AnimTaskQueue_Reset(&this->animTaskQueue);
             Object_UpdateEntries(&this->objectCtx);
 
-            if (!sp5C && (IREG(72) == 0)) {
-                this->gameplayFrames++;
-                Rumble_SetUpdateEnabled(true);
+            // [COOP] In the server's world nothing stops the time: the world keeps running behind the pause menu and
+            // the enemy-kill freeze does not happen.
+            if (Coop_InWorld()) {
+                this->actorCtx.freezeFlashTimer = 0;
+            }
+            if ((!sp5C || (Coop_InWorld() && gSaveContext.gameMode == GAMEMODE_NORMAL)) && (IREG(72) == 0)) {
+                if (!sp5C) {
+                    this->gameplayFrames++;
+                }
+                Rumble_SetUpdateEnabled(!sp5C);
 
                 if ((this->actorCtx.freezeFlashTimer != 0) && ((this->actorCtx.freezeFlashTimer--) < 5)) {
                     freezeFlashTimer = this->actorCtx.freezeFlashTimer;
@@ -1045,10 +1053,12 @@ void Play_UpdateMain(PlayState* this) {
                     }
                 } else {
                     Room_ProcessRoomRequest(this, &this->roomCtx);
+                    Coop_CollisionPass(true); // [COOP] the hit marks of our attacks go to the other games too
                     CollisionCheck_AT(this, &this->colChkCtx);
                     CollisionCheck_OC(this, &this->colChkCtx);
                     CollisionCheck_Damage(this, &this->colChkCtx);
                     CollisionCheck_ClearContext(this, &this->colChkCtx);
+                    Coop_CollisionPass(false); // [COOP]
                     if (!this->haltAllActors) {
                         Actor_UpdateAll(this, &this->actorCtx);
                     }

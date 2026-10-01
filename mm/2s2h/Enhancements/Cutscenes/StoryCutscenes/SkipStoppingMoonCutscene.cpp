@@ -4,6 +4,7 @@
 #include "2s2h/CustomItem/CustomItem.h"
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/ShipInit.hpp"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 extern "C" {
 #include "variables.h"
@@ -16,7 +17,8 @@ extern "C" {
 void RegisterSkipStoppingMoon() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
         s16* csId = va_arg(args, s16*);
-        if (gPlayState->sceneId == SCENE_OKUJOU) {
+        // [COOP] In the co-op world Oath to Order goes straight to Majora for everyone (Coop/Features/Ending.cpp)
+        if (gPlayState->sceneId == SCENE_OKUJOU && !Coop_InWorld()) {
             if (*csId == 12) {
                 if (GameInteractor_Should(VB_MEET_MOON_REQUIREMENTS, CHECK_QUEST_ITEM(QUEST_REMAINS_ODOLWA) &&
                                                                          CHECK_QUEST_ITEM(QUEST_REMAINS_GOHT) &&

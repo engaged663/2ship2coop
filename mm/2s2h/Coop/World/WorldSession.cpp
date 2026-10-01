@@ -9,6 +9,7 @@
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/Features/Warp.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 
@@ -54,12 +55,22 @@ constexpr ForcedCVar kForcedCVars[] = {
     { "gEnhancements.Cutscenes.SkipMiscInteractions", 1 },
     { "gEnhancements.Cutscenes.SkipOnePointCutscenes", 1 },
     { "gEnhancements.Cutscenes.HideTitleCards", 1 },
-    { "gEnhancements.Cutscenes.AutoAdvanceEndingText", 1 },
+    { "gEnhancements.Cutscenes.AutoAdvanceEndingText", 0 }, // 1 only while the ending plays (kEndingCVars)
     { "gEnhancements.Cutscenes.SkipGetItemCutscenes", 2 },
     { "gEnhancements.Songs.SkipSoTCutscenes", 1 },
     { "gEnhancements.Songs.SkipSoaringCutscene", 1 },
     { "gEnhancements.Songs.BetterSongOfDoubleTime", 0 },
     { "gModes.TimeMovesWhenYouMove", 0 },
+};
+
+// While the ending plays (Features/EndingMode.cpp): nothing skipped, and what changes the pace of its texts and
+// screens takes the same value in every game. Never written to the settings file (a crash keeps the player's own).
+constexpr ForcedCVar kEndingCVars[] = {
+    { "gEnhancements.Cutscenes.SkipStoryCutscenes", 0 },    { "gEnhancements.Cutscenes.SkipEnemyCutscenes", 0 },
+    { "gEnhancements.Cutscenes.SkipEntranceCutscenes", 0 }, { "gEnhancements.Cutscenes.SkipMiscInteractions", 0 },
+    { "gEnhancements.Cutscenes.SkipOnePointCutscenes", 0 }, { "gEnhancements.Songs.SkipSoTCutscenes", 0 },
+    { "gEnhancements.Songs.SkipSoaringCutscene", 0 },       { "gEnhancements.Cutscenes.AutoAdvanceEndingText", 1 },
+    { "gEnhancements.Dialogue.FastText", 0 },               { "gEnhancements.Restorations.DayTelopDuration", 0 },
 };
 
 // Enhancements that read a forced CVar but register their hooks under another name: re-evaluated with them.
@@ -88,6 +99,8 @@ bool sAutoEnterPending = false;
 bool sCVarsForced = false;
 bool sRestoreCVars = false; // done at the start of a frame, never inside the scene's end hooks
 std::vector<SavedCVar> sSavedCVars;
+std::vector<SavedCVar> sEndingSavedCVars; // what kEndingCVars replaced
+bool sEndingCVars = false;
 WarpTarget sSpot; // last safe spot (on the ground) in the world
 bool sHaveSpot = false;
 std::string sLastUpload;
@@ -239,6 +252,7 @@ void LeaveWorld(const std::string& message, bool toFileSelect) {
         }
         NetClient::Get().SendEvent(MakeEvent(ev::kWorldLeave));
     }
+    EndingMode_End();
     sState = WorldState::Outside;
     sPending = nullptr;
     sBuild = nullptr;
@@ -282,6 +296,7 @@ void BuildNow() {
 }
 
 void StartBuild() {
+    EndingMode_End(); // the ending (if any) is over: the world goes on
     sState = WorldState::Booting;
     sResetOnDestroy = false;
     if (gPlayState != nullptr) {
@@ -298,6 +313,9 @@ void StartBuild() {
 
 // A new world replaces the running scene: it waits until the game is between things, so it cuts nothing off.
 bool ReadyForNewWorld(bool keepLive) {
+    if (EndingMode_Active()) {
+        return true; // the ending is over: nothing to wait for in its last shot
+    }
     bool waitedEnough = NowMs() - sPendingSinceMs >= kSettleWaitMs;
     if (!PoseCapture_InGameplay()) {
         // Title screen, file select: nothing to cut off. New-day screen: a Song of Time reset waits for the scene
@@ -514,6 +532,31 @@ void WorldSession_RequestLeave() {
     LeaveWorld("Has salido de la partida del servidor.", true);
 }
 
+void WorldSession_SetEndingCVars(bool ending) {
+    if (ending == sEndingCVars) {
+        return;
+    }
+    sEndingCVars = ending;
+    if (ending) {
+        sEndingSavedCVars.clear();
+        for (const ForcedCVar& c : kEndingCVars) {
+            sEndingSavedCVars.push_back({ c.name, CVarGet(c.name) != nullptr, CVarGetInteger(c.name, 0) });
+            CVarSetInteger(c.name, c.value);
+            ShipInit::Init(c.name);
+        }
+        return;
+    }
+    for (const SavedCVar& c : sEndingSavedCVars) {
+        if (c.existed) {
+            CVarSetInteger(c.name, c.value);
+        } else {
+            CVarClear(c.name);
+        }
+        ShipInit::Init(c.name);
+    }
+    sEndingSavedCVars.clear();
+}
+
 void WorldSession_FrameStart() {
     static bool sRecovered = false;
     if (!sRecovered) {
@@ -543,8 +586,8 @@ void WorldSession_FrameStart() {
 }
 
 void WorldSession_FrameEnd() {
-    if (!WorldSession_Active()) {
-        return;
+    if (!WorldSession_Active() || EndingMode_Active()) {
+        return; // the ending's scenes are no place to come back to, and its save changes are its own
     }
     TrackLocation();
     int64_t now = NowMs();

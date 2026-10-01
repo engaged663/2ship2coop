@@ -11,6 +11,7 @@ namespace coop::client {
 
 void HitSync_ReportReplicaHits(TrackedActor& replica); // before a replica shows its new state (ActorSync.cpp)
 void HitSync_InjectPending(TrackedActor& owned);       // before an enemy of ours updates (ActorSync.cpp)
+void HitSync_ClearMarks(TrackedActor& replica);        // after its new state is written: no stale hit flags
 // The puppet's update (PuppetActor.cpp): reads what hit it last frame and registers its body for this one.
 void HitSync_PuppetUpdate(Actor* puppet, uint8_t playerId, PlayState* play);
 

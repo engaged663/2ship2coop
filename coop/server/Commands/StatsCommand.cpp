@@ -5,15 +5,14 @@
 namespace coop::server {
 
 static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
-    std::string text = "Estadísticas de red:";
+    std::string text = Tr(Msg::StatsTitle);
     for (RemoteClient* p : ctx.server.Players().Welcomed()) {
-        text += "\n" + p->nick + ": escena " + std::to_string(p->scene) + ", sala " + std::to_string(p->room) +
-                ", poses recibidas " + std::to_string(p->streamsIn) + ", reenviadas " +
-                std::to_string(p->streamsRelayed);
+        text += "\n" + Tr(Msg::StatsLine, { p->nick, std::to_string(p->scene), std::to_string(p->room),
+                                           std::to_string(p->streamsIn), std::to_string(p->streamsRelayed) });
     }
     ctx.Reply(text);
 }
 
-COOP_COMMAND(stats, "stats", "/stats", "estadísticas de red por jugador", Perm::Op, 0, Run);
+COOP_COMMAND(stats, "stats", Msg::StatsUsage, Msg::StatsHelp, Perm::Op, 0, Run);
 
 } // namespace coop::server

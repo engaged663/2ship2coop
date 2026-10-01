@@ -927,6 +927,9 @@ static void Item_DropCollectibleRandomImpl(PlayState* play, Actor* fromActor, Ve
 Actor* Item_DropCollectible(PlayState* play, Vec3f* spawnPos, u32 params) {
     Actor* spawned;
 
+    if (Coop_DropSuppressed()) { // [COOP] grass cut because another player cut it: they got the drop
+        return NULL;
+    }
     if (sCoopDropDepth == 0) {
         Coop_OnDrop(play, spawnPos, (s32)params, 1);
     }
@@ -937,6 +940,9 @@ Actor* Item_DropCollectible(PlayState* play, Vec3f* spawnPos, u32 params) {
 }
 
 void Item_DropCollectibleRandom(PlayState* play, Actor* fromActor, Vec3f* spawnPos, s16 params) {
+    if (Coop_DropSuppressed()) { // [COOP] see Item_DropCollectible
+        return;
+    }
     if (sCoopDropDepth == 0) {
         Coop_OnDrop(play, spawnPos, params, 0);
     }

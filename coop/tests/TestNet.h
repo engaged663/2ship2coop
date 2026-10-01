@@ -4,8 +4,10 @@
 #include "TestMain.h"
 
 #include "common/Events.h"
+#include "common/EponaState.h"
 #include "common/PlayerState.h"
 #include "common/Protocol.h"
+#include "common/StreamIds.h"
 #include "common/Transport.h"
 #include "server/AccessLists.h"
 #include "server/Logger.h"
@@ -133,6 +135,13 @@ struct TestClient {
         auto bytes = coop::EncodePlayerState(st);
         transport.Send(peer, coop::kChannelStream, bytes.data(), bytes.size());
     }
+    void SendEpona(const coop::EponaPacket& packet) {
+        auto bytes = coop::EncodeEponaState(packet);
+        transport.Send(peer, coop::kChannelStream, bytes.data(), bytes.size());
+    }
+    void SendStream(const std::vector<uint8_t>& bytes) {
+        transport.Send(peer, coop::kChannelStream, bytes.data(), bytes.size());
+    }
     void Close() {
         transport.Close();
     }
@@ -178,6 +187,24 @@ struct TestClient {
                 streams.pop_front();
             }
             return found.has_value();
+        });
+        return found;
+    }
+    std::optional<coop::EponaPacket> WaitForEponaStream(TestServer& s, int timeoutMs = 1000) {
+        std::optional<coop::EponaPacket> found;
+        WaitUntil(s, timeoutMs, [&] {
+            for (size_t i = 0; i < rawStreams.size(); i++) {
+                if (rawStreams[i].empty() || rawStreams[i][0] != coop::kStreamEponaState) {
+                    continue;
+                }
+                coop::EponaPacket packet;
+                if (coop::DecodeEponaState(rawStreams[i].data(), rawStreams[i].size(), packet)) {
+                    found = packet;
+                }
+                rawStreams.erase(rawStreams.begin() + i);
+                return found.has_value();
+            }
+            return false;
         });
         return found;
     }

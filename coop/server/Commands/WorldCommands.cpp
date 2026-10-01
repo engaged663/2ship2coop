@@ -15,7 +15,7 @@ void Time(CommandContext& ctx, const std::vector<std::string>&) {
 
 void CastVote(CommandContext& ctx, bool yes) {
     if (ctx.IsConsole()) {
-        ctx.Reply("Solo votan los jugadores que están en la partida del servidor.", level::kError);
+        ctx.Reply(Tr(Msg::VoteOnlyPlayers), level::kError);
         return;
     }
     ctx.server.World().Vote(*ctx.sender, yes);
@@ -33,7 +33,7 @@ void SetTime(CommandContext& ctx, const std::vector<std::string>& args) {
     int day = 0;
     uint32_t abs = 0;
     if (!ParseInt(args[0], day) || !clock::Parse(day, args[1], abs)) {
-        ctx.Reply("Uso: /settime <día 1-3> <hh:mm>, por ejemplo /settime 2 18:00", level::kError);
+        ctx.Reply(Tr(Msg::SetTimeUsageLine), level::kError);
         return;
     }
     std::string err;
@@ -55,13 +55,17 @@ void Restart(CommandContext& ctx, const std::vector<std::string>&) {
 
 } // namespace
 
-COOP_COMMAND(tiempo, "tiempo", "/tiempo", "día y hora de la partida del servidor", Perm::Player, 0, Time);
-COOP_COMMAND(si, "si", "/si", "votar sí a volver al Amanecer del Primer Día", Perm::Player, 0, VoteYes);
-COOP_COMMAND(no, "no", "/no", "votar no a volver al Amanecer del Primer Día", Perm::Player, 0, VoteNo);
-COOP_COMMAND(settime, "settime", "/settime <día 1-3> <hh:mm>", "cambiar el día y la hora para todos", Perm::Op, 2,
-             SetTime);
-COOP_COMMAND(mundo, "mundo", "/mundo", "estado de la partida del servidor", Perm::Op, 0, ShowWorld);
-COOP_COMMAND(reiniciar, "reiniciar", "/reiniciar", "volver al Amanecer del Primer Día sin votación", Perm::Op, 0,
-             Restart);
+COOP_COMMAND(tiempo, "tiempo", Msg::ClockUsage, Msg::ClockHelp, Perm::Player, 0, Time);
+COOP_COMMAND(si, "si", Msg::YesUsage, Msg::YesHelp, Perm::Player, 0, VoteYes);
+COOP_COMMAND(no, "no", Msg::NoUsage, Msg::NoHelp, Perm::Player, 0, VoteNo);
+COOP_COMMAND(settime, "settime", Msg::SetTimeUsage, Msg::SetTimeHelp, Perm::Op, 2, SetTime);
+COOP_COMMAND(mundo, "mundo", Msg::WorldUsage, Msg::WorldHelp, Perm::Op, 0, ShowWorld);
+COOP_COMMAND(reiniciar, "reiniciar", Msg::RestartUsage, Msg::RestartHelp, Perm::Op, 0, Restart);
+
+// English names for the Spanish ones (every language can use them; commands are typed in ASCII).
+COOP_ALIAS(clock, "clock", "tiempo");
+COOP_ALIAS(yes, "yes", "si");
+COOP_ALIAS(world, "world", "mundo");
+COOP_ALIAS(restart, "restart", "reiniciar");
 
 } // namespace coop::server

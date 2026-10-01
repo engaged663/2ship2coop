@@ -36,8 +36,9 @@ enum class SlotKind : uint8_t {
     Exe = 3,   // a pointer into the game's executable: value = offset from the image base
     Actor = 4, // a pointer into a replicated actor: value = key << 32 | region << 16 | offset
     Link = 5,  // a pointer into a Link (a player's own or a puppet): value = playerId << 32 | offset
+    Scene = 6, // a pointer into the loaded scene's memory (paths, cutscene data): value = offset from sceneSegment
 };
-constexpr uint8_t kSlotKinds = 6;
+constexpr uint8_t kSlotKinds = 7;
 
 struct Slot {
     SlotKind kind = SlotKind::Zero;
@@ -76,6 +77,7 @@ struct SpawnInfo {
 struct ActorImageRecord {
     uint32_t key = 0;
     uint16_t actorId = 0; // checked against the local actor with that key
+    bool continuation = false; // more slots of the record before it (same key): masks, sounds and spawn are not here
     bool hasSpawn = false;
     SpawnInfo spawn;
     uint8_t acMask = 0;   // colliders the sender registered this frame (bit i = collider i)
@@ -115,6 +117,7 @@ class PointerResolver {
     virtual bool ExeOffset(uint64_t address, uint64_t& offset) const = 0;
     virtual bool ActorRef(uint64_t address, uint64_t& value) const = 0; // into a replicated actor's region
     virtual bool LinkRef(uint64_t address, uint64_t& value) const = 0;  // into a Link (ours or a puppet)
+    virtual bool SceneOffset(uint64_t address, uint64_t& offset) const = 0; // into the loaded scene's memory
     virtual bool IsMapped(uint64_t address) const = 0; // any other memory of this process
 };
 

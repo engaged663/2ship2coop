@@ -9,25 +9,25 @@ namespace coop::server {
 
 static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
     if (ctx.IsConsole()) {
-        ctx.Reply("Solo los jugadores pueden usar /gift.", level::kError);
+        ctx.Reply(Tr(Msg::GiftOnlyPlayers), level::kError);
         return;
     }
     RemoteClient* target = ctx.server.Players().ByNick(args[0]);
     if (target == nullptr) {
-        ctx.Reply("No hay ningún jugador conectado llamado '" + args[0] + "'.", level::kError);
+        ctx.Reply(Tr(Msg::PlayerNotFound, { args[0] }), level::kError);
         return;
     }
     if (target == ctx.sender) {
-        ctx.Reply("No puedes regalarte rupias a ti mismo.", level::kError);
+        ctx.Reply(Tr(Msg::GiftSelf), level::kError);
         return;
     }
     int amount = 0;
     if (!ParseInt(args[1], amount)) {
-        ctx.Reply("La cantidad debe ser un número entero.", level::kError);
+        ctx.Reply(Tr(Msg::GiftAmountInt), level::kError);
         return;
     }
     if (amount < 1 || amount > kGiftMaxAmount) {
-        ctx.Reply("La cantidad debe estar entre 1 y " + std::to_string(kGiftMaxAmount) + ".", level::kError);
+        ctx.Reply(Tr(Msg::GiftAmountRange, { std::to_string(kGiftMaxAmount) }), level::kError);
         return;
     }
     PendingGift& gift = ctx.server.Gifts().Create(ctx.sender->peer, target->peer, ctx.sender->nick, target->nick, amount,
@@ -39,6 +39,6 @@ static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
     ctx.server.SendEvent(*ctx.sender, debit);
 }
 
-COOP_COMMAND(gift, "gift", "/gift <jugador> <cantidad>", "regalar rupias a un jugador", Perm::Player, 2, Run);
+COOP_COMMAND(gift, "gift", Msg::GiftUsage, Msg::GiftHelp, Perm::Player, 2, Run);
 
 } // namespace coop::server

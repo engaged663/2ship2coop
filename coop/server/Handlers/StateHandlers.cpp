@@ -25,7 +25,7 @@ void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t s
     }
     PlayerState state;
     if (!DecodePlayerState(data, size, state) || !SanitizePlayerState(state)) {
-        server.NoteInvalid(client, "pose inválida");
+        server.NoteInvalid(client, Tr(Msg::InvPose));
         return;
     }
     NoteRoom(server, client, state.sceneId, state.roomNum);
@@ -61,6 +61,7 @@ void FlushLoc(Server& server, RemoteClient& client) {
     out["id"] = client.id;
     out["scene"] = client.scene;
     out["sceneName"] = client.sceneName;
+    out["entrance"] = client.entrance; // a passenger on this player's horse follows them through it
     server.Broadcast(out, &client);
 }
 

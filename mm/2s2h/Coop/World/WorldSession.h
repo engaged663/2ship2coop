@@ -20,6 +20,9 @@ int WorldSession_Cycle();    // the world cycle of that save
 std::string WorldSession_StatusText();
 void WorldSession_RequestEnter();
 void WorldSession_RequestLeave();
+// The ending (Features/EndingMode.cpp): true lifts the forced cutscene skips and gives the settings that change the
+// pace of its texts and screens their default, so it plays whole and at the same pace everywhere; false undoes it.
+void WorldSession_SetEndingCVars(bool ending);
 
 // CoopInit.cpp calls these every frame: FrameStart after the network, FrameEnd at the end of the frame.
 void WorldSession_FrameStart();

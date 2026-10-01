@@ -1,6 +1,7 @@
 #include "Clock.h"
 
 #include "Text.h"
+#include "I18n.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -47,9 +48,9 @@ int UnitsPerSecond(bool inverted) {
 
 std::string Format(uint32_t abs) {
     int minutes = (int)((TimeOfAbs(abs) * 1440u + 0x8000u) / 0x10000u) % 1440;
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "Día %d, %02d:%02d", DayOfAbs(abs), minutes / 60, minutes % 60);
-    return buf;
+    char hhmm[16];
+    std::snprintf(hhmm, sizeof(hhmm), "%02d:%02d", minutes / 60, minutes % 60);
+    return Tr(Msg::ClockFormat, { std::to_string(DayOfAbs(abs)), hhmm });
 }
 
 bool Parse(int day, const std::string& hhmm, uint32_t& abs) {

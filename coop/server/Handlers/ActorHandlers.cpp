@@ -7,7 +7,9 @@
 #include "server/World/RoomAuthority.h"
 
 #include "common/ActorImage.h"
+#include "common/EponaState.h"
 #include "common/PlayerState.h"
+#include "common/StreamIds.h"
 
 #include <algorithm>
 #include <tuple>
@@ -83,6 +85,20 @@ std::vector<RemoteClient*> SceneMates(Server& server, const RemoteClient& from, 
     std::vector<RemoteClient*> out;
     for (RemoteClient* other : server.Players().WelcomedAll()) {
         if (other != &from && Takes(server, *other) && other->scene == scene) {
+            out.push_back(other);
+        }
+    }
+    return out;
+}
+
+bool TakesEpona(const RemoteClient& client) {
+    return client.welcomed && !client.closing && !client.host && client.inWorld && client.hasState;
+}
+
+std::vector<RemoteClient*> EponaMates(Server& server, const RemoteClient& from, int16_t scene) {
+    std::vector<RemoteClient*> out;
+    for (RemoteClient* other : server.Players().WelcomedAll()) {
+        if (other != &from && TakesEpona(*other) && other->scene == scene) {
             out.push_back(other);
         }
     }
@@ -213,10 +229,12 @@ void OnActors(Server& server, RemoteClient& client, uint8_t* data, size_t size) 
     int16_t scene = -1;
     int8_t room = -1;
     if (!PeekActorImageHeader(data, size, scene, room) || size > image_limits::kPacketBytes) {
-        server.NoteInvalid(client, "paquete de actores inválido");
+        server.NoteInvalid(client, Tr(Msg::InvActorPacket));
         return;
     }
-    if (scene != client.scene || !ActsIn(client, scene, room)) {
+    // A game showing its cutscene to others sends its cutscene actors, whoever owns the room (the watchers take them)
+    bool showsCutscene = client.cinemaMs >= 0 && server.NowMs() - client.cinemaMs <= kCinemaActorsMs;
+    if (scene != client.scene || !(ActsIn(client, scene, room) || showsCutscene)) {
         return; // neither the owner nor a lessee of that room (a handover in flight): the games check each record
     }
     StampPlayerId(data, size, client.id);
@@ -261,7 +279,7 @@ void OnHit(Server& server, RemoteClient& client, const json& ev) {
         !InRange(ev, "key", 0, 0xFFFFFFFFll) || !InRange(ev, "col", 0, image_limits::kColliders - 1) ||
         !InRange(ev, "elem", 0, 31) || !InRange(ev, "attackerId", 0, 0xFFFF) || !InRange(ev, "form", 0, 255) ||
         !ValidDamage(ev)) {
-        server.NoteInvalid(client, "golpe inválido");
+        server.NoteInvalid(client, Tr(Msg::InvHit));
         return;
     }
     int16_t scene = (int16_t)GetInt(ev, "scene");
@@ -290,7 +308,7 @@ void OnHurt(Server& server, RemoteClient& client, const json& ev) {
     }
     std::string kind = GetString(ev, "kind");
     if (!InRange(ev, "to", 1, kMaxPlayers + kMaxHosts) || (kind != "col" && kind != "knock") || !ValidDamage(ev)) {
-        server.NoteInvalid(client, "daño inválido");
+        server.NoteInvalid(client, Tr(Msg::InvDamage));
         return;
     }
     RemoteClient* victim = server.Players().ById((uint8_t)GetInt(ev, "to"));
@@ -314,7 +332,7 @@ void OnDrop(Server& server, RemoteClient& client, const json& ev) {
     }
     if (!InRange(ev, "scene", 0, 0x7FFF) || !InRange(ev, "room", 0, image_limits::kRoomMax) ||
         !InRange(ev, "params", -0x8000, 0xFFFF) || !InRange(ev, "fn", 0, 1) || !FiniteVec3(ev, "pos")) {
-        server.NoteInvalid(client, "objeto soltado inválido");
+        server.NoteInvalid(client, Tr(Msg::InvDrop));
         return;
     }
     int16_t scene = (int16_t)GetInt(ev, "scene");
@@ -336,14 +354,18 @@ void OnLeaseReq(Server& server, RemoteClient& client, const json& ev) {
     if (!InRange(ev, "scene", 0, 0x7FFF) || !InRange(ev, "room", 0, image_limits::kRoomMax) ||
         !InRange(ev, "key", 0, 0xFFFFFFFFll) || dist == ev.end() || !dist->is_number() ||
         !std::isfinite(dist->get<double>()) || dist->get<double>() < 0.0 || dist->get<double>() > 100000.0) {
-        server.NoteInvalid(client, "préstamo inválido");
+        server.NoteInvalid(client, Tr(Msg::InvLoan));
         return;
     }
     int16_t scene = (int16_t)GetInt(ev, "scene");
     uint32_t key = (uint32_t)GetInt(ev, "key");
-    if (scene != client.scene || (key & kRuntimeKeyBits) != 0) {
-        return; // changing scene, or not an NPC of the room's list (runtime ones go with their parent)
+    if (scene != client.scene) {
+        return; // changing scene
     }
+    // A runtime actor (Epona: tracked by whoever just mounted her, Ride.cpp) is lent to the first one who asks
+    // (the rider): they simulate it for as long as they keep asking. List actors (NPCs and props) follow the
+    // "closer player" rule below.
+    bool runtime = (key & kRuntimeKeyBits) != 0;
     LeaseKey k{ scene, (int8_t)GetInt(ev, "room"), key };
     double d = dist->get<double>();
     bool talking = GetBool(ev, "talking");
@@ -362,6 +384,8 @@ void OnLeaseReq(Server& server, RemoteClient& client, const json& ev) {
     Lease& l = it->second;
     if (l.holder == client.id) {
         l = { client.id, d, talking, server.NowMs() };
+    } else if (runtime) {
+        return; // the rider's: only its holder renews it
     } else if (!l.talking && d < l.dist * kLeaseCloserRatio) {
         l = { client.id, d, talking, server.NowMs() };
     }
@@ -373,7 +397,7 @@ void OnLeaseDrop(Server& server, RemoteClient& client, const json& ev) {
     }
     if (!InRange(ev, "scene", 0, 0x7FFF) || !InRange(ev, "room", 0, image_limits::kRoomMax) ||
         !InRange(ev, "key", 0, 0xFFFFFFFFll)) {
-        server.NoteInvalid(client, "préstamo inválido");
+        server.NoteInvalid(client, Tr(Msg::InvLoan));
         return;
     }
     auto it = sLeases.find({ (int16_t)GetInt(ev, "scene"), (int8_t)GetInt(ev, "room"), (uint32_t)GetInt(ev, "key") });
@@ -390,7 +414,7 @@ void OnEcho(Server& server, RemoteClient& client, const json& ev) {
     if (!InRange(ev, "scene", 0, 0x7FFF) || !InRange(ev, "room", 0, image_limits::kRoomMax) ||
         !InRange(ev, "id", 0, kMaxActorId) || !InRange(ev, "params", -0x8000, 0xFFFF) || !FiniteVec3(ev, "pos") ||
         !FiniteVec3(ev, "rot")) {
-        server.NoteInvalid(client, "actor de eco inválido");
+        server.NoteInvalid(client, Tr(Msg::InvEchoActor));
         return;
     }
     int16_t scene = (int16_t)GetInt(ev, "scene");
@@ -406,12 +430,82 @@ void OnEcho(Server& server, RemoteClient& client, const json& ev) {
     }
 }
 
+// A player played Epona's Song. The reliable event identifies one permanent horse; it never replaces older keys.
+void OnEponaCall(Server& server, RemoteClient& client, const json& ev) {
+    if (!TakesEpona(client) || !client.leaseBudget.Take(server.NowMs())) {
+        return;
+    }
+    if (!InRange(ev, "scene", 0, 0x7FFF) || !InRange(ev, "horse", 1, 0xFFFFFFFFll) ||
+        !FiniteVec3(ev, "pos") || !FiniteVec3(ev, "rot")) {
+        server.NoteInvalid(client, Tr(Msg::InvEponaCall));
+        return;
+    }
+    int16_t scene = (int16_t)GetInt(ev, "scene");
+    uint32_t sequence = (uint32_t)GetInt(ev, "horse");
+    if (scene != client.scene) {
+        return;
+    }
+    if (sequence <= client.eponaLastCallSequence) {
+        return;
+    }
+    client.eponaLastCallSequence = sequence;
+    json out = ev;
+    out["from"] = client.id;
+    for (RemoteClient* other : EponaMates(server, client, scene)) {
+        server.SendEvent(*other, out);
+    }
+}
+
+void OnEponaPassenger(Server& server, RemoteClient& client, const json& ev) {
+    if (!TakesEpona(client) || !client.leaseBudget.Take(server.NowMs())) {
+        return;
+    }
+    auto mounted = ev.find("mounted");
+    if (!InRange(ev, "scene", 0, 0x7FFF) || !InRange(ev, "owner", 1, kMaxPlayers) ||
+        !InRange(ev, "horse", 1, 0xFFFFFFFFll) || mounted == ev.end() || !mounted->is_boolean()) {
+        server.NoteInvalid(client, Tr(Msg::InvEponaPassenger));
+        return;
+    }
+    int16_t scene = (int16_t)GetInt(ev, "scene");
+    uint8_t owner = (uint8_t)GetInt(ev, "owner");
+    RemoteClient* target = server.Players().ById(owner);
+    if (scene != client.scene || target == nullptr || target == &client || target->host || !TakesEpona(*target) ||
+        target->scene != scene || (uint32_t)GetInt(ev, "horse") > target->eponaLastCallSequence) {
+        return;
+    }
+    json out = ev;
+    out["from"] = client.id;
+    server.SendEvent(*target, out);
+}
+
+void OnEponaState(Server& server, RemoteClient& client, uint8_t* data, size_t size) {
+    if (!TakesEpona(client) || !client.streamBudget.Take(server.NowMs())) {
+        return;
+    }
+    EponaPacket packet;
+    if (!DecodeEponaState(data, size, packet) || packet.sceneId != client.scene) {
+        server.NoteInvalid(client, Tr(Msg::InvEponaState));
+        return;
+    }
+    packet.ownerPlayerId = client.id;
+    auto stamped = EncodeEponaState(packet);
+    for (RemoteClient* other : EponaMates(server, client, packet.sceneId)) {
+        server.SendStream(*other, stamped.data(), stamped.size());
+        client.streamsRelayed++;
+    }
+    client.streamsIn++;
+    (void)size;
+}
+
 } // namespace
 
 COOP_SERVER_STREAM(actorStream, kStreamActors, OnActors);
+COOP_SERVER_STREAM(eponaState, kStreamEponaState, OnEponaState);
 COOP_SERVER_EVENT(actorLeaseReq, ev::kLeaseReq, true, OnLeaseReq);
 COOP_SERVER_EVENT(actorLeaseDrop, ev::kLeaseDrop, true, OnLeaseDrop);
 COOP_SERVER_EVENT(actorEcho, ev::kEcho, true, OnEcho);
+COOP_SERVER_EVENT(eponaCall, ev::kEponaCall, true, OnEponaCall);
+COOP_SERVER_EVENT(eponaPassenger, ev::kEponaPassenger, true, OnEponaPassenger);
 COOP_SERVER_EVENT(actorHit, ev::kHit, true, OnHit);
 COOP_SERVER_EVENT(actorHurt, ev::kHurt, true, OnHurt);
 COOP_SERVER_EVENT(actorDrop, ev::kDrop, true, OnDrop);

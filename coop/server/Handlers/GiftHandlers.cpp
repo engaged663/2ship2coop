@@ -21,8 +21,7 @@ void SendRefund(Server& server, const PendingGift& gift, int amount, const std::
     }
     RemoteClient* sender = Sender(server, gift);
     if (sender == nullptr) {
-        server.Log().Warn("Reembolso perdido de " + std::to_string(amount) + " rupias para " + gift.fromNick +
-                          " (ya no está conectado)");
+        server.Log().Warn(Tr(Msg::GiftRefundLost, { std::to_string(amount), gift.fromNick }));
         return;
     }
     json refund = MakeEvent(ev::kGiftRefund);
@@ -41,19 +40,18 @@ void OnPaid(Server& server, RemoteClient& client, const json& ev) {
     PendingGift copy = *gift;
     if (gift->stage == PendingGift::RefundOnDebit) {
         server.Gifts().Remove(copy.gid);
-        SendRefund(server, copy, paid, "el regalo se canceló");
+        SendRefund(server, copy, paid, Tr(Msg::GiftCancelled));
         return;
     }
     if (paid == 0) {
-        server.SendSystem(&client, "No tienes suficientes rupias para regalar " + std::to_string(gift->amount) + ".",
-                          level::kError);
+        server.SendSystem(&client, Tr(Msg::GiftNotEnough, { std::to_string(gift->amount) }), level::kError);
         server.Gifts().Remove(copy.gid);
         return;
     }
     RemoteClient* target = server.Players().ByPeer(gift->toPeer);
     if (target == nullptr || !target->welcomed || target->closing) {
         server.Gifts().Remove(copy.gid);
-        SendRefund(server, copy, paid, copy.toNick + " se ha desconectado");
+        SendRefund(server, copy, paid, Tr(Msg::GiftDisconnected, { copy.toNick }));
         return;
     }
     gift->paid = paid;
@@ -76,22 +74,20 @@ void OnReceived(Server& server, RemoteClient& client, const json& ev) {
     RemoteClient* sender = Sender(server, gift);
 
     if (accepted > 0) {
-        server.SendSystem(&client, gift.fromNick + " te ha regalado " + std::to_string(accepted) + " rupias.",
-                          level::kOk);
+        server.SendSystem(&client, Tr(Msg::GiftReceived, { gift.fromNick, std::to_string(accepted) }), level::kOk);
         if (sender != nullptr) {
-            server.SendSystem(sender, "Has regalado " + std::to_string(accepted) + " rupias a " + client.nick + ".",
-                              level::kOk);
+            server.SendSystem(sender, Tr(Msg::GiftSent, { std::to_string(accepted), client.nick }), level::kOk);
         }
-        server.Log().Info(gift.fromNick + " regaló " + std::to_string(accepted) + " rupias a " + client.nick);
+        server.Log().Info(Tr(Msg::GiftLog, { gift.fromNick, std::to_string(accepted), client.nick }));
     } else if (sender != nullptr) {
-        server.SendSystem(sender, client.nick + " no tiene espacio en la cartera.", level::kWarn);
+        server.SendSystem(sender, Tr(Msg::GiftNoRoom, { client.nick }), level::kWarn);
     }
-    SendRefund(server, gift, gift.paid - accepted, "la cartera de " + client.nick + " está llena");
+    SendRefund(server, gift, gift.paid - accepted, Tr(Msg::GiftWalletFull, { client.nick }));
 }
 
 void OnDisconnect(Server& server, RemoteClient& client) {
     for (const PendingGift& gift : server.Gifts().OnPlayerLeft(client.peer)) {
-        SendRefund(server, gift, gift.paid, client.nick + " se ha desconectado");
+        SendRefund(server, gift, gift.paid, Tr(Msg::GiftDisconnected, { client.nick }));
     }
 }
 
@@ -99,9 +95,9 @@ void OnTick(Server& server) {
     const int timeoutMs = server.Config().giftTimeoutMs;
     for (const PendingGift& gift : server.Gifts().Expire(server.NowMs(), timeoutMs, kGiftOrphanMs)) {
         if (gift.stage == PendingGift::WaitCredit) {
-            SendRefund(server, gift, gift.paid, "no hubo respuesta");
+            SendRefund(server, gift, gift.paid, Tr(Msg::GiftNoReply));
         } else if (RemoteClient* sender = Sender(server, gift)) {
-            server.SendSystem(sender, "El regalo ha caducado.", level::kWarn);
+            server.SendSystem(sender, Tr(Msg::GiftExpired), level::kWarn);
         }
     }
 }

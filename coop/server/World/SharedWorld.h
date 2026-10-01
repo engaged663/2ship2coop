@@ -45,7 +45,17 @@ class SharedWorld {
     // Commands
     void Vote(RemoteClient& c, bool yes);
     bool SetTime(uint32_t abs, const std::string& by, std::string* err);
+    bool SetClockStopped(bool stopped, const std::string& by, std::string* err); // /freezetime
     bool Restart(const std::string& by, std::string* err);
+    // The end of the game (EndingHandlers.cpp): the rooftop's countdown ran out; a player saw the whole ending.
+    void CrashMoon();
+    void FinishGame(RemoteClient& by);
+    bool Resetting() const {
+        return mResetting;
+    }
+    bool ClockStopped() const {
+        return mStore.Exists() && !mClock.Running();
+    }
     std::string TimeText();
     std::string Describe();
 

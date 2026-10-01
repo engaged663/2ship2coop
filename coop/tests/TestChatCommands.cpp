@@ -166,3 +166,50 @@ TEST_CASE(StopDisconnectsEveryone) {
     CHECK(a->WaitDisconnected(s));
     CHECK(a->WaitUntil(s, 2000, [&] { return !s.server->IsRunning(); }));
 }
+
+// ---- Admin commands (/unlockall, /give, /freezetime, /time set) ----
+
+TEST_CASE(AdminCommandsNeedOp) {
+    TestServer s;
+    auto a = Join(s, "Alice");
+    a->Cmd("/unlockall Alice");
+    CHECK(a->WaitForSys("error", s));
+    a->Cmd("/give Alice 100");
+    CHECK(a->WaitForSys("error", s));
+    a->Cmd("/freezetime");
+    CHECK(a->WaitForSys("error", s));
+    a->Cmd("/time set night");
+    CHECK(a->WaitForSys("error", s));
+}
+
+TEST_CASE(UnlockAllAndGiveReachThePlayer) {
+    TestServer s;
+    auto a = Join(s, "Alice");
+    s.server->ExecuteConsoleLine("op Alice");
+    a->Cmd("/unlockall Alice");
+    auto unlock = a->WaitFor("unlock_all", s);
+    CHECK(unlock.has_value());
+    CHECK_EQ((*unlock)["nick"].get<std::string>(), std::string("Alice"));
+    a->Cmd("/give Alice 250");
+    auto give = a->WaitFor("give", s);
+    CHECK(give.has_value());
+    CHECK_EQ((*give)["amount"].get<int>(), 250);
+    // Unknown players say so.
+    a->Cmd("/unlockall Nadie");
+    CHECK(a->WaitForSys("error", s));
+    a->Cmd("/give Nadie 10");
+    CHECK(a->WaitForSys("error", s));
+    a->Cmd("/give Alice cien");
+    CHECK(a->WaitForSys("error", s));
+}
+
+TEST_CASE(GiveWithoutWorldStillDelivers) {
+    TestServer s;
+    auto a = Join(s, "Alice");
+    s.server->ExecuteConsoleLine("op Alice");
+    a->Cmd("/give Alice 1000000");
+    CHECK(a->WaitForSys("error", s)); // out of range
+    a->Cmd("/give Alice 500");
+    auto give = a->WaitFor("give", s);
+    CHECK(give.has_value());
+}

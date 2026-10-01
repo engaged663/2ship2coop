@@ -3,6 +3,7 @@
 // handlers (Registry.h). Single-threaded: everything runs inside Tick().
 #include "AccessLists.h"
 #include "GiftManager.h"
+#include "GroupBook.h"
 #include "Logger.h"
 #include "PlayerRegistry.h"
 #include "ServerConfig.h"
@@ -49,6 +50,9 @@ class Server {
     GiftManager& Gifts() {
         return mGifts;
     }
+    GroupBook& Groups() {
+        return mGroups;
+    }
     SharedWorld& World() {
         return mWorld;
     }
@@ -72,6 +76,7 @@ class Server {
     Transport mTransport;
     PlayerRegistry mPlayers;
     GiftManager mGifts;
+    GroupBook mGroups;
     SharedWorld mWorld; // after mPlayers: it reads the registry
     bool mRunning = false;
     bool mStopping = false;

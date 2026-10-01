@@ -35,6 +35,7 @@
 #include "overlays/actors/ovl_Item_B_Heart/z_item_b_heart.h"
 
 #include "2s2h/BenPort.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/GameInteractor/GameInteractor.h"
 
 #define FLAGS                                                                                 \
@@ -916,6 +917,7 @@ void Boss01_Init(Actor* thisx, PlayState* play) {
         sOdolwa = this;
         sOdolwaBugCount = 0;
         play->specialEffects = sOdolwaEffects;
+        Coop_AddActorRegion(&this->actor, sOdolwaEffects, sizeof(sOdolwaEffects)); // [COOP] its effects travel with it
 
         for (i = 0; i < ODOLWA_EFFECT_COUNT; i++) {
             sOdolwaEffects[i].type = ODOLWA_EFFECT_NONE;

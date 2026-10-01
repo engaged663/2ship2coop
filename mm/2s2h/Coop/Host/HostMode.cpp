@@ -42,6 +42,7 @@ uint16_t sPort = kDefaultPort;
 uint8_t sFollow = 0;         // the player whose room we keep loaded
 int16_t sWarpedScene = -1;   // the scene we last asked to load for them
 bool sWelcomed = false;      // the server accepted us once
+bool sWarping = false;       // a Warp_Go we asked for is in flight
 int sRetryIn = 0;            // frames until the next connection attempt (0: none pending)
 constexpr int kRetryFrames = 60; // ~3 s at the game's 20 frames per second
 
@@ -92,6 +93,9 @@ void HostMode_ParseArgs(int& argc, char* argv[]) {
     Fast::Fast3dWindow::SetHeadless(true);
     (void)std::freopen("host-stderr.txt", "w", stderr);
     std::setvbuf(stderr, nullptr, _IONBF, 0);
+    // Boots straight into the debug save (South Clock Town, never written to disk): the server needs to know its
+    // scene to hand it rooms. Set here, before the logo screen runs, so DebugBoot's hook catches it.
+    CVarSetInteger("gCoop.Debug.BootToClockTown", 1);
     HostCrash_Install();
 }
 
@@ -123,6 +127,7 @@ void FollowPlayer() {
             t.rot = pose.rot.y;
             if (Warp_IsValid(t)) {
                 SPDLOG_INFO("[Coop] Host: going to scene {} with player {}", (int)pose.sceneId, (int)sFollow);
+                sWarping = true;
                 Warp_Go(t);
             }
         }
@@ -173,6 +178,27 @@ void HostTick() {
     FollowPlayer();
 }
 
+// The ghost never triggers transitions (falls, voids, grabs by the engine's own rules aimed at it) and never sits
+// in a text: a host frozen in a dialog would freeze the world it simulates for everyone (spec D §5.5).
+void GhostConstraints() {
+    if (gPlayState == nullptr) {
+        return;
+    }
+    if (gPlayState->transitionTrigger == TRANS_TRIGGER_OFF) {
+        sWarping = false;
+        return;
+    }
+    if (gPlayState->transitionTrigger == TRANS_TRIGGER_START && !sWarping) {
+        // A transition not asked by us (Warp_Go sets nextEntrance itself): undo it and stand where our player is.
+        gPlayState->transitionTrigger = TRANS_TRIGGER_OFF;
+        gPlayState->nextEntrance = gSaveContext.save.entrance;
+        SPDLOG_DEBUG("[Coop] Host: cancelled a transition aimed at the ghost");
+    }
+    if (gPlayState->msgCtx.msgMode != MSGMODE_NONE && gPlayState->msgCtx.msgLength != 0) {
+        Message_CloseTextbox(gPlayState);
+    }
+}
+
 } // namespace
 
 static void RegisterHostMode() {
@@ -184,10 +210,10 @@ static void RegisterHostMode() {
         sStarted = true;
         // Silent and in the background: nobody plays it.
         CVarSetFloat("gSettings.Audio.MasterVolume", 0.0f);
-        CVarSetInteger("gCoop.Debug.BootToClockTown", 0);
         Connect();
     }
     COND_HOOK(OnGameStateMainFinish, true, HostTick);
+    COND_HOOK(OnGameStateMainStart, true, GhostConstraints);
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_PLAYER, true, GhostLink);
 }
 

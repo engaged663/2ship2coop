@@ -2,6 +2,7 @@
 
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Group/Group.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "common/Protocol.h"
@@ -166,6 +167,7 @@ void CoopMenu_Draw() {
     DrawConnection();
     DrawPlayers();
     DrawWorld();
+    GroupMenu_Draw();
     DrawOptions();
 }
 

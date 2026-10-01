@@ -34,9 +34,8 @@ bool Server::Start(std::string* err) {
         return false;
     }
     mRunning = true;
-    mLog.Info("Servidor co-op escuchando en el puerto UDP " + std::to_string(mConfig.port) + " (máx. " +
-              std::to_string(mConfig.maxPlayers) + " jugadores, protocolo v" + std::to_string(kProtocolVersion) +
-              ")");
+    mLog.Info(Tr(Msg::ServerListening, { std::to_string(mConfig.port), std::to_string(mConfig.maxPlayers),
+                                         std::to_string(kProtocolVersion) }));
     return true;
 }
 
@@ -62,7 +61,7 @@ void Server::Tick(int timeoutMs) {
     for (auto& ev : events) {
         if (ev.type == NetEvent::Connect) {
             RemoteClient& c = mPlayers.Add(ev.peer, mTransport.PeerIp(ev.peer), NowMs());
-            mLog.Info("Conexión entrante desde " + c.ip);
+            mLog.Info(Tr(Msg::IncomingConnection, { c.ip }));
         } else if (ev.type == NetEvent::Receive) {
             HandleReceive(ev);
         } else {
@@ -82,11 +81,11 @@ void Server::HandleReceive(NetEvent& ev) {
     }
     if (ev.channel == kChannelStream) {
         if (!c->welcomed || ev.data.empty()) {
-            NoteInvalid(*c, "stream antes del saludo");
+            NoteInvalid(*c, Tr(Msg::InvStreamBeforeHello));
         } else if (StreamHandlerFn fn = FindStreamHandler(ev.data[0])) {
             fn(*this, *c, ev.data.data(), ev.data.size());
         } else {
-            NoteInvalid(*c, "stream desconocido");
+            NoteInvalid(*c, Tr(Msg::InvStreamUnknown));
         }
         return;
     }
@@ -94,13 +93,13 @@ void Server::HandleReceive(NetEvent& ev) {
     json parsed;
     std::string error;
     if (!ParseEvent(ev.data.data(), ev.data.size(), parsed, &error)) {
-        NoteInvalid(*c, "evento inválido (" + error + ")");
+        NoteInvalid(*c, Tr(Msg::InvEvent, { error }));
         return;
     }
     std::string type = EventType(parsed);
     const EventHandlerEntry* handler = FindEventHandler(type);
     if (handler == nullptr) {
-        NoteInvalid(*c, "evento desconocido '" + SanitizeChat(type, 40) + "'");
+        NoteInvalid(*c, Tr(Msg::InvEventUnknown, { SanitizeChat(type, 40) }));
         return;
     }
     if (handler->requiresWelcome && !c->welcomed) {
@@ -124,7 +123,7 @@ void Server::CheckHandshakeTimeouts() {
     int64_t now = NowMs();
     for (RemoteClient* c : mPlayers.All()) {
         if (!c->welcomed && now - c->connectedAtMs > mConfig.handshakeTimeoutMs) {
-            mLog.Warn(c->ip + " no completó el saludo a tiempo; desconectado");
+            mLog.Warn(Tr(Msg::HandshakeTimeout, { c->ip }));
             uint32_t peer = c->peer;
             mTransport.DisconnectNow(peer);
             mPlayers.Remove(peer);
@@ -168,7 +167,7 @@ void Server::Reject(RemoteClient& client, const std::string& reason) {
     SendEvent(client, ev);
     client.closing = true;
     mTransport.Disconnect(client.peer);
-    mLog.Info("Rechazado " + client.ip + ": " + reason);
+    mLog.Info(Tr(Msg::Rejected, { client.ip, reason }));
 }
 
 void Server::Kick(RemoteClient& client, const std::string& reason) {
@@ -176,7 +175,7 @@ void Server::Kick(RemoteClient& client, const std::string& reason) {
     ev["reason"] = reason;
     SendEvent(client, ev);
     client.closing = true;
-    client.leaveReason = reason.empty() ? "expulsado" : "expulsado: " + reason;
+    client.leaveReason = reason.empty() ? Tr(Msg::LeaveKicked) : Tr(Msg::LeaveKickedReason, { reason });
     mTransport.Disconnect(client.peer);
     mLog.Info(Describe(client) + " " + client.leaveReason);
 }
@@ -188,7 +187,7 @@ bool Server::AllowMessage(RemoteClient& client) {
         recent.pop_front();
     }
     if ((int)recent.size() >= kRateLimitCount) {
-        SendSystem(&client, "Estás enviando mensajes demasiado rápido. Espera un momento.", level::kWarn);
+        SendSystem(&client, Tr(Msg::RateLimited), level::kWarn);
         return false;
     }
     recent.push_back(now);
@@ -202,13 +201,13 @@ bool Server::IsOp(const RemoteClient& client) const {
 void Server::NoteInvalid(RemoteClient& client, const std::string& what) {
     client.invalidMessages++;
     if (client.invalidMessages <= (uint32_t)kInvalidLogCount) {
-        mLog.Warn(SanitizeChat(what, 120) + " de " + Describe(client));
+        mLog.Warn(Tr(Msg::InvalidFrom, { SanitizeChat(what, 120), Describe(client) }));
     }
     if (client.invalidMessages == (uint32_t)kInvalidKickCount) {
         if (client.welcomed) {
-            Kick(client, "demasiados paquetes inválidos");
+            Kick(client, Tr(Msg::TooManyInvalid));
         } else {
-            Reject(client, "demasiados paquetes inválidos");
+            Reject(client, Tr(Msg::TooManyInvalid));
         }
     }
 }
@@ -222,9 +221,9 @@ void Server::Stop(const std::string& reason) {
         return;
     }
     mWorld.Flush();
-    mLog.Info("Deteniendo el servidor: " + reason);
+    mLog.Info(Tr(Msg::Stopping, { reason }));
     for (RemoteClient* c : mPlayers.Welcomed()) {
-        SendSystem(c, "Servidor detenido: " + reason, level::kWarn);
+        SendSystem(c, Tr(Msg::StoppedNotice, { reason }), level::kWarn);
     }
     for (RemoteClient* c : mPlayers.All()) {
         c->closing = true;
@@ -245,7 +244,7 @@ void Server::TickStopping(std::vector<NetEvent>& events) {
         mTransport.Close();
         mRunning = false;
         mStopping = false;
-        mLog.Info("Servidor detenido.");
+        mLog.Info(Tr(Msg::Stopped));
     }
 }
 

@@ -7,6 +7,7 @@
 
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
+#include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include <spdlog/spdlog.h>
@@ -24,7 +25,8 @@ bool sDropping = false; // dropping an item another game told us about: do not r
 
 void OnDrop(const coop::json& ev) {
     using namespace coop;
-    if (!client::WorldSession_Active() || gPlayState == nullptr || GetInt(ev, "scene", -1) != gPlayState->sceneId) {
+    if (!client::WorldSession_Active() || client::EndingMode_Active() || gPlayState == nullptr ||
+        GetInt(ev, "scene", -1) != gPlayState->sceneId) {
         return;
     }
     auto pos = ev.find("pos");
@@ -48,7 +50,7 @@ void OnDrop(const coop::json& ev) {
 extern "C" void Coop_OnDrop(PlayState* play, Vec3f* pos, s32 params, s32 fn) {
     using namespace coop;
     client::TrackedActor* t = client::ActorSync_Updating();
-    if (sDropping || t == nullptr || !client::WorldSession_Active() || !std::isfinite(pos->x) ||
+    if (sDropping || t == nullptr || t->cinema || !client::WorldSession_Active() || !std::isfinite(pos->x) ||
         !std::isfinite(pos->y) || !std::isfinite(pos->z)) {
         return;
     }

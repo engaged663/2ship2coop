@@ -14,6 +14,11 @@ if (MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
+# The sources hold UTF-8 texts (accents, Chinese, Russian): keep them byte for byte.
+if (MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 include(FetchContent)
 
 # --- ENet (UDP transport). Compiled with our own target: its CMakeLists targets CMake 2.x. ---
