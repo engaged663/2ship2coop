@@ -1,62 +1,62 @@
-# Mods del servidor co-op
+# Co-op server mods
 
-Un **mod** cambia la partida compartida a tu gusto: da objetos, cura o hace daño, crea enemigos, lleva a los
-jugadores de un sitio a otro, añade comandos, cambia el reloj o el mundo, fuerza opciones de dificultad de 2 Ship...
-Los mods viven **en el servidor**: los jugadores no instalan nada (usan el mismo `2ship.exe` de siempre).
+A **mod** changes the shared game however you like: it gives items, heals or hurts, spawns enemies, moves players
+from one place to another, adds commands, changes the clock or the world, forces 2 Ship difficulty options...
+Mods live **on the server**: players install nothing (they use the same `2ship.exe` as always).
 
-Hay dos clases:
+There are two kinds:
 
-- **Scripts Lua** (`mods/*.lua`): lo normal. Un archivo de texto, sin compilar, que se recarga en caliente.
-- **Plugins DLL** (`plugins/*.dll`): lo mismo en C++ (o C), para quien necesite hilos, sockets, otra librería o mucha
-  velocidad. Ver [PLUGINS.md](PLUGINS.md).
+- **Lua scripts** (`mods/*.lua`): the usual choice. A text file, no compiling, hot-reloadable.
+- **DLL plugins** (`plugins/*.dll`): the same in C++ (or C), for those who need threads, sockets, another library or
+  lots of speed. See [PLUGINS.md](PLUGINS.md).
 
-Los dos usan **la misma API**: las mismas funciones y los mismos eventos, descritos uno a uno en
-[API.md](API.md) (generado a partir del código, siempre al día). Los nombres de objetos, actores y escenas están en
-[IDS.md](IDS.md). Un ejemplo completo y comentado: `mods/ejemplo.lua`.
+Both use **the same API**: the same functions and the same events, described one by one in
+[API.md](API.md) (generated from the code, always up to date). The names of items, actors and scenes are in
+[IDS.md](IDS.md). A complete, commented example: `mods/ejemplo.lua`.
 
-## Índice
+## Index
 
-1. [Instalar y cargar mods](#1-instalar-y-cargar-mods)
-2. [Tu primer script, paso a paso](#2-tu-primer-script-paso-a-paso)
-3. [Cómo funciona un script](#3-cómo-funciona-un-script)
-4. [Órdenes al juego de los jugadores](#4-órdenes-al-juego-de-los-jugadores)
-5. [Opciones del juego que se pueden forzar](#5-opciones-del-juego-que-se-pueden-forzar)
-6. [El mundo compartido: campos y banderas](#6-el-mundo-compartido-campos-y-banderas)
-7. [Otros parámetros del servidor](#7-otros-parámetros-del-servidor)
-8. [Depurar](#8-depurar)
-9. [Seguridad y límites](#9-seguridad-y-límites)
-10. [Recetas](#10-recetas)
-11. [Límites conocidos](#11-límites-conocidos)
+1. [Installing and loading mods](#1-installing-and-loading-mods)
+2. [Your first script, step by step](#2-your-first-script-step-by-step)
+3. [How a script works](#3-how-a-script-works)
+4. [Commands to the players' games](#4-commands-to-the-players-games)
+5. [Game options that can be forced](#5-game-options-that-can-be-forced)
+6. [The shared world: fields and flags](#6-the-shared-world-fields-and-flags)
+7. [Other server parameters](#7-other-server-parameters)
+8. [Debugging](#8-debugging)
+9. [Security and limits](#9-security-and-limits)
+10. [Recipes](#10-recipes)
+11. [Known limits](#11-known-limits)
 
-## 1. Instalar y cargar mods
+## 1. Installing and loading mods
 
-Junto al servidor:
+Next to the server:
 
 ```
 2ship-coop-server.exe
 server.json
-mods/              los scripts (.lua); subcarpetas para lo que cargues con require ("lib/util.lua")
-mods/data/         lo que guarda cada mod (<mod>.json): lo crea el servidor
-plugins/           los plugins (.dll en Windows, .so en Linux)
-docs/              esta documentación
-sdk/               lo necesario para compilar plugins
+mods/              the scripts (.lua); subfolders for what you load with require ("lib/util.lua")
+mods/data/         what each mod saves (<mod>.json): the server creates it
+plugins/           the plugins (.dll on Windows, .so on Linux)
+docs/              this documentation
+sdk/               what you need to build plugins
 ```
 
-Copia un `.lua` a `mods/` (o una `.dll` a `plugins/`) y arranca el servidor: carga todo lo de esas carpetas, en orden
-alfabético. Con el servidor en marcha:
+Copy a `.lua` into `mods/` (or a `.dll` into `plugins/`) and start the server: it loads everything in those folders,
+in alphabetical order. With the server running:
 
-| Comando | Quién | Qué hace |
+| Command | Who | What it does |
 |---|---|---|
-| `/mods` | todos | lista los mods cargados: nombre, tipo, versión, título y descripción |
-| `/mod reload [nombre]` | admins y consola | recarga un mod (o todos) desde su archivo; lo que guardó sigue ahí |
-| `/mod load <archivo>` | consola | carga un archivo (de `mods/` o `plugins/`, o una ruta) |
-| `/mod unload <nombre>` | consola | descarga un mod (quita sus eventos, temporizadores y comandos) |
+| `/mods` | everyone | lists the loaded mods: name, kind, version, title and description |
+| `/mod reload [name]` | admins and console | reloads a mod (or all of them) from its file; what it saved is still there |
+| `/mod load <file>` | console | loads a file (from `mods/` or `plugins/`, or a path) |
+| `/mod unload <name>` | console | unloads a mod (removes its events, timers and commands) |
 
-El **nombre** de un mod es el de su archivo en minúsculas y sin extensión (`mods/Mi Mod.lua` es `mi_mod`).
+A mod's **name** is its file name in lowercase and without extension (`mods/My Mod.lua` is `my_mod`).
 
 ### `server.json`
 
-El servidor añade estas claves la primera vez que arranca (un `server.json` antiguo las gana solo):
+The server adds these keys the first time it starts (an old `server.json` gets them on its own):
 
 ```json
 "mods": {
@@ -73,328 +73,327 @@ El servidor añade estas claves la primera vez que arranca (un `server.json` ant
 }
 ```
 
-| Clave | Por defecto | Qué es |
+| Key | Default | What it is |
 |---|---|---|
-| `enabled` | `true` | `false`: no se carga ningún mod |
-| `scriptsDir` / `pluginsDir` | `"mods"` / `"plugins"` | carpetas de scripts y de plugins |
-| `scripts` / `plugins` | `["*"]` | qué cargar, en orden: `"*"` = todos los de la carpeta (por nombre), `"hola"` o `"hola.lua"` = ese archivo, una ruta, `"!hola"` = ese no |
-| `dataDir` | `"mods/data"` | dónde guarda cada mod sus datos (`<mod>.json`) |
-| `unsafeLua` | `false` | `true`: Lua completo (`io`, `os`, `package`): un script podría leer o borrar archivos del PC |
-| `scriptTimeoutMs` | `2000` | lo que puede tardar un manejador antes de cortarlo (100 a 60000 ms) |
-| `scriptMemoryMb` | `64` | memoria de cada script (8 a 1024 MB) |
-| `settings` | `{}` | ajustes de cada mod: `{"ejemplo": {"consejosCadaMinutos": 5}}` (los lee `coop.mod.setting`) |
+| `enabled` | `true` | `false`: no mod is loaded |
+| `scriptsDir` / `pluginsDir` | `"mods"` / `"plugins"` | script and plugin folders |
+| `scripts` / `plugins` | `["*"]` | what to load, in order: `"*"` = everything in the folder (by name), `"hello"` or `"hello.lua"` = that file, a path, `"!hello"` = not that one |
+| `dataDir` | `"mods/data"` | where each mod saves its data (`<mod>.json`) |
+| `unsafeLua` | `false` | `true`: full Lua (`io`, `os`, `package`): a script could read or delete files on the PC |
+| `scriptTimeoutMs` | `2000` | how long a handler may take before it is cut off (100 to 60000 ms) |
+| `scriptMemoryMb` | `64` | memory per script (8 to 1024 MB) |
+| `settings` | `{}` | each mod's settings: `{"ejemplo": {"consejosCadaMinutos": 5}}` (read by `coop.mod.setting`) |
 
-Ejemplos de listas: `"scripts": ["*", "!pruebas"]` (todos menos `pruebas.lua`), `"scripts": ["base", "eventos"]`
-(solo esos dos, en ese orden).
+List examples: `"scripts": ["*", "!tests"]` (all but `tests.lua`), `"scripts": ["base", "events"]`
+(only those two, in that order).
 
-### Línea de comandos
+### Command line
 
-| Parámetro | Qué hace |
+| Parameter | What it does |
 |---|---|
-| `--mods-dir <carpeta>` | carpeta de scripts (en vez de `scriptsDir`) |
-| `--plugins-dir <carpeta>` | carpeta de plugins |
-| `--script <archivo>` | añade un script a la lista (se puede repetir) |
-| `--plugin <archivo>` | añade un plugin a la lista (se puede repetir) |
-| `--no-mods` | arranca sin ningún mod |
-| `--mod-docs <carpeta>` | escribe `API.md` e `IDS.md` en esa carpeta y sale (no arranca el servidor) |
+| `--mods-dir <folder>` | script folder (instead of `scriptsDir`) |
+| `--plugins-dir <folder>` | plugin folder |
+| `--script <file>` | adds a script to the list (can be repeated) |
+| `--plugin <file>` | adds a plugin to the list (can be repeated) |
+| `--no-mods` | starts without any mod |
+| `--mod-docs <folder>` | writes `API.md` and `IDS.md` into that folder and exits (does not start the server) |
 
-`2ship-coop-server.exe --script pruebas.lua` arranca con lo de siempre más `pruebas.lua`.
+`2ship-coop-server.exe --script tests.lua` starts with the usual ones plus `tests.lua`.
 
-## 2. Tu primer script, paso a paso
+## 2. Your first script, step by step
 
-1. Crea `mods/hola.lua` con un editor de texto (Bloc de notas vale; guárdalo en UTF-8):
+1. Create `mods/hello.lua` with a text editor (Notepad is fine; save it as UTF-8):
 
    ```lua
-   -- Cuando alguien entra en el servidor, se lo contamos a todos.
+   -- When someone enters the server, we tell everyone.
    coop.on("player_join", function(e)
-       coop.chat.broadcast("¡" .. e.nick .. " ha llegado!")
+       coop.chat.broadcast(e.nick .. " has arrived!")
    end)
 
-   -- Un comando nuevo: /hola. Lo que devuelve es la respuesta (y su color: "ok" es verde).
-   coop.commands.register("hola", { help = "te saluda" }, function(ctx)
-       return "¡Hola, " .. ctx.nick .. "!", "ok"
+   -- A new command: /hello. What it returns is the reply (and its color: "ok" is green).
+   coop.commands.register("hello", { help = "greets you" }, function(ctx)
+       return "Hello, " .. ctx.nick .. "!", "ok"
    end)
    ```
 
-2. Con el servidor parado, arráncalo; con el servidor en marcha, escribe en su consola `/mod load hola.lua`.
-   En la consola sale `Mod cargado: hola (lua)`.
-3. Entra con el juego y escribe `/hola` en el chat. `/help` ya lo muestra con su ayuda.
-4. Cambia el texto, guarda y escribe `/mod reload hola`: el cambio vale al momento.
+2. With the server stopped, start it; with the server running, type `/mod load hello.lua` in its console.
+   The console prints `Mod loaded: hello (lua)` (or `Mod cargado: hello (lua)` if the server language is Spanish).
+3. Enter with the game and type `/hello` in the chat. `/help` already shows it with its help.
+4. Change the text, save and type `/mod reload hello`: the change applies immediately.
 
-Si algo falla, el registro (`logs/server.log` y la consola) dice qué y en qué línea: `[hola] error en /hola:
-hola.lua:8: ...`.
+If something fails, the log (`logs/server.log` and the console) says what and on which line: `[hello] error in /hello:
+hello.lua:8: ...`.
 
-## 3. Cómo funciona un script
+## 3. How a script works
 
-Cada script tiene su propio Lua: sus variables no se mezclan con las de otro, y un error en uno no para los demás.
-Todo corre en el hilo del servidor, entre una vuelta de su bucle y la siguiente: no hace falta ningún cerrojo.
+Each script has its own Lua: its variables do not mix with another's, and an error in one does not stop the others.
+Everything runs on the server's thread, between one turn of its loop and the next: no locks are needed.
 
-### Eventos
+### Events
 
 ```lua
 local id = coop.on("chat", function(e)
-    if e.text:find("trampa") then
-        return false            -- en un evento que se puede cancelar: no ocurre (aquí, el mensaje no sale)
+    if e.text:find("cheat") then
+        return false            -- in a cancelable event: it does not happen (here, the message is not sent)
     end
-    e.text = e.text:upper()     -- un campo que se puede cambiar: el servidor usa el valor nuevo
+    e.text = e.text:upper()     -- a writable field: the server uses the new value
 end)
-coop.off(id)                    -- deja de escuchar
+coop.off(id)                    -- stop listening
 ```
 
-[API.md](API.md) dice qué campos trae cada evento, cuáles se pueden cambiar y qué eventos se pueden cancelar
-(`player_connect`, `chat`, `command`, `vote_start`). Un nombre mal escrito es un error al cargar (así no pasa
-desapercibido). Los manejadores se llaman en el orden en que se suscribieron; si uno cancela, los siguientes no lo
-reciben.
+[API.md](API.md) says which fields each event carries, which can be changed and which events can be cancelled
+(`player_connect`, `chat`, `command`, `vote_start`). A misspelled name is an error on load (so it does not go
+unnoticed). Handlers are called in the order they subscribed; if one cancels, the following ones do not receive it.
 
-**Eventos entre mods**: un nombre con `:` (`"economia:pago"`). Uno lo lanza con
-`local datos, cancelado = coop.emit("economia:pago", { nick = "Ana", rupias = 50 })` y otros lo escuchan con
-`coop.on("economia:pago", ...)` (pueden cambiar cualquier campo y cancelarlo).
+**Events between mods**: a name with `:` (`"economy:payment"`). One mod fires it with
+`local data, cancelled = coop.emit("economy:payment", { nick = "Ana", rupees = 50 })` and others listen with
+`coop.on("economy:payment", ...)` (they can change any field and cancel it).
 
-### Funciones
+### Functions
 
-`coop.<espacio>.<función>(...)`: `coop.chat.tell(1, "hola")`, `coop.players.list()`, `coop.world.time()`...
-Si un argumento está mal, la función lanza un error que dice cuál; para seguir aunque falle:
+`coop.<namespace>.<function>(...)`: `coop.chat.tell(1, "hello")`, `coop.players.list()`, `coop.world.time()`...
+If an argument is wrong, the function raises an error that says which one; to carry on even if it fails:
 
 ```lua
-local ok, err = pcall(coop.players.kick, "Ana", "molestar")
-if not ok then print("no se pudo: " .. err) end
+local ok, err = pcall(coop.players.kick, "Ana", "spam")
+if not ok then print("could not: " .. err) end
 ```
 
-Argumentos que se repiten:
+Arguments that repeat:
 
-- **player**: un jugador conectado, por su id (`e.player`) o su nick (`"Ana"`).
-- **target**: un jugador, una lista (`{ "Ana", 2 }`) o `"*"` (todos).
-- **item**, **actor**, **scene**: el nombre de [IDS.md](IDS.md) (`"MASK_BUNNY"`, `"EN_DODONGO"`,
-  `"SOUTH_CLOCK_TOWN"`) o el número.
+- **player**: a connected player, by id (`e.player`) or nick (`"Ana"`).
+- **target**: a player, a list (`{ "Ana", 2 }`) or `"*"` (everyone).
+- **item**, **actor**, **scene**: the name from [IDS.md](IDS.md) (`"MASK_BUNNY"`, `"EN_DODONGO"`,
+  `"SOUTH_CLOCK_TOWN"`) or the number.
 
-El id de un jugador vale mientras siga conectado: un temporizador que guarda `e.player` debe contar con que se haya
-ido (la función dará un error, nunca hará algo raro).
+A player's id is valid while they stay connected: a timer that keeps `e.player` must expect them to have left (the
+function will raise an error, it will never do anything odd).
 
-### Temporizadores
+### Timers
 
 ```lua
-coop.timer.after(5000, function() coop.chat.broadcast("han pasado 5 segundos") end)
-local t = coop.timer.every(60 * 1000, function() print("otro minuto") end)
+coop.timer.after(5000, function() coop.chat.broadcast("5 seconds have passed") end)
+local t = coop.timer.every(60 * 1000, function() print("another minute") end)
 coop.timer.cancel(t)
 ```
 
-Como poco 10 ms. Se borran solos al descargar o recargar el mod. Para lógica que se repite, esto es lo que hay: no
-existe un evento por fotograma.
+At least 10 ms. They are removed on their own when the mod is unloaded or reloaded. For repeating logic this is what
+there is: there is no per-frame event.
 
-### Comandos
+### Commands
 
 ```lua
-coop.commands.register("premio", {
-    usage = "/premio <jugador> <rupias>",
-    help = "da rupias a un jugador",
-    perm = "op",          -- "player" (todos, por defecto), "op" (admins) o "console" (solo la consola)
-    minArgs = 2,          -- con menos argumentos el servidor responde con el uso
-    aliases = { "prize" },
+coop.commands.register("prize", {
+    usage = "/prize <player> <rupees>",
+    help = "gives rupees to a player",
+    perm = "op",          -- "player" (everyone, the default), "op" (admins) or "console" (console only)
+    minArgs = 2,          -- with fewer arguments the server replies with the usage
+    aliases = { "award" },
 }, function(ctx, args)
-    -- ctx.player (no está si es la consola), ctx.nick, ctx.isConsole, ctx.isOp; args = { "Ana", "50" }
+    -- ctx.player (missing if it is the console), ctx.nick, ctx.isConsole, ctx.isOp; args = { "Ana", "50" }
     local n = coop.game.giveRupees(args[1], tonumber(args[2]) or 0)
-    return "Enviado a " .. n .. " juego(s).", "ok"
+    return "Sent to " .. n .. " game(s).", "ok"
 end)
 ```
 
-El nombre: de 1 a 24 letras minúsculas, números o `_`, y que no exista ya. `/help` lo muestra. Lo que devuelve la
-función es la respuesta (un texto y, opcional, su nivel: `"ok"`, `"warn"`, `"error"`).
+The name: 1 to 24 lowercase letters, digits or `_`, and not already taken. `/help` shows it. What the function
+returns is the reply (a text and, optionally, its level: `"ok"`, `"warn"`, `"error"`).
 
-### Datos que se guardan
-
-```lua
-local visitas = coop.storage.get("visitas", 0) + 1
-coop.storage.set("visitas", visitas)          -- número, texto, booleano o tabla
-```
-
-Cada mod tiene los suyos (`mods/data/<mod>.json`), que siguen ahí al reiniciar el servidor o recargar el mod. Se
-escriben como mucho cada 2 segundos y al parar.
-
-### Ajustes
-
-El dueño del servidor los escribe en `server.json` (`mods.settings.<mod>`) y el script los lee con un valor por
-defecto:
+### Saved data
 
 ```lua
-local PREMIO = coop.mod.setting("premio", 20)
+local visits = coop.storage.get("visits", 0) + 1
+coop.storage.set("visits", visits)            -- number, text, boolean or table
 ```
 
-### Lo que enseña `/mods`
+Each mod has its own (`mods/data/<mod>.json`), which is still there when the server restarts or the mod reloads. It
+is written at most every 2 seconds and on stop.
+
+### Settings
+
+The server owner writes them in `server.json` (`mods.settings.<mod>`) and the script reads them with a default
+value:
 
 ```lua
-coop.mod.describe({ title = "Mi mod", version = "1.0", author = "yo", description = "qué hace" })
+local PRIZE = coop.mod.setting("prize", 20)
 ```
 
-### Partir un script en varios archivos
+### What `/mods` shows
 
-`require("lib.util")` carga `mods/lib/util.lua` (una vez; devuelve lo que ese archivo devuelva). Solo archivos de
-dentro de la carpeta de scripts.
+```lua
+coop.mod.describe({ title = "My mod", version = "1.0", author = "me", description = "what it does" })
+```
 
-### El Lua de los scripts
+### Splitting a script into several files
 
-Lua 5.4 sin lo que toca el PC: están `string`, `table`, `math`, `utf8`, `coroutine`, `os.time`, `os.date`,
-`os.clock`, `os.difftime`, `print` (escribe en el registro del servidor) y `require` (el de arriba). No están `io`,
-`os.execute`, `load`, `loadfile` ni `dofile` (salvo con `"unsafeLua": true`).
+`require("lib.util")` loads `mods/lib/util.lua` (once; it returns whatever that file returns). Only files inside the
+script folder.
 
-Entre Lua y la API los valores se convierten así: `nil` es "nada", los números enteros siguen siendo enteros, una
-tabla con claves `1..n` es una lista, una tabla vacía vale como lista o como objeto. No se admiten `NaN`, infinitos,
-tablas que se contienen a sí mismas ni más de 16 niveles; un texto que no es UTF-8 llega con `?`.
+### The Lua of scripts
 
-## 4. Órdenes al juego de los jugadores
+Lua 5.4 without what touches the PC: `string`, `table`, `math`, `utf8`, `coroutine`, `os.time`, `os.date`,
+`os.clock`, `os.difftime`, `print` (writes to the server log) and `require` (the one above) are available. `io`,
+`os.execute`, `load`, `loadfile` and `dofile` are not (except with `"unsafeLua": true`).
 
-Las funciones `coop.game.*` mandan órdenes al juego de cada jugador: `notify` (aviso emergente), `message` (cuadro de
-texto del juego), `sound`, `giveItem`, `takeItem`, `giveRupees`, `heal`, `damage`, `kill`, `magic`, `spawn` (crear un
-actor), `warp` (llevar a otra escena) y `unlockAll`. Reglas:
+Between Lua and the API, values are converted like this: `nil` is "nothing", integers stay integers, a table with
+keys `1..n` is a list, an empty table counts as a list or as an object. `NaN`, infinities, tables that contain
+themselves and more than 16 levels are not accepted; a text that is not UTF-8 arrives with `?`.
 
-- Solo llegan a quien **juega en la partida del servidor** (nunca tocan sus archivos de guardado) y devuelven a
-  cuántos juegos llegaron (`0`: nadie estaba jugando).
-- Cada jugador puede desactivarlas en el juego: F1 → Co-op → «Permitir los mods del servidor» (`gCoop.Mods`).
-- Si el juego no puede cumplirla en ese momento (cambiando de escena, en un diálogo o una cinemática), la orden espera
-  hasta 10 segundos; un `message` que no encontró su momento llega como línea de chat.
-- El juego vuelve a comprobar cada orden (rangos, objetos que existen, entradas válidas) y descarta lo que no cuadra.
-- La letra de los cuadros de texto del juego no tiene tildes: `message` las quita (`á` → `a`). `notify` y el chat sí
-  las muestran.
-- Los actores que crea `spawn` son de cada juego: cada jugador ve y combate el suyo.
-- **Lo que es del mundo compartido es de todos**: los objetos de la pantalla de objetos (salvo las botellas), las
-  máscaras, las canciones, las mejoras, la espada y el escudo y los contenedores de corazón. Darle o quitarle uno a un
-  jugador lo cambia para todos los que juegan en la partida. Son de cada jugador las rupias, la vida, la magia, la
-  munición y lo que hay en sus botellas.
+## 4. Commands to the players' games
 
-Lo que pasa en el juego llega como eventos: `player_item`, `player_death`, `enemy_killed`, `boss_defeated` y
-`player_stats` (vida, magia y rupias, como mucho 4 veces por segundo). `coop.players.get(p)` también da la última
-vida, magia y rupias conocidas.
+The `coop.game.*` functions send commands to each player's game: `notify` (pop-up notice), `message` (game text
+box), `sound`, `giveItem`, `takeItem`, `giveRupees`, `heal`, `damage`, `kill`, `magic`, `spawn` (create an
+actor), `warp` (take to another scene) and `unlockAll`. Rules:
 
-## 5. Opciones del juego que se pueden forzar
+- They only reach whoever is **playing in the server's game** (they never touch their save files) and return how
+  many games they reached (`0`: nobody was playing).
+- Each player can turn them off in the game: F1 → Co-op → "Permitir los mods del servidor" (allow the server's mods,
+  `gCoop.Mods`).
+- If the game cannot carry it out at that moment (changing scene, in a dialogue or a cutscene), the command waits up
+  to 10 seconds; a `message` that did not find its moment arrives as a chat line.
+- The game checks every command again (ranges, items that exist, valid entrances) and discards what does not fit.
+- The font of the game's text boxes has no accents: `message` removes them (`á` → `a`). `notify` and the chat do
+  show them.
+- The actors `spawn` creates belong to each game: every player sees and fights their own.
+- **What belongs to the shared world belongs to everyone**: the items on the items screen (except bottles), masks,
+  songs, upgrades, the sword and shield and heart containers. Giving or taking one from a player changes it for
+  everyone playing in the game. Rupees, health, magic, ammo and what is in the bottles are per player.
 
-Las opciones de 2 Ship (las del menú F1: trucos, dificultad, modos) se pueden imponer **mientras se juega en la
-partida del servidor**. Al salir de ella, al desconectarse o al apagar el juego, cada jugador recupera las suyas.
+What happens in the game arrives as events: `player_item`, `player_death`, `enemy_killed`, `boss_defeated` and
+`player_stats` (health, magic and rupees, at most 4 times per second). `coop.players.get(p)` also gives the last
+known health, magic and rupees.
 
-- Para todos, siempre: en `server.json`, `"gameSettings": { "gCheats.InfiniteMagic": 1 }`.
-- Desde un script: `coop.game.setSetting("*", "gEnhancements.DifficultyOptions.DamageMultiplier", 2)` (para todos,
-  también para quien entre después) o con un jugador o una lista (solo ellos, hasta que se desconecten).
-  `coop.game.clearSetting(target, name)` la quita; `coop.game.settings()` dice cuáles hay.
+## 5. Game options that can be forced
 
-Se pueden forzar las que empiezan por `gEnhancements.`, `gCheats.`, `gModes.` y `gFixes.`, salvo las de cada jugador
-(`gEnhancements.A11y.`, `.Camera.`, `.Graphics.`, `.Saving.`, `.Mods.`, `.Playback.`, `.Dpad.`), «borrar el archivo al
-morir» y las que el co-op ya fija en la partida del servidor (saltar cinemáticas, «el tiempo se mueve si te mueves»...).
-Como mucho 64 por jugador. El valor es un número: `1`/`0` en las casillas, la posición en las listas, decimales en los
-deslizadores de decimales.
+2 Ship's options (those in the F1 menu: cheats, difficulty, modes) can be imposed **while playing in the server's
+game**. On leaving it, disconnecting or shutting the game down, each player gets their own back.
 
-Algunas útiles (el nombre exacto de cualquier otra sale en el archivo de ajustes del juego,
+- For everyone, always: in `server.json`, `"gameSettings": { "gCheats.InfiniteMagic": 1 }`.
+- From a script: `coop.game.setSetting("*", "gEnhancements.DifficultyOptions.DamageMultiplier", 2)` (for everyone,
+  also whoever enters later) or with a player or a list (only them, until they disconnect).
+  `coop.game.clearSetting(target, name)` removes it; `coop.game.settings()` says which ones are set.
+
+The ones starting with `gEnhancements.`, `gCheats.`, `gModes.` and `gFixes.` can be forced, except the per-player ones
+(`gEnhancements.A11y.`, `.Camera.`, `.Graphics.`, `.Saving.`, `.Mods.`, `.Playback.`, `.Dpad.`), "delete the file on
+death" and the ones co-op already sets in the server's game (skip cutscenes, "time moves if you move"...).
+At most 64 per player. The value is a number: `1`/`0` for checkboxes, the position for lists, decimals for decimal
+sliders.
+
+Some useful ones (the exact name of any other is in the game's settings file,
 `2ship2harkinian.json` → `CVars`):
 
-| Opción | Valores | Qué hace |
+| Option | Values | What it does |
 |---|---|---|
-| `gCheats.InfiniteHealth` | 1 | vida infinita |
-| `gCheats.InfiniteMagic` | 1 | magia infinita |
-| `gCheats.InfiniteRupees` | 1 | rupias infinitas |
-| `gCheats.InfiniteConsumables` | 1 | munición y objetos infinitos |
-| `gCheats.MoonJumpOnL` | 1 | salto lunar con L |
-| `gCheats.UnbreakableRazorSword` | 1 | la Espada de Navaja no se desgasta |
-| `gEnhancements.DifficultyOptions.DamageMultiplier` | 0 (1x), 1 (2x), 2 (4x), 3 (8x), 4 (16x), 10 (un golpe) | daño que recibe Link |
-| `gEnhancements.DifficultyOptions.BossHealthMultiplier` | 0 (1x) a 4 (2x) | vida de los jefes (al recargar la escena) |
-| `gEnhancements.DifficultyOptions.HyperEnemies` | 1 | los enemigos se mueven el doble de rápido |
-| `gEnhancements.DifficultyOptions.NoHeartDrops` | 1 | no salen corazones |
-| `gEnhancements.DifficultyOptions.PermanentHeartLoss` | 1 | perder 4 cuartos de corazón quita el contenedor |
-| `gEnhancements.DifficultyOptions.DisableTakkuriSteal` | 1 | Takkuri no roba |
-| `gEnhancements.Player.ClimbSpeed` | 1 a 5 | velocidad al trepar |
-| `gEnhancements.Masks.FastTransformation` | 1 | transformaciones sin animación |
-| `gEnhancements.Masks.FierceDeitysAnywhere` | 1 | Deidad Fiera fuera de los jefes |
-| `gEnhancements.Timesavers.FastChests` | 1 | cofres rápidos |
-| `gModes.MirroredWorld.Mode` | 0 (no), 1 (siempre), 2 (al azar)... | mundo en espejo |
-| `gModes.PlayAsKafei` | 1 | jugar como Kafei (al recargar la escena) |
+| `gCheats.InfiniteHealth` | 1 | infinite health |
+| `gCheats.InfiniteMagic` | 1 | infinite magic |
+| `gCheats.InfiniteRupees` | 1 | infinite rupees |
+| `gCheats.InfiniteConsumables` | 1 | infinite ammo and items |
+| `gCheats.MoonJumpOnL` | 1 | moon jump with L |
+| `gCheats.UnbreakableRazorSword` | 1 | the Razor Sword does not wear out |
+| `gEnhancements.DifficultyOptions.DamageMultiplier` | 0 (1x), 1 (2x), 2 (4x), 3 (8x), 4 (16x), 10 (one hit) | damage Link takes |
+| `gEnhancements.DifficultyOptions.BossHealthMultiplier` | 0 (1x) to 4 (2x) | boss health (when the scene reloads) |
+| `gEnhancements.DifficultyOptions.HyperEnemies` | 1 | enemies move twice as fast |
+| `gEnhancements.DifficultyOptions.NoHeartDrops` | 1 | no hearts drop |
+| `gEnhancements.DifficultyOptions.PermanentHeartLoss` | 1 | losing 4 heart quarters removes the container |
+| `gEnhancements.DifficultyOptions.DisableTakkuriSteal` | 1 | the Takkuri does not steal |
+| `gEnhancements.Player.ClimbSpeed` | 1 to 5 | climbing speed |
+| `gEnhancements.Masks.FastTransformation` | 1 | transformations without animation |
+| `gEnhancements.Masks.FierceDeitysAnywhere` | 1 | Fierce Deity outside bosses |
+| `gEnhancements.Timesavers.FastChests` | 1 | fast chests |
+| `gModes.MirroredWorld.Mode` | 0 (no), 1 (always), 2 (random)... | mirrored world |
+| `gModes.PlayAsKafei` | 1 | play as Kafei (when the scene reloads) |
 
-## 6. El mundo compartido: campos y banderas
+## 6. The shared world: fields and flags
 
-La partida del servidor guarda el progreso común en **campos** (`coop.world.fields()` los lista):
+The server's game keeps the common progress in **fields** (`coop.world.fields()` lists them):
 
-| Campo | Tipo | Qué guarda |
+| Field | Type | What it stores |
 |---|---|---|
-| `weekEventReg` | bits | misiones y sucesos del ciclo |
-| `sceneFlags` | bits | por escena: cofres, interruptores, salas limpias, objetos recogidos |
-| `sceneRooms`, `sceneExtra` | bits | salas visitadas; fuentes de hadas, pisos de mazmorras |
-| `owls` | bits | estatuas de búho activadas |
-| `mapsVisible`, `regions`, `clouds` | bits | mapas de Tingle, regiones visitadas, nubes del mapa |
-| `upgrades`, `quest` | bits | mejoras (carcaj, bolsa, cartera...) y objetos de misión (canciones, restos) |
-| `dungeonItems` | bits | mapa, brújula y llave del jefe de cada mazmorra |
-| `items`, `masks` | bytes | objetos y máscaras (el id del objeto en cada casilla) |
-| `equipment`, `magicFlags`, `defense`, `progress`, `resets`, `codes` | bytes | espada y escudo, magia, doble defensa, progreso, códigos (lotería, Bombers...) |
-| `heartQuarters`, `bottles`, `keys`, `fairies`, `skulls` | contadores | cuartos de corazón máximos, botellas, llaves, hadas perdidas, Skulltulas |
+| `weekEventReg` | bits | quests and events of the cycle |
+| `sceneFlags` | bits | per scene: chests, switches, cleared rooms, collected items |
+| `sceneRooms`, `sceneExtra` | bits | visited rooms; fairy fountains, dungeon floors |
+| `owls` | bits | activated owl statues |
+| `mapsVisible`, `regions`, `clouds` | bits | Tingle maps, visited regions, map clouds |
+| `upgrades`, `quest` | bits | upgrades (quiver, bag, wallet...) and quest items (songs, remains) |
+| `dungeonItems` | bits | map, compass and boss key of each dungeon |
+| `items`, `masks` | bytes | items and masks (the item id in each slot) |
+| `equipment`, `magicFlags`, `defense`, `progress`, `resets`, `codes` | bytes | sword and shield, magic, double defense, progress, codes (lottery, Bombers...) |
+| `heartQuarters`, `bottles`, `keys`, `fairies`, `skulls` | counters | maximum heart quarters, bottles, keys, stray fairies, Skulltulas |
 
 ```lua
-if coop.world.getBit("owls", 0, 0x01) then print("el búho de Ciudad Reloj está activado") end
-coop.world.setBits("owls", 0, 0x01)        -- banderas: poner (y, opcional, quitar) bits de un byte
-coop.world.set("masks", 0, 0x32)           -- bytes: escribir un valor
-coop.world.add("heartQuarters", 0, 4)      -- contadores: sumar (un corazón son 4 cuartos)
+if coop.world.getBit("owls", 0, 0x01) then print("the Clock Town owl is activated") end
+coop.world.setBits("owls", 0, 0x01)        -- flags: set (and, optionally, clear) bits of a byte
+coop.world.set("masks", 0, 0x32)           -- bytes: write a value
+coop.world.add("heartQuarters", 0, 4)      -- counters: add (one heart is 4 quarters)
 ```
 
-Lo que cambia un mod llega al momento a todos los que juegan en la partida (y el evento `world_change` lo cuenta con
-`player = 0`). El reloj: `coop.world.time()`, `setTime(día, hora, minuto)`, `setStopped(true)`, `setSpeed(0.5)`,
-`restart()` (nuevo ciclo sin votación) y `crashMoon()`.
+What a mod changes reaches everyone playing in the game right away (and the `world_change` event reports it with
+`player = 0`). The clock: `coop.world.time()`, `setTime(day, hour, minute)`, `setStopped(true)`, `setSpeed(0.5)`,
+`restart()` (new cycle without a vote) and `crashMoon()`.
 
-## 7. Otros parámetros del servidor
+## 7. Other server parameters
 
-Además de los de siempre (`port`, `maxPlayers`, `password`, `motd`, `language`, `sharedEnemies`...), `server.json`
-tiene:
+Besides the usual ones (`port`, `maxPlayers`, `password`, `motd`, `language`, `sharedEnemies`...), `server.json`
+has:
 
-| Clave | Por defecto | Qué es |
+| Key | Default | What it is |
 |---|---|---|
-| `timeSpeed` | `1.0` | velocidad de los tres días (0.1 a 10): `0.5` = días el doble de largos |
-| `voteSeconds` | `30` | lo que dura la votación de la Canción del Tiempo (10 a 300) |
-| `saveSeconds` | `10` | cada cuánto se guarda el mundo en el disco (2 a 600) |
-| `giftMax` | `999` | rupias máximas de un `/gift` (1 a 999) |
-| `commandPermissions` | `{}` | quién puede usar cada comando: `{"tp": "op", "gift": "console", "dado": "player"}` (`player`, `op` o `console`; también los de los mods) |
-| `gameSettings` | `{}` | opciones de 2 Ship forzadas a todos (apartado 5) |
+| `timeSpeed` | `1.0` | speed of the three days (0.1 to 10): `0.5` = days twice as long |
+| `voteSeconds` | `30` | how long the Song of Time vote lasts (10 to 300) |
+| `saveSeconds` | `10` | how often the world is saved to disk (2 to 600) |
+| `giftMax` | `999` | maximum rupees of a `/gift` (1 to 999) |
+| `commandPermissions` | `{}` | who can use each command: `{"tp": "op", "gift": "console", "dado": "player"}` (`player`, `op` or `console`; mods' commands too) |
+| `gameSettings` | `{}` | 2 Ship options forced on everyone (section 5) |
 
-Un script los lee con `coop.server.config("timeSpeed")` y cambia algunos en marcha con `coop.server.setConfig`
-(sin guardarlos en el archivo).
+A script reads them with `coop.server.config("timeSpeed")` and changes some while running with
+`coop.server.setConfig` (without saving them to the file).
 
-## 8. Depurar
+## 8. Debugging
 
-- `print(...)` escribe en la consola del servidor y en `logs/server.log`, con el nombre del mod delante.
-  `coop.server.log(texto, "warn")` lo mismo con nivel.
-- Un error dentro de un manejador se registra con el archivo, la línea y la traza: `[hola] error en chat:
-  hola.lua:12: attempt to index a nil value`. El manejador sigue suscrito. Tras 20 errores del mismo manejador se deja
-  de registrar (no de ejecutar).
-- Un error al cargar (sintaxis, un evento que no existe) deja el mod sin cargar y sin nada a medias; los demás mods
-  arrancan igual.
-- `/mod reload nombre` recarga sin parar el servidor; `/mods` dice qué hay cargado.
-- `coop.server.exec("list")` ejecuta un comando y devuelve su respuesta: útil para probar desde un script.
+- `print(...)` writes to the server console and to `logs/server.log`, with the mod's name in front.
+  `coop.server.log(text, "warn")` does the same with a level.
+- An error inside a handler is logged with the file, the line and the trace: `[hello] error in chat:
+  hello.lua:12: attempt to index a nil value`. The handler stays subscribed. After 20 errors from the same handler
+  it stops being logged (not stops running).
+- An error on load (syntax, a nonexistent event) leaves the mod unloaded and nothing half-done; the other mods
+  start anyway.
+- `/mod reload name` reloads without stopping the server; `/mods` says what is loaded.
+- `coop.server.exec("list")` runs a command and returns its reply: useful for testing from a script.
 
-## 9. Seguridad y límites
+## 9. Security and limits
 
-- Un script no puede leer la contraseña del servidor ni el token de los anfitriones, ni tocar archivos (salvo con
-  `"unsafeLua": true`, solo para scripts de confianza).
-- Un manejador que tarda más de `scriptTimeoutMs` (2 s) se corta con un error; un script que pasa de `scriptMemoryMb`
-  (64 MB) recibe un error de memoria. El servidor sigue.
-- Un plugin es código nativo: un fallo dentro de él tumba el servidor. Instala solo DLL de quien te fíes.
-- El juego de cada jugador comprueba todo lo que le llega (rangos, ids, entradas, opciones permitidas) y no ejecuta
-  nada fuera de la partida del servidor.
-- Los avisos que manda el juego (`gev`, `stat`) los valida el servidor y tienen un límite de ritmo.
-- Eventos encadenados (un manejador que lanza otro evento, y así): como mucho 8 de profundidad.
+- A script cannot read the server password or the hosts' token, nor touch files (except with
+  `"unsafeLua": true`, only for trusted scripts).
+- A handler that takes longer than `scriptTimeoutMs` (2 s) is cut off with an error; a script that exceeds
+  `scriptMemoryMb` (64 MB) gets a memory error. The server carries on.
+- A plugin is native code: a fault inside it takes the server down. Only install DLLs from people you trust.
+- Each player's game checks everything it receives (ranges, ids, entrances, allowed options) and runs nothing
+  outside the server's game.
+- The notices the game sends (`gev`, `stat`) are validated by the server and rate-limited.
+- Chained events (a handler that fires another event, and so on): at most 8 deep.
 
-## 10. Recetas
+## 10. Recipes
 
-**Dar un premio al matar enemigos**:
+**Give a prize for killing enemies**:
 
 ```lua
 coop.on("enemy_killed", function(e)
     if e.actorKey == "EN_DODONGO" then
         coop.game.giveRupees(e.player, 20)
-        coop.game.notify(e.player, "+20 rupias por el Dodongo")
+        coop.game.notify(e.player, "+20 rupees for the Dodongo")
     end
 end)
 ```
 
-**Un mensaje de bienvenida en la partida, con el cuadro de texto del juego**:
+**A welcome message in the game, with the game's text box**:
 
 ```lua
 coop.on("world_enter", function(e)
-    coop.game.message(e.player, "%gBienvenido%w a Termina.\nEl reloj no se para: daos prisa.")
+    coop.game.message(e.player, "%gWelcome%w to Termina.\nThe clock does not stop: hurry up.")
 end)
 ```
 
-**Más difícil de noche**:
+**Harder at night**:
 
 ```lua
 coop.on("world_hour", function(e)
@@ -402,48 +401,49 @@ coop.on("world_hour", function(e)
 end)
 ```
 
-**Días más largos con pocos jugadores**:
+**Longer days with few players**:
 
 ```lua
-local function Ajustar()
+local function Adjust()
     coop.world.setSpeed(#coop.players.inWorld() <= 1 and 0.5 or 1)
 end
-coop.on("world_enter", Ajustar)
-coop.on("world_leave", Ajustar)
+coop.on("world_enter", Adjust)
+coop.on("world_leave", Adjust)
 ```
 
-**Un teletransporte por nombre de sitio**:
+**A teleport by place name**:
 
 ```lua
-coop.commands.register("ir", { usage = "/ir <escena>", minArgs = 1 }, function(ctx, args)
-    if not ctx.player then return "Solo para jugadores." end
+coop.commands.register("go", { usage = "/go <scene>", minArgs = 1 }, function(ctx, args)
+    if not ctx.player then return "Players only." end
     local ok, err = pcall(coop.game.warp, ctx.player, args[1]:upper())
-    return ok and "Viajando..." or err, ok and "ok" or "warn"
+    return ok and "Travelling..." or err, ok and "ok" or "warn"
 end)
 ```
 
-**Bloquear un comando a ciertas horas**:
+**Block a command at certain hours**:
 
 ```lua
 coop.on("command", function(e)
     local t = coop.world.time()
     if e.name == "tp" and t and t.night then
-        coop.chat.tell(e.player, "De noche no hay /tp.", "warn")
+        coop.chat.tell(e.player, "No /tp at night.", "warn")
         return false
     end
 end)
 ```
 
-## 11. Límites conocidos
+## 11. Known limits
 
-- Los actores creados con `game.spawn` son de cada juego (no se replican ni comparten vida), un enemigo no aparece en
-  una sala ya despejada, y algunos actores solo funcionan en su propia escena (jefes, mecanismos).
-- No hay scripts dentro del juego ni interfaz, modelos o texturas nuevas: eso son los mods de 2 Ship (`mods/*.o2r`).
-- No hay un evento por fotograma ni por pose: para lógica periódica, `coop.timer.every`.
-- `world_change` no se puede cancelar (el juego que lo envió ya lo aplicó).
-- `enemy_killed` llega de los enemigos que acaban con el «golpe final» del juego (casi todos), y no de los que simula
-  un anfitrión sin ventana del servidor.
-- Los sonidos no tienen nombres (son miles): se usan sus números (`NA_SE_*` en `mm/include/sfx.h` del código del
-  juego).
-- Las opciones forzadas se aplican cuando cambia algo; algunas mejoras de 2 Ship solo leen su opción al cargar la
-  escena (lo dice su ayuda en el menú F1).
+- Actors created with `game.spawn` belong to each game (they are not replicated and do not share health), an enemy
+  does not appear in a room that is already cleared, and some actors only work in their own scene (bosses,
+  mechanisms).
+- There are no in-game scripts nor new UI, models or textures: those are 2 Ship's mods (`mods/*.o2r`).
+- There is no per-frame or per-pose event: for periodic logic, use `coop.timer.every`.
+- `world_change` cannot be cancelled (the game that sent it already applied it).
+- `enemy_killed` comes from enemies that end with the game's "final blow" (almost all), and not from those simulated
+  by a windowless server host.
+- Sounds have no names (there are thousands): their numbers are used (`NA_SE_*` in `mm/include/sfx.h` of the game's
+  code).
+- Forced options are applied when something changes; some 2 Ship enhancements only read their option when the scene
+  loads (their help in the F1 menu says so).

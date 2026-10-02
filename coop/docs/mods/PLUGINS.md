@@ -1,137 +1,137 @@
-# Plugins DLL
+# DLL plugins
 
-Un plugin es una biblioteca (`.dll` en Windows, `.so` en Linux) que el servidor carga desde su carpeta `plugins`.
-Tiene **la misma API que los scripts** (las funciones y los eventos de [API.md](API.md)), pero en C++ o en C.
+A plugin is a library (`.dll` on Windows, `.so` on Linux) that the server loads from its `plugins` folder.
+It has **the same API as scripts** (the functions and events of [API.md](API.md)), but in C++ or C.
 
-## Cuándo usar un plugin
+## When to use a plugin
 
-Casi nunca hace falta: un script Lua hace lo mismo, no hay que compilarlo y se recarga en caliente. Un plugin sirve
-cuando necesitas lo que Lua no tiene:
+Almost never needed: a Lua script does the same, needs no compiling and hot-reloads. A plugin is useful
+when you need what Lua does not have:
 
-- hilos propios, sockets, HTTP, una base de datos u otra librería de C/C++;
-- mucho cálculo por evento;
-- código que ya tienes en C++.
+- your own threads, sockets, HTTP, a database or another C/C++ library;
+- heavy computation per event;
+- code you already have in C++.
 
-A cambio: hay que compilarlo para el mismo sistema que el servidor, y **un fallo dentro de un plugin tumba el
-servidor** (es código nativo, sin la red de seguridad de Lua). Instala solo plugins de quien te fíes.
+In return: you have to compile it for the same system as the server, and **a fault inside a plugin takes the
+server down** (it is native code, without Lua's safety net). Only install plugins from people you trust.
 
-## Qué trae el SDK
+## What the SDK contains
 
-Junto al servidor va la carpeta `sdk`:
+The `sdk` folder comes with the server:
 
 ```
-sdk/coop_plugin.h      la ABI en C (lo único imprescindible)
-sdk/coop_plugin.hpp    un envoltorio C++17 cómodo (usa nlohmann/json)
-sdk/nlohmann/json.hpp  la librería JSON que usa el envoltorio
-sdk/example/           un plugin de ejemplo (ejemplo_plugin.cpp) con su CMakeLists.txt
+sdk/coop_plugin.h      the C ABI (the only essential piece)
+sdk/coop_plugin.hpp    a convenient C++17 wrapper (uses nlohmann/json)
+sdk/nlohmann/json.hpp  the JSON library the wrapper uses
+sdk/example/           an example plugin (ejemplo_plugin.cpp) with its CMakeLists.txt
 ```
 
-## Compilar el ejemplo
+## Building the example
 
-En Windows hace falta Visual Studio 2022 (con «Desarrollo para el escritorio con C++») y CMake 3.16 o más nuevo. Desde
-la carpeta `sdk`:
+On Windows you need Visual Studio 2022 (with "Desktop development with C++") and CMake 3.16 or newer. From the
+`sdk` folder:
 
 ```
 cmake -S example -B build
 cmake --build build --config Release
 ```
 
-Sale `build/Release/ejemplo-plugin.dll`. Cópiala a la carpeta `plugins` del servidor y arráncalo (o, con el servidor
-en marcha, escribe en su consola `/mod load ejemplo-plugin`). `/mods` lo muestra y `/ping` le responde.
+This produces `build/Release/ejemplo-plugin.dll`. Copy it to the server's `plugins` folder and start it (or, with the
+server running, type `/mod load ejemplo-plugin` in its console). `/mods` shows it and `/ping` answers it.
 
-En Linux, lo mismo con g++ o clang: sale `build/ejemplo-plugin.so`.
+On Linux, the same with g++ or clang: it produces `build/ejemplo-plugin.so`.
 
-Para tu propio plugin, copia la carpeta `example`, cambia el nombre del proyecto y de los `.cpp`, y deja la ruta a los
-`.hpp` del SDK. El nombre del mod es el del archivo (`plugins/mi-plugin.dll` es `mi-plugin`).
+For your own plugin, copy the `example` folder, change the project name and the `.cpp` files, and keep the path to the
+SDK's `.hpp`. The mod's name is the file's (`plugins/my-plugin.dll` is `my-plugin`).
 
-**Reemplazar una DLL cargada**: Windows no deja sobrescribir una DLL en uso. En la consola del servidor:
-`/mod unload mi-plugin`, copia la nueva, `/mod load mi-plugin`.
+**Replacing a loaded DLL**: Windows does not let you overwrite a DLL in use. In the server console:
+`/mod unload my-plugin`, copy the new one, `/mod load my-plugin`.
 
-## Un plugin en C++ (`coop_plugin.hpp`)
+## A C++ plugin (`coop_plugin.hpp`)
 
 ```cpp
 #include "coop_plugin.hpp"
 
-// Una vez, en un .cpp: nombre, versión, autor y descripción (lo que enseña /mods).
-COOP_PLUGIN("Mi plugin", "1.0", "yo", "da la bienvenida y cuenta muertes")
+// Once, in one .cpp: name, version, author and description (what /mods shows).
+COOP_PLUGIN("My plugin", "1.0", "me", "welcomes players and counts deaths")
 
-// Se ejecuta una vez, al cargar. Aquí se suscribe a eventos, registra comandos y arranca temporizadores.
+// Runs once, on load. Here you subscribe to events, register commands and start timers.
 void CoopPluginMain(coop::Plugin& api) {
     api.On("player_join", [&api](coop::Event& e) {
-        api.Call("chat.tell", { e["player"], "Hola, " + e["nick"].get<std::string>(), "ok" });
+        api.Call("chat.tell", { e["player"], "Hello, " + e["nick"].get<std::string>(), "ok" });
     });
 
     api.On("chat", [](coop::Event& e) {
         if (e["text"].get<std::string>().find("spam") != std::string::npos) {
-            e.Cancel();                        // en un evento que se puede cancelar
+            e.Cancel();                        // in a cancelable event
         }
     });
 
-    api.Command("hora", { { "help", "la hora del mundo" } },
+    api.Command("time", { { "help", "the world's time" } },
                 [&api](const coop::CommandContext& ctx, const std::vector<std::string>& args) {
                     coop::json t = api.Call("world.time");
                     if (t.is_null()) {
-                        return coop::Reply{ "Todavía no hay partida.", "warn" };
+                        return coop::Reply{ "There is no game yet.", "warn" };
                     }
-                    return coop::Reply{ "Día " + std::to_string(t["day"].get<int>()) + ", " +
+                    return coop::Reply{ "Day " + std::to_string(t["day"].get<int>()) + ", " +
                                         std::to_string(t["hour"].get<int>()) + " h", "ok" };
                 });
 
-    api.Every(60 * 1000, [&api] { api.Log("un minuto más"); });
-    api.OnUnload([&api] { api.Log("adiós"); });
+    api.Every(60 * 1000, [&api] { api.Log("another minute"); });
+    api.OnUnload([&api] { api.Log("goodbye"); });
 }
 ```
 
-| Método | Qué hace |
+| Method | What it does |
 |---|---|
-| `Call(funcion, { args... })` | llama a una función de [API.md](API.md) (`"chat.tell"`, `"game.heal"`...); devuelve su resultado como `json`; lanza `coop::Error` si el servidor la rechaza. Si el único argumento es una tabla: `json::array({ tabla })` |
-| `On(evento, fn)` | escucha un evento; `fn(coop::Event& e)`: `e["campo"]` lee, `e.Set("campo", valor)` cambia uno que se puede cambiar, `e.Cancel()` lo cancela. Devuelve la suscripción (0: no existe ese evento) |
-| `Off(suscripcion)` | deja de escuchar |
-| `After(ms, fn)` / `Every(ms, fn)` | temporizador de una vez / que se repite; devuelven su id |
-| `CancelTimer(id)` | lo cancela |
-| `Command(nombre, opts, fn)` | registra `/nombre`; `opts` como en Lua (`usage`, `help`, `perm`, `minArgs`, `aliases`); `fn(ctx, args)` devuelve `coop::Reply{ texto, nivel }` |
-| `Defer(fn)` | desde **cualquier hilo**: `fn` se ejecuta en el hilo del servidor en su siguiente vuelta |
-| `Log(texto, nivel)` | al registro del servidor (`COOP_LOG_INFO`, `COOP_LOG_WARN`, `COOP_LOG_ERROR`) |
-| `OnUnload(fn)` | lo último antes de descargarse: para tus hilos, cierra tus archivos |
+| `Call(function, { args... })` | calls a function from [API.md](API.md) (`"chat.tell"`, `"game.heal"`...); returns its result as `json`; throws `coop::Error` if the server rejects it. If the only argument is a table: `json::array({ table })` |
+| `On(event, fn)` | listens to an event; `fn(coop::Event& e)`: `e["field"]` reads, `e.Set("field", value)` changes a writable one, `e.Cancel()` cancels it. Returns the subscription (0: no such event) |
+| `Off(subscription)` | stops listening |
+| `After(ms, fn)` / `Every(ms, fn)` | one-shot / repeating timer; they return its id |
+| `CancelTimer(id)` | cancels it |
+| `Command(name, opts, fn)` | registers `/name`; `opts` as in Lua (`usage`, `help`, `perm`, `minArgs`, `aliases`); `fn(ctx, args)` returns `coop::Reply{ text, level }` |
+| `Defer(fn)` | from **any thread**: `fn` runs on the server's thread on its next turn |
+| `Log(text, level)` | to the server log (`COOP_LOG_INFO`, `COOP_LOG_WARN`, `COOP_LOG_ERROR`) |
+| `OnUnload(fn)` | the last thing before unloading: stop your threads, close your files |
 
-Un plugin puede escuchar los eventos entre mods (`"economia:pago"`), pero solo los scripts los lanzan
+A plugin can listen to events between mods (`"economy:payment"`), but only scripts fire them
 (`coop.emit`).
 
-## Reglas
+## Rules
 
-- **Hilos**: todo lo que el servidor llama (eventos, comandos, temporizadores) corre en su hilo, y desde ahí puedes
-  llamar a la API. Desde un hilo tuyo solo `Defer` (en C, `defer`); el resto, dentro de lo que `Defer` ejecute.
-- **Memoria y textos**: todo es UTF-8 terminado en `\0`. Un texto que devuelve el servidor vale hasta la siguiente
-  llamada del plugin a la API; uno que devuelve el plugin desde una función suya debe seguir vivo hasta que el
-  servidor vuelva a llamar a esa función. Nadie libera memoria del otro lado (el envoltorio C++ ya lo hace bien).
-- **Excepciones**: ninguna excepción de C++ puede cruzar la ABI. El envoltorio las atrapa y las escribe en el
-  registro; si escribes en C, no hay excepciones.
-- **Errores**: una llamada que el servidor rechaza devuelve `{"ok":false,"error":"..."}` (en C++, `coop::Error`).
+- **Threads**: everything the server calls (events, commands, timers) runs on its thread, and from there you can call
+  the API. From a thread of your own, only `Defer` (in C, `defer`); the rest, inside whatever `Defer` runs.
+- **Memory and strings**: everything is UTF-8 terminated by `\0`. A string the server returns is valid until the
+  plugin's next call to the API; one the plugin returns from one of its functions must stay alive until the server
+  calls that function again. Nobody frees memory from the other side (the C++ wrapper already does this right).
+- **Exceptions**: no C++ exception may cross the ABI. The wrapper catches them and writes them to the log; if you
+  write in C, there are no exceptions.
+- **Errors**: a call the server rejects returns `{"ok":false,"error":"..."}` (in C++, `coop::Error`).
 
-## La ABI en C (`coop_plugin.h`)
+## The C ABI (`coop_plugin.h`)
 
-Lo que exporta la biblioteca:
+What the library exports:
 
-| Función | Qué hace |
+| Function | What it does |
 |---|---|
-| `uint32_t CoopPlugin_Abi(void)` | devuelve `COOP_PLUGIN_ABI` (la versión de la ABI con la que se compiló) |
-| `int32_t CoopPlugin_Load(const CoopApi* api, CoopPluginInfo* info)` | rellena `info` (nombre, versión, autor, descripción), se suscribe, registra... y devuelve 1 (0: no se carga) |
-| `void CoopPlugin_Unload(void)` | opcional: lo último antes de descargarse |
+| `uint32_t CoopPlugin_Abi(void)` | returns `COOP_PLUGIN_ABI` (the ABI version it was built with) |
+| `int32_t CoopPlugin_Load(const CoopApi* api, CoopPluginInfo* info)` | fills `info` (name, version, author, description), subscribes, registers... and returns 1 (0: do not load) |
+| `void CoopPlugin_Unload(void)` | optional: the last thing before unloading |
 
-Lo que le da el servidor (`CoopApi`; pasa `api->host` como primer argumento de cada función):
+What the server gives it (`CoopApi`; pass `api->host` as the first argument of every function):
 
-| Función | Qué hace |
+| Function | What it does |
 |---|---|
-| `call(host, "chat.tell", "[1, \"hola\"]")` | una función de la API; argumentos: una lista JSON (o `NULL`). Devuelve `{"ok":true,"value":...}` o `{"ok":false,"error":"..."}` |
-| `on(host, evento, fn, user)` | escucha un evento; devuelve la suscripción (0: evento desconocido). `fn(user, evento, payloadJson)` devuelve `NULL` (nada que cambiar) o un objeto JSON con los campos cambiados y/o `"cancel": true` |
-| `off(host, id)` | deja de escuchar |
-| `timer(host, ms, repetir, fn, user)` | temporizador (`repetir` ≠ 0: se repite); devuelve su id |
-| `cancel_timer(host, id)` | lo cancela |
-| `command(host, nombre, optsJson, fn, user)` | registra `/nombre`; devuelve 1 (0: nombre ocupado o no válido). `fn(user, ctxJson, argsJson)` devuelve `NULL`, un texto o `{"text": "...", "level": "ok"}`; `ctxJson` = `{"player", "nick", "isConsole", "isOp"}` |
-| `defer(host, fn, user)` | la única que se puede llamar desde otro hilo |
-| `log(host, nivel, texto)` | al registro del servidor |
+| `call(host, "chat.tell", "[1, \"hello\"]")` | an API function; arguments: a JSON list (or `NULL`). Returns `{"ok":true,"value":...}` or `{"ok":false,"error":"..."}` |
+| `on(host, event, fn, user)` | listens to an event; returns the subscription (0: unknown event). `fn(user, event, payloadJson)` returns `NULL` (nothing to change) or a JSON object with the changed fields and/or `"cancel": true` |
+| `off(host, id)` | stops listening |
+| `timer(host, ms, repeat, fn, user)` | timer (`repeat` ≠ 0: repeats); returns its id |
+| `cancel_timer(host, id)` | cancels it |
+| `command(host, name, optsJson, fn, user)` | registers `/name`; returns 1 (0: name taken or invalid). `fn(user, ctxJson, argsJson)` returns `NULL`, a text or `{"text": "...", "level": "ok"}`; `ctxJson` = `{"player", "nick", "isConsole", "isOp"}` |
+| `defer(host, fn, user)` | the only one that can be called from another thread |
+| `log(host, level, text)` | to the server log |
 
-### Plugin mínimo en C
+### A minimal plugin in C
 
 ```c
 #include "coop_plugin.h"
@@ -140,10 +140,10 @@ Lo que le da el servidor (`CoopApi`; pasa `api->host` como primer argumento de c
 
 static const CoopApi* gApi;
 
-/* payload: {"player":1,"nick":"Ana","ip":"..."}. Un plugin de verdad lo leería con una librería JSON. */
+/* payload: {"player":1,"nick":"Ana","ip":"..."}. A real plugin would read it with a JSON library. */
 static const char* OnJoin(void* user, const char* event, const char* payload) {
     gApi->log(gApi->host, COOP_LOG_INFO, payload);
-    return NULL; /* nada que cambiar */
+    return NULL; /* nothing to change */
 }
 
 COOP_PLUGIN_EXPORT uint32_t CoopPlugin_Abi(void) {
@@ -152,22 +152,22 @@ COOP_PLUGIN_EXPORT uint32_t CoopPlugin_Abi(void) {
 
 COOP_PLUGIN_EXPORT int32_t CoopPlugin_Load(const CoopApi* api, CoopPluginInfo* info) {
     gApi = api;
-    info->name = "Plugin en C";
+    info->name = "C plugin";
     info->version = "1.0";
-    info->author = "yo";
-    info->description = "anota en el registro quién entra";
+    info->author = "me";
+    info->description = "logs who joins";
     api->on(api->host, "player_join", OnJoin, NULL);
-    api->call(api->host, "chat.broadcast", "[\"Un plugin en C acaba de cargarse\"]");
+    api->call(api->host, "chat.broadcast", "[\"A C plugin has just loaded\"]");
     return 1;
 }
 ```
 
-Se compila como cualquier DLL (`cl /LD minimo.c /I sdk` en una consola de Visual Studio, o
-`gcc -shared -fPIC minimo.c -I sdk -o minimo.so` en Linux).
+It is built like any DLL (`cl /LD minimal.c /I sdk` in a Visual Studio console, or
+`gcc -shared -fPIC minimal.c -I sdk -o minimal.so` on Linux).
 
-## Versiones
+## Versions
 
-`COOP_PLUGIN_ABI` es la versión de la ABI (ahora 1). Un plugin compilado con otra versión no se carga: el registro
-dice cuál tiene y cuál espera el servidor. Un servidor más nuevo puede añadir funciones al final de `CoopApi` sin
-cambiar la versión (`api->size` dice cuántas tiene); las funciones de la API (`call`) y los eventos crecen sin tocar
-la ABI.
+`COOP_PLUGIN_ABI` is the ABI version (currently 1). A plugin built with another version is not loaded: the log
+says which one it has and which one the server expects. A newer server may add functions at the end of `CoopApi`
+without changing the version (`api->size` says how many there are); API functions (`call`) and events grow without
+touching the ABI.

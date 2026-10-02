@@ -1,211 +1,212 @@
--- ejemplo.lua: script de ejemplo para el servidor co-op de 2 Ship 2 Harkinian.
+-- ejemplo.lua: example script for the 2 Ship 2 Harkinian co-op server ("ejemplo" means "example").
 --
--- Cópialo a la carpeta "mods" del servidor (al lado de 2ship-coop-server.exe) y arranca el servidor: se carga solo.
--- Después de editarlo, "/mod reload ejemplo" (en la consola del servidor o como admin) lo vuelve a cargar sin parar
--- nada. Lo que imprime con print() va al registro del servidor (logs/server.log).
+-- Copy it to the server's "mods" folder (next to 2ship-coop-server.exe) and start the server: it loads on its own.
+-- After editing it, "/mod reload ejemplo" (in the server console or as an admin) loads it again without stopping
+-- anything. What it prints with print() goes to the server log (logs/server.log).
 --
--- Qué hace:
---   * saluda a quien entra en el servidor y le muestra un aviso al entrar en la partida compartida;
---   * tapa las palabras feas del chat;
---   * comandos: /curar [jugador], /dado [caras], /kit (una vez por ciclo), /muertes y /horda (solo admins);
---   * avisa al caer la noche y en las últimas horas antes de que caiga la luna;
---   * cada pocos minutos, un consejo.
+-- What it does:
+--   * greets whoever enters the server and shows a notice when they enter the shared game;
+--   * masks bad words in the chat;
+--   * commands: /curar [player] (heal), /dado [sides] (die), /kit (once per cycle), /muertes (deaths) and /horda
+--     (horde, admins only);
+--   * warns when night falls and in the last hours before the moon falls;
+--   * a tip every few minutes.
 --
--- Todas las funciones (coop.*) y los eventos están en docs/API.md; los nombres de objetos y actores, en docs/IDS.md.
--- Sus ajustes van en server.json, por ejemplo:
---   "mods": { "settings": { "ejemplo": { "saludo": "¡Bienvenido, {nick}!", "consejosCadaMinutos": 5 } } }
+-- Every function (coop.*) and event is in docs/API.md; the names of items and actors, in docs/IDS.md.
+-- Its settings go in server.json, for example:
+--   "mods": { "settings": { "ejemplo": { "saludo": "Welcome, {nick}!", "consejosCadaMinutos": 5 } } }
 
--- Lo que enseña /mods de este script.
+-- What /mods shows for this script.
 coop.mod.describe({
-    title = "Ejemplo",
+    title = "Example",
     version = "1.0",
     author = "2ship2coop",
-    description = "saludos, filtro del chat, /curar, /dado, /kit, /muertes, /horda y avisos de la hora",
+    description = "greetings, chat filter, /curar, /dado, /kit, /muertes, /horda and time notices",
 })
 
--- Ajustes: el segundo valor es el que vale cuando el dueño del servidor no ha puesto nada.
-local SALUDO = coop.mod.setting("saludo", "¡Hola, {nick}! Este servidor tiene mods: /help muestra sus comandos.")
-local CONSEJOS_CADA_MINUTOS = coop.mod.setting("consejosCadaMinutos", 10) -- 0: ningún consejo
-local PALABRAS_PROHIBIDAS = coop.mod.setting("palabrasProhibidas", { "tonto", "idiota" })
+-- Settings: the second value is what applies when the server owner has not set anything.
+local GREETING = coop.mod.setting("saludo", "Hello, {nick}! This server has mods: /help shows their commands.")
+local TIP_EVERY_MINUTES = coop.mod.setting("consejosCadaMinutos", 10) -- 0: no tips
+local BAD_WORDS = coop.mod.setting("palabrasProhibidas", { "silly", "idiot" })
 
--- Responde a quien escribió un comando: el texto y su nivel ("ok" en verde, "warn" en amarillo).
-local function Aviso(texto)
-    return texto, "warn"
+-- Replies to whoever typed a command: the text and its level ("ok" in green, "warn" in yellow).
+local function Warning(text)
+    return text, "warn"
 end
 
 ----------------------------------------------------------------------------------------------------------------------
--- Eventos: coop.on("nombre", función). La función recibe una tabla con los campos del evento (docs/API.md).
+-- Events: coop.on("name", function). The function receives a table with the event's fields (docs/API.md).
 ----------------------------------------------------------------------------------------------------------------------
 
--- Alguien entra en el servidor: chat.tell le manda una línea solo a él.
+-- Someone enters the server: chat.tell sends a line only to them.
 coop.on("player_join", function(e)
-    coop.chat.tell(e.player, (SALUDO:gsub("{nick}", e.nick)), "ok")
+    coop.chat.tell(e.player, (GREETING:gsub("{nick}", e.nick)), "ok")
 end)
 
--- Alguien entra en la partida compartida: un aviso emergente en su pantalla. Las órdenes al juego (coop.game.*) solo
--- llegan a quien juega en la partida del servidor.
+-- Someone enters the shared game: a pop-up notice on their screen. Commands to the game (coop.game.*) only reach
+-- whoever is playing in the server's game.
 coop.on("world_enter", function(e)
-    coop.game.notify(e.player, "Bienvenido a la partida compartida, " .. e.nick .. ".", 6)
+    coop.game.notify(e.player, "Welcome to the shared game, " .. e.nick .. ".", 6)
 end)
 
--- Filtro del chat: el evento "chat" deja cambiar el texto (e.text) antes de que lo lean los demás.
-local function SinMayusculas(palabra)
-    -- "tonto" -> "[tT][oO][nN][tT][oO]": el patrón la encuentra escrita de cualquier forma
-    return (palabra:gsub("%a", function(letra)
-        return "[" .. letra:lower() .. letra:upper() .. "]"
+-- Chat filter: the "chat" event lets you change the text (e.text) before the others read it.
+local function CaseInsensitive(word)
+    -- "silly" -> "[sS][iI][lL][lL][yY]": the pattern finds it written any way
+    return (word:gsub("%a", function(letter)
+        return "[" .. letter:lower() .. letter:upper() .. "]"
     end))
 end
 
 coop.on("chat", function(e)
-    local texto = e.text
-    for _, palabra in ipairs(PALABRAS_PROHIBIDAS) do
-        texto = texto:gsub(SinMayusculas(palabra), string.rep("*", #palabra))
+    local text = e.text
+    for _, word in ipairs(BAD_WORDS) do
+        text = text:gsub(CaseInsensitive(word), string.rep("*", #word))
     end
-    if texto ~= e.text then
-        e.text = texto
+    if text ~= e.text then
+        e.text = text
     end
-    -- "return false" aquí cancelaría el mensaje entero.
+    -- "return false" here would cancel the whole message.
 end)
 
--- Cada muerte, apuntada con coop.storage: los datos del mod siguen ahí aunque el servidor se reinicie.
--- (player_death llega aunque un hada embotellada lo reviva después.)
+-- Every death, noted with coop.storage: the mod's data is still there even if the server restarts.
+-- (player_death arrives even if a bottled fairy revives them afterwards.)
 coop.on("player_death", function(e)
-    local muertes = coop.storage.get("muertes", {})
-    muertes[e.nick] = (muertes[e.nick] or 0) + 1
-    coop.storage.set("muertes", muertes)
+    local deaths = coop.storage.get("muertes", {})
+    deaths[e.nick] = (deaths[e.nick] or 0) + 1
+    coop.storage.set("muertes", deaths)
 end)
 
--- La hora del mundo: aviso al caer la noche y en las últimas horas del tercer día.
+-- The world's hour: a notice when night falls and in the last hours of the third day.
 coop.on("world_hour", function(e)
     if e.jump then
-        return -- el reloj saltó (la Canción del Tiempo, un comando): no ha pasado la hora sin más
+        return -- the clock jumped (the Song of Time, a command): the hour did not simply go by
     end
     if e.day == 3 and e.hour < 6 then
-        coop.chat.broadcast("¡Quedan " .. (6 - e.hour) .. " horas para que caiga la luna!", "warn")
+        coop.chat.broadcast((6 - e.hour) .. " hours left until the moon falls!", "warn")
     elseif e.hour == 18 then
-        coop.chat.broadcast("Cae la noche del día " .. e.day .. ".")
+        coop.chat.broadcast("Night falls on day " .. e.day .. ".")
     end
 end)
 
 ----------------------------------------------------------------------------------------------------------------------
--- Comandos: coop.commands.register(nombre, opciones, función). La función recibe quién lo escribe (ctx) y sus
--- argumentos (args, textos); lo que devuelve es la respuesta.
+-- Commands: coop.commands.register(name, options, function). The function receives who typed it (ctx) and its
+-- arguments (args, strings); what it returns is the reply.
 ----------------------------------------------------------------------------------------------------------------------
 
--- /curar [jugador]: te cura del todo. Curar a otro es cosa de admins.
-coop.commands.register("curar", { usage = "/curar [jugador]", help = "te cura del todo (a otro: solo admins)" },
+-- /curar [player]: heals you fully. Healing someone else is for admins.
+coop.commands.register("curar", { usage = "/curar [player]", help = "heals you fully (someone else: admins only)" },
     function(ctx, args)
-        local quien = ctx.player -- nil si lo escribe la consola del servidor
+        local who = ctx.player -- nil if typed in the server console
         if args[1] then
             if not ctx.isOp then
-                return Aviso("Solo un admin puede curar a otro jugador.")
+                return Warning("Only an admin can heal another player.")
             end
-            quien = coop.players.find(args[1])
-            if not quien then
-                return Aviso("No hay nadie conectado con el nick " .. args[1] .. ".")
+            who = coop.players.find(args[1])
+            if not who then
+                return Warning("Nobody is connected with the nick " .. args[1] .. ".")
             end
         end
-        if not quien then
-            return Aviso("Desde la consola, di a quién: /curar <jugador>")
+        if not who then
+            return Warning("From the console, say who: /curar <player>")
         end
-        -- Las órdenes al juego devuelven a cuántos juegos han llegado.
-        if coop.game.heal(quien) == 0 then
-            return Aviso("Hay que estar jugando en la partida del servidor.")
+        -- Commands to the game return how many games they reached.
+        if coop.game.heal(who) == 0 then
+            return Warning("You have to be playing in the server's game.")
         end
-        return "Curado.", "ok"
+        return "Healed.", "ok"
     end)
 
--- /dado [caras]: tira un dado y se lo cuenta a todos.
-coop.commands.register("dado", { usage = "/dado [caras]", help = "tira un dado (de 6 caras si no dices otra cosa)" },
+-- /dado [sides]: rolls a die and tells everyone.
+coop.commands.register("dado", { usage = "/dado [sides]", help = "rolls a die (6 sides unless you say otherwise)" },
     function(ctx, args)
-        local caras = tonumber(args[1] or "6")
-        caras = caras and math.tointeger(caras)
-        if not caras or caras < 2 or caras > 1000 then
-            return Aviso("Di un número de caras entre 2 y 1000.")
+        local sides = tonumber(args[1] or "6")
+        sides = sides and math.tointeger(sides)
+        if not sides or sides < 2 or sides > 1000 then
+            return Warning("Give a number of sides between 2 and 1000.")
         end
-        coop.chat.broadcast(ctx.nick .. " tira un dado de " .. caras .. " caras: sale un " .. math.random(caras) .. ".")
+        coop.chat.broadcast(ctx.nick .. " rolls a " .. sides .. "-sided die: it lands on " .. math.random(sides) .. ".")
     end)
 
--- /kit: 30 flechas y 10 bombas, una vez por ciclo de tres días (quién lo recogió en qué ciclo, en coop.storage).
-coop.commands.register("kit", { usage = "/kit", help = "flechas y bombas, una vez por ciclo" }, function(ctx)
+-- /kit: 30 arrows and 10 bombs, once per three-day cycle (who collected it in which cycle, in coop.storage).
+coop.commands.register("kit", { usage = "/kit", help = "arrows and bombs, once per cycle" }, function(ctx)
     if not ctx.player then
-        return Aviso("Solo para jugadores.")
+        return Warning("Players only.")
     end
-    local ciclo = coop.world.cycle() -- 0 mientras no haya partida
-    local recogidos = coop.storage.get("kit", {})
-    if recogidos[ctx.nick] == ciclo then
-        return Aviso("Ya recogiste tu kit en este ciclo: vuelve después de la Canción del Tiempo.")
+    local cycle = coop.world.cycle() -- 0 while there is no game
+    local collected = coop.storage.get("kit", {})
+    if collected[ctx.nick] == cycle then
+        return Warning("You already collected your kit this cycle: come back after the Song of Time.")
     end
-    -- Los objetos van por su nombre de docs/IDS.md (o por su número).
+    -- Items go by their name from docs/IDS.md (or by their number).
     if coop.game.giveItem(ctx.player, "ARROWS_30") == 0 then
-        return Aviso("Hay que estar jugando en la partida del servidor.")
+        return Warning("You have to be playing in the server's game.")
     end
     coop.game.giveItem(ctx.player, "BOMBS_10")
-    recogidos[ctx.nick] = ciclo
-    coop.storage.set("kit", recogidos)
-    return "Kit entregado: 30 flechas y 10 bombas (caben si tienes carcaj y bolsa de bombas).", "ok"
+    collected[ctx.nick] = cycle
+    coop.storage.set("kit", collected)
+    return "Kit delivered: 30 arrows and 10 bombs (they fit if you have a quiver and a bomb bag).", "ok"
 end)
 
--- /muertes: quién ha muerto más veces.
-coop.commands.register("muertes", { usage = "/muertes", help = "quién ha muerto más veces" }, function()
-    local lista = {}
-    for nick, veces in pairs(coop.storage.get("muertes", {})) do
-        lista[#lista + 1] = { nick = nick, veces = veces }
+-- /muertes: who has died the most times.
+coop.commands.register("muertes", { usage = "/muertes", help = "who has died the most times" }, function()
+    local list = {}
+    for nick, times in pairs(coop.storage.get("muertes", {})) do
+        list[#list + 1] = { nick = nick, times = times }
     end
-    if #lista == 0 then
-        return "Nadie ha muerto todavía."
+    if #list == 0 then
+        return "Nobody has died yet."
     end
-    table.sort(lista, function(a, b)
-        return a.veces > b.veces
+    table.sort(list, function(a, b)
+        return a.times > b.times
     end)
-    local partes = {}
-    for _, fila in ipairs(lista) do
-        partes[#partes + 1] = fila.nick .. ": " .. fila.veces
+    local parts = {}
+    for _, row in ipairs(list) do
+        parts[#parts + 1] = row.nick .. ": " .. row.times
     end
-    return "Muertes: " .. table.concat(partes, ", ")
+    return "Deaths: " .. table.concat(parts, ", ")
 end)
 
--- /horda [jugador]: solo admins (perm = "op"). Tres Keese delante de cada jugador de la partida, o de uno. Cada juego
--- crea los suyos: no se comparten entre jugadores.
-coop.commands.register("horda", { usage = "/horda [jugador]", help = "tres Keese delante de cada jugador", perm = "op" },
+-- /horda [player]: admins only (perm = "op"). Three Keese in front of each player in the game, or of one. Each game
+-- creates its own: they are not shared between players.
+coop.commands.register("horda", { usage = "/horda [player]", help = "three Keese in front of each player", perm = "op" },
     function(ctx, args)
-        local objetivo = "*" -- todos los que juegan en la partida del servidor
+        local target = "*" -- everyone playing in the server's game
         if args[1] then
-            objetivo = coop.players.find(args[1])
-            if not objetivo then
-                return Aviso("No hay nadie conectado con el nick " .. args[1] .. ".")
+            target = coop.players.find(args[1])
+            if not target then
+                return Warning("Nobody is connected with the nick " .. args[1] .. ".")
             end
         end
-        local juegos = 0
+        local games = 0
         for i = 1, 3 do
-            -- EN_FIREFLY es el Keese; params = 2, uno normal que vuela. distance: unidades delante de Link.
-            juegos = coop.game.spawn(objetivo, "EN_FIREFLY", { params = 2, distance = 120 + 60 * i })
+            -- EN_FIREFLY is the Keese; params = 2, a normal one that flies. distance: units in front of Link.
+            games = coop.game.spawn(target, "EN_FIREFLY", { params = 2, distance = 120 + 60 * i })
         end
-        if juegos == 0 then
-            return Aviso("Nadie está jugando en la partida del servidor.")
+        if games == 0 then
+            return Warning("Nobody is playing in the server's game.")
         end
-        coop.chat.broadcast("¡Una horda de Keese, cortesía de " .. ctx.nick .. "!", "warn")
+        coop.chat.broadcast("A horde of Keese, courtesy of " .. ctx.nick .. "!", "warn")
     end)
 
 ----------------------------------------------------------------------------------------------------------------------
--- Temporizadores: coop.timer.after(ms, función) una vez, coop.timer.every(ms, función) siempre.
+-- Timers: coop.timer.after(ms, function) once, coop.timer.every(ms, function) forever.
 ----------------------------------------------------------------------------------------------------------------------
 
-local CONSEJOS = {
-    "Escribe /tiempo para ver el reloj de la partida.",
-    "Con /kit tienes flechas y bombas una vez por ciclo.",
-    "Si te quedas atrás, /tp <jugador> te lleva a su lado.",
-    "La Canción del Tiempo se vota: hace falta más de la mitad de los que juegan.",
+local TIPS = {
+    "Type /tiempo to see the game's clock.",
+    "With /kit you get arrows and bombs once per cycle.",
+    "If you fall behind, /tp <player> takes you to their side.",
+    "The Song of Time is voted on: more than half of those playing are needed.",
 }
 
-if CONSEJOS_CADA_MINUTOS > 0 then
-    local siguiente = 1
-    coop.timer.every(CONSEJOS_CADA_MINUTOS * 60 * 1000, function()
+if TIP_EVERY_MINUTES > 0 then
+    local nextTip = 1
+    coop.timer.every(TIP_EVERY_MINUTES * 60 * 1000, function()
         if coop.players.count() > 0 then
-            coop.chat.broadcast("Consejo: " .. CONSEJOS[siguiente])
-            siguiente = siguiente % #CONSEJOS + 1
+            coop.chat.broadcast("Tip: " .. TIPS[nextTip])
+            nextTip = nextTip % #TIPS + 1
         end
     end)
 end
 
-print("listo: " .. coop.mod.name() .. " (servidor en " .. coop.server.info().language .. ")")
+print("ready: " .. coop.mod.name() .. " (server in " .. coop.server.info().language .. ")")

@@ -242,83 +242,84 @@ json GameNameOf(ApiCall& call) {
 
 // Every order: "target" is a player (id or nick), a list of players or "*"; only the ones playing in the server's
 // world get it, and the function returns how many.
-COOP_MOD_API(gameNotify, "game.notify", "target, text, seconds?", "número",
-             "Muestra un aviso emergente (la notificación de 2 Ship, en una esquina de la pantalla) durante `seconds` "
-             "segundos (de 1 a 30; 6 si no se indica). El texto se corta a 400 caracteres.",
+COOP_MOD_API(gameNotify, "game.notify", "target, text, seconds?", "number",
+             "Shows a pop-up notice (2 Ship's notification, in a corner of the screen) for `seconds` seconds (1 to "
+             "30; 6 if omitted). The text is cut to 400 characters.",
              GameNotify);
-COOP_MOD_API(gameMessage, "game.message", "target, text", "número",
-             "Abre un cuadro de texto del juego con ese mensaje, como el de un cartel (admite saltos de línea; cada 4 "
-             "líneas, un cuadro nuevo). La letra del juego no tiene tildes: se quitan (`á` → `a`, `ñ` → `n`, sin `¡ ¿`); "
-             "`%r` `%g` `%b` `%y` `%p` `%w` cambian el color (rojo, verde, azul, amarillo, rosa, blanco). Si Link "
-             "está ocupado (otro diálogo, una cinemática, el menú, a caballo), espera hasta 10 segundos a que quede "
-             "libre; si no, el mensaje le llega como línea de chat.",
+COOP_MOD_API(gameMessage, "game.message", "target, text", "number",
+             "Opens a game text box with that message, like a sign's (line breaks allowed; a new box every 4 "
+             "lines). The game's font has no accents: they are removed (`á` → `a`, `ñ` → `n`, no `¡ ¿`); "
+             "`%r` `%g` `%b` `%y` `%p` `%w` change the color (red, green, blue, yellow, pink, white). If Link is "
+             "busy (another dialogue, a cutscene, the menu, on horseback), it waits up to 10 seconds for him to be "
+             "free; otherwise the message reaches them as a chat line.",
              GameMessage);
-COOP_MOD_API(gameSound, "game.sound", "target, sfx", "número",
-             "Reproduce un efecto de sonido del juego por su id (los `NA_SE_*` del juego, de 0 a 65535; por ejemplo "
-             "`0x4802` es la melodía de acierto, `0x4803` una rupia y `0x4806` el de error).",
+COOP_MOD_API(gameSound, "game.sound", "target, sfx", "number",
+             "Plays a game sound effect by its id (the game's `NA_SE_*`, from 0 to 65535; for example "
+             "`0x4802` is the success jingle, `0x4803` a rupee and `0x4806` the error one).",
              GameSound);
-COOP_MOD_API(gameGiveItem, "game.giveItem", "target, item", "número",
-             "Da un objeto (por nombre, como `\"MASK_BUNNY\"`, o por id) como lo da el juego pero sin la animación del "
-             "cofre: objetos, máscaras, contenidos de botella (llenan una vacía), equipo, munición, mejoras, canciones, "
-             "corazones y rupias. Los pocos ids que el juego no sabe dar (`SWORD_DEITY`, `WALLET_DEFAULT`, "
-             "`FISHING_ROD`, `STRAY_FAIRIES`, `INVALID_*`) dan error. Los nombres están en `IDS.md`.",
+COOP_MOD_API(gameGiveItem, "game.giveItem", "target, item", "number",
+             "Gives an item (by name, such as `\"MASK_BUNNY\"`, or by id) the way the game does but without the chest "
+             "animation: items, masks, bottle contents (they fill an empty one), equipment, ammo, upgrades, songs, "
+             "hearts and rupees. The few ids the game cannot give (`SWORD_DEITY`, `WALLET_DEFAULT`, "
+             "`FISHING_ROD`, `STRAY_FAIRIES`, `INVALID_*`) raise an error. The names are in `IDS.md`.",
              GameGiveItem);
-COOP_MOD_API(gameTakeItem, "game.takeItem", "target, item", "número",
-             "Quita un objeto de la pantalla de objetos o de máscaras si lo tiene (un contenido de botella se lleva su "
-             "botella). Con el resto (equipo, canciones, munición) no hace nada, y nunca quita la máscara que Link "
-             "lleva puesta ni la de su forma.",
+COOP_MOD_API(gameTakeItem, "game.takeItem", "target, item", "number",
+             "Takes an item from the items or masks screen if they have it (a bottle content takes its bottle "
+             "with it). With the rest (equipment, songs, ammo) it does nothing, and it never takes the mask Link "
+             "is wearing nor the one of his form.",
              GameTakeItem);
-COOP_MOD_API(gameGiveRupees, "game.giveRupees", "target, amount", "número",
-             "Da rupias, o las quita con un número negativo (de -9999 a 9999). Lo que no cabe en la cartera se pierde.",
+COOP_MOD_API(gameGiveRupees, "game.giveRupees", "target, amount", "number",
+             "Gives rupees, or takes them with a negative number (-9999 to 9999). What does not fit in the wallet is "
+             "lost.",
              GameGiveRupees);
-COOP_MOD_API(gameHeal, "game.heal", "target, amount?", "número",
-             "Cura `amount` de vida (16 = un corazón). Sin `amount`, o con 0, cura toda.", GameHeal);
-COOP_MOD_API(gameDamage, "game.damage", "target, amount", "número",
-             "Quita `amount` de vida (16 = un corazón; la doble defensa lo reduce a la mitad), sin retroceso. Si se "
-             "queda sin vida, Link muere como en el juego (un hada embotellada lo revive).",
+COOP_MOD_API(gameHeal, "game.heal", "target, amount?", "number",
+             "Heals `amount` of health (16 = one heart). Without `amount`, or with 0, heals fully.", GameHeal);
+COOP_MOD_API(gameDamage, "game.damage", "target, amount", "number",
+             "Takes `amount` of health (16 = one heart; double defense halves it), without knockback. If they run "
+             "out of health, Link dies as in the game (a bottled fairy revives him).",
              GameDamage);
-COOP_MOD_API(gameKill, "game.kill", "target", "número", "Deja sin vida a esos jugadores.", GameKill);
-COOP_MOD_API(gameMagic, "game.magic", "target, amount?", "número",
-             "Da magia, o la quita con un número negativo (48 es la barra normal, 96 la doble). Sin `amount`, o con 0, "
-             "la llena.",
+COOP_MOD_API(gameKill, "game.kill", "target", "number", "Takes all the health of those players.", GameKill);
+COOP_MOD_API(gameMagic, "game.magic", "target, amount?", "number",
+             "Gives magic, or takes it with a negative number (48 is the normal bar, 96 the double one). Without "
+             "`amount`, or with 0, fills it.",
              GameMagic);
-COOP_MOD_API(gameSpawn, "game.spawn", "target, actor, opts?", "número",
-             "Crea un actor (por nombre, como `\"EN_DODONGO\"`, o por id) en el juego de esos jugadores. `opts` = "
-             "`{ params = 0, distance = 100, rotY = 0, x = ..., y = ..., z = ... }`: sin `x, y, z` aparece `distance` "
-             "unidades delante de Link (de 0 a 2000). Cada juego crea el suyo: no se comparte con los demás jugadores. "
-             "Se crea aunque la escena no use ese actor, pero un enemigo no aparece en una sala ya despejada y algunos "
-             "actores solo funcionan en su propia escena (jefes, mecanismos).",
+COOP_MOD_API(gameSpawn, "game.spawn", "target, actor, opts?", "number",
+             "Creates an actor (by name, such as `\"EN_DODONGO\"`, or by id) in those players' games. `opts` = "
+             "`{ params = 0, distance = 100, rotY = 0, x = ..., y = ..., z = ... }`: without `x, y, z` it appears "
+             "`distance` units in front of Link (0 to 2000). Each game creates its own: it is not shared with the "
+             "other players. It is created even if the scene does not use that actor, but an enemy does not appear "
+             "in a room that is already cleared and some actors only work in their own scene (bosses, mechanisms).",
              GameSpawn);
-COOP_MOD_API(gameWarp, "game.warp", "target, scene, spawn?", "número",
-             "Lleva a esos jugadores a una escena (por nombre, como `\"SOUTH_CLOCK_TOWN\"`, o por id) por su entrada "
-             "número `spawn` (de 0 a 31; 0 si no se indica). Si Link está en un diálogo o una cinemática, espera hasta "
-             "10 segundos.",
+COOP_MOD_API(gameWarp, "game.warp", "target, scene, spawn?", "number",
+             "Takes those players to a scene (by name, such as `\"SOUTH_CLOCK_TOWN\"`, or by id) through its entrance "
+             "number `spawn` (0 to 31; 0 if omitted). If Link is in a dialogue or a cutscene, it waits up to "
+             "10 seconds.",
              GameWarp);
-COOP_MOD_API(gameUnlockAll, "game.unlockAll", "target", "número",
-             "Da a esos jugadores todos los objetos, máscaras, canciones y corazones (lo que hace `/unlockall`).",
+COOP_MOD_API(gameUnlockAll, "game.unlockAll", "target", "number",
+             "Gives those players every item, mask, song and heart (what `/unlockall` does).",
              GameUnlockAll);
-COOP_MOD_API(gameSetSetting, "game.setSetting", "target, name, value", "nada",
-             "Fuerza una opción de 2 Ship (un CVar de juego: `gEnhancements.*`, `gCheats.*`, `gModes.*`, `gFixes.*`) "
-             "mientras se juegue en la partida del servidor; al salir, cada juego recupera la suya. Con `target` = "
-             "`\"*\"` vale para todos, también para quien entre después; con un jugador o una lista, solo para ellos "
-             "y hasta que se desconecten. `value`: un número entero para las opciones enteras (casillas: 1 o 0; listas), "
-             "uno con decimales para los deslizadores (`2.0`, no `2`); `true` y `false` valen 1 y 0. Como mucho 64 "
-             "opciones por jugador.",
+COOP_MOD_API(gameSetSetting, "game.setSetting", "target, name, value", "nothing",
+             "Forces a 2 Ship option (a game CVar: `gEnhancements.*`, `gCheats.*`, `gModes.*`, `gFixes.*`) "
+             "while playing in the server's game; on leaving, each game gets its own back. With `target` = "
+             "`\"*\"` it applies to everyone, also to whoever enters later; with a player or a list, only to them "
+             "and until they disconnect. `value`: an integer for integer options (checkboxes: 1 or 0; lists), "
+             "one with decimals for sliders (`2.0`, not `2`); `true` and `false` count as 1 and 0. At most 64 "
+             "options per player.",
              GameSetSetting);
-COOP_MOD_API(gameClearSetting, "game.clearSetting", "target, name", "nada",
-             "Deja de forzar esa opción: la de todos con `\"*\"`, o la propia de esos jugadores.", GameClearSetting);
-COOP_MOD_API(gameSettings, "game.settings", "player?", "tabla",
-             "Las opciones forzadas, `{ nombre = valor }`: sin argumentos, las de todos (incluidas las de "
-             "`gameSettings` de `server.json`); con un jugador, todas las que tiene él.",
+COOP_MOD_API(gameClearSetting, "game.clearSetting", "target, name", "nothing",
+             "Stops forcing that option: everyone's with `\"*\"`, or those players' own.", GameClearSetting);
+COOP_MOD_API(gameSettings, "game.settings", "player?", "table",
+             "The forced options, `{ name = value }`: without arguments, everyone's (including those from "
+             "`gameSettings` in `server.json`); with a player, all the ones they have.",
              GameSettingsOf);
-COOP_MOD_API(gameIds, "game.ids", "kind", "tabla",
-             "Todos los nombres de un tipo (`\"item\"`, `\"actor\"` o `\"scene\"`) con su id: `{ MASK_BUNNY = 57, ... }`.",
+COOP_MOD_API(gameIds, "game.ids", "kind", "table",
+             "All the names of a kind (`\"item\"`, `\"actor\"` or `\"scene\"`) with their id: `{ MASK_BUNNY = 57, ... }`.",
              GameIds);
-COOP_MOD_API(gameIdOf, "game.idOf", "kind, name", "número o nil",
-             "El id de un nombre, o `nil` si el juego no tiene nada con ese nombre. No distingue mayúsculas y admite el "
-             "prefijo del juego (`ITEM_`, `ACTOR_`, `SCENE_`).",
+COOP_MOD_API(gameIdOf, "game.idOf", "kind, name", "number or nil",
+             "The id of a name, or `nil` if the game has nothing with that name. Case-insensitive, and it accepts the "
+             "game prefix (`ITEM_`, `ACTOR_`, `SCENE_`).",
              GameIdOf);
-COOP_MOD_API(gameNameOf, "game.nameOf", "kind, id", "texto o nil", "El nombre de un id, o `nil` si no existe.",
+COOP_MOD_API(gameNameOf, "game.nameOf", "kind, id", "text or nil", "The name of an id, or `nil` if it does not exist.",
              GameNameOf);
 
 } // namespace coop::server

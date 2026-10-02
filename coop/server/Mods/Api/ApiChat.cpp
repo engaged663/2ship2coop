@@ -55,16 +55,15 @@ json ChatSay(ApiCall& call) {
 
 } // namespace
 
-COOP_MOD_API(chatBroadcast, "chat.broadcast", "text, level?", "nada",
-             "Escribe una línea de sistema en el chat de todos los jugadores conectados (y en el registro). `level` "
-             "le da color: `info` (por defecto), `ok`, `warn` o `error`. El texto puede tener hasta 8 líneas "
-             "separadas por `\\n`.",
+COOP_MOD_API(chatBroadcast, "chat.broadcast", "text, level?", "nothing",
+             "Writes a system line in the chat of every connected player (and in the log). `level` gives it a "
+             "color: `info` (default), `ok`, `warn` or `error`. The text may have up to 8 lines separated by `\\n`.",
              ChatBroadcast);
-COOP_MOD_API(chatTell, "chat.tell", "player, text, level?", "nada",
-             "Escribe una línea de sistema solo en el chat de ese jugador.", ChatTell);
-COOP_MOD_API(chatSay, "chat.say", "name, text", "nada",
-             "Escribe en el chat de todos una línea normal, como si la dijera `name` (un personaje, un bot): "
-             "`<Tatl> ¡Escucha!`. `name` no tiene que ser un jugador.",
+COOP_MOD_API(chatTell, "chat.tell", "player, text, level?", "nothing",
+             "Writes a system line only in that player's chat.", ChatTell);
+COOP_MOD_API(chatSay, "chat.say", "name, text", "nothing",
+             "Writes a normal line in everyone's chat, as if `name` (a character, a bot) said it: "
+             "`<Tatl> Listen!`. `name` does not have to be a player.",
              ChatSay);
 
 } // namespace coop::server

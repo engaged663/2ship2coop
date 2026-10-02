@@ -51,19 +51,19 @@ json ModList(ApiCall& call) {
 
 } // namespace
 
-COOP_MOD_API(modName, "mod.name", "", "texto",
-             "El nombre de este mod: el de su archivo, en minúsculas y sin extensión (`mods/Mi Mod.lua` es `mi_mod`).",
+COOP_MOD_API(modName, "mod.name", "", "text",
+             "This mod's name: its file name, in lowercase and without extension (`mods/My Mod.lua` is `my_mod`).",
              ModName);
-COOP_MOD_API(modSetting, "mod.setting", "key, default?", "valor",
-             "Un ajuste de este mod escrito por el dueño del servidor en `server.json`, dentro de "
-             "`mods.settings.<nombre del mod>`. Si no está, devuelve `default`.",
+COOP_MOD_API(modSetting, "mod.setting", "key, default?", "value",
+             "A setting of this mod written by the server owner in `server.json`, under "
+             "`mods.settings.<mod name>`. If it is not there, returns `default`.",
              ModSetting);
-COOP_MOD_API(modDescribe, "mod.describe", "info", "nada",
-             "Dice qué es este mod para el comando `/mods`: `{ title = \"...\", version = \"1.0\", author = \"...\", "
-             "description = \"...\" }` (todos opcionales).",
+COOP_MOD_API(modDescribe, "mod.describe", "info", "nothing",
+             "Says what this mod is, for the `/mods` command: `{ title = \"...\", version = \"1.0\", author = \"...\", "
+             "description = \"...\" }` (all optional).",
              ModDescribe);
-COOP_MOD_API(modList, "mod.list", "", "lista",
-             "Los mods cargados, en orden de carga: `{ name, kind (\"lua\" o \"plugin\"), title, version, author, "
+COOP_MOD_API(modList, "mod.list", "", "list",
+             "The loaded mods, in load order: `{ name, kind (\"lua\" or \"plugin\"), title, version, author, "
              "description }`.",
              ModList);
 

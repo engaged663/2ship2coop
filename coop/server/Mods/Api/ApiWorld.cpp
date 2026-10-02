@@ -215,56 +215,57 @@ json WorldAdd(ApiCall& call) {
 
 } // namespace
 
-COOP_MOD_API(worldExists, "world.exists", "", "booleano",
-             "Si el mundo del servidor ya existe (lo crea el primer jugador que entra en la partida).", WorldExists);
-COOP_MOD_API(worldCycle, "world.cycle", "", "número",
-             "El número del ciclo de tres días en curso (1 el primero; 0 si todavía no hay mundo).", WorldCycle);
-COOP_MOD_API(worldTime, "world.time", "", "tabla o nil",
-             "El reloj del mundo: `day` (1-3), `hour`, `minute`, `night`, `stopped`, `inverted` (Canción del Tiempo "
-             "Invertida), `speed` (velocidad del tiempo), `abs` (unidades desde el día 1 a las 6:00; un día son "
-             "65536) y `time` (la hora como la guarda el juego). `nil` si no hay mundo.",
+COOP_MOD_API(worldExists, "world.exists", "", "boolean",
+             "Whether the server's world already exists (the first player to enter the game creates it).",
+             WorldExists);
+COOP_MOD_API(worldCycle, "world.cycle", "", "number",
+             "The number of the current three-day cycle (1 the first; 0 if there is no world yet).", WorldCycle);
+COOP_MOD_API(worldTime, "world.time", "", "table or nil",
+             "The world clock: `day` (1-3), `hour`, `minute`, `night`, `stopped`, `inverted` (Inverted Song of "
+             "Time), `speed` (time speed), `abs` (units since day 1 at 6:00; one day is 65536) and `time` (the time "
+             "as the game stores it). `nil` if there is no world.",
              WorldTime);
-COOP_MOD_API(worldSetTime, "world.setTime", "day, hour, minute?", "nada",
-             "Salta a ese momento para todos (día 1-3, hora 0-23). Los juegos recargan su escena, como con `/settime`.",
+COOP_MOD_API(worldSetTime, "world.setTime", "day, hour, minute?", "nothing",
+             "Jumps everyone to that moment (day 1-3, hour 0-23). The games reload their scene, as with `/settime`.",
              WorldSetTime);
-COOP_MOD_API(worldSetStopped, "world.setStopped", "stopped", "nada",
-             "Detiene (`true`) o reanuda (`false`) el reloj del mundo, como `/freezetime`. Se queda así aunque entren "
-             "o salgan jugadores.",
+COOP_MOD_API(worldSetStopped, "world.setStopped", "stopped", "nothing",
+             "Stops (`true`) or resumes (`false`) the world clock, like `/freezetime`. It stays that way even as "
+             "players come and go.",
              WorldSetStopped);
-COOP_MOD_API(worldSetSpeed, "world.setSpeed", "speed", "nada",
-             "Cambia la velocidad a la que pasan los tres días: 1 es la del juego original, 0.5 la mitad (días el "
-             "doble de largos), 2 el doble. Entre 0.1 y 10.",
+COOP_MOD_API(worldSetSpeed, "world.setSpeed", "speed", "nothing",
+             "Changes the speed at which the three days pass: 1 is the original game's, 0.5 half (days twice as "
+             "long), 2 double. Between 0.1 and 10.",
              WorldSetSpeed);
-COOP_MOD_API(worldRestart, "world.restart", "", "nada",
-             "Vuelve al Amanecer del Primer Día sin votación (como `/reiniciar`): cada jugador conserva lo que "
-             "conserva la Canción del Tiempo.",
+COOP_MOD_API(worldRestart, "world.restart", "", "nothing",
+             "Goes back to Dawn of the First Day without a vote (like `/reiniciar`): each player keeps what the Song "
+             "of Time keeps.",
              WorldRestart);
-COOP_MOD_API(worldCrashMoon, "world.crashMoon", "", "nada",
-             "La luna cae ahora: el mundo vuelve al principio del ciclo, como si nadie hubiera tocado la Canción del "
-             "Tiempo.",
+COOP_MOD_API(worldCrashMoon, "world.crashMoon", "", "nothing",
+             "The moon falls now: the world goes back to the start of the cycle, as if nobody had played the Song of "
+             "Time.",
              WorldCrashMoon);
-COOP_MOD_API(worldFields, "world.fields", "", "lista",
-             "Los campos del mundo compartido: `{ name, size (bytes), kind }`, con `kind` = `bits` (banderas), "
-             "`bytes` (valores) o `counter` (contadores).",
+COOP_MOD_API(worldFields, "world.fields", "", "list",
+             "The fields of the shared world: `{ name, size (bytes), kind }`, with `kind` = `bits` (flags), "
+             "`bytes` (values) or `counter` (counters).",
              WorldFields);
-COOP_MOD_API(worldGet, "world.get", "field, offset", "número",
-             "Lee un byte de un campo del mundo (por nombre o por índice); en un campo `counter`, el contador que "
-             "empieza en ese byte.",
+COOP_MOD_API(worldGet, "world.get", "field, offset", "number",
+             "Reads a byte of a world field (by name or index); in a `counter` field, the counter that starts at "
+             "that byte.",
              WorldGet);
-COOP_MOD_API(worldGetBit, "world.getBit", "field, offset, mask", "booleano",
-             "Si todos los bits de `mask` están puestos en ese byte. Ejemplo: `coop.world.getBit(\"owls\", 0, 0x01)`.",
+COOP_MOD_API(worldGetBit, "world.getBit", "field, offset, mask", "boolean",
+             "Whether all the bits of `mask` are set in that byte. Example: `coop.world.getBit(\"owls\", 0, 0x01)`.",
              WorldGetBit);
-COOP_MOD_API(worldSet, "world.set", "field, offset, value", "booleano",
-             "Escribe un byte de un campo `bytes` (por ejemplo una máscara en `masks`) o fija un contador, para todos "
-             "los jugadores. Devuelve si algo cambió.",
+COOP_MOD_API(worldSet, "world.set", "field, offset, value", "boolean",
+             "Writes a byte of a `bytes` field (for example a mask in `masks`) or sets a counter, for all players. "
+             "Returns whether anything changed.",
              WorldSet);
-COOP_MOD_API(worldSetBits, "world.setBits", "field, offset, set, clear?", "booleano",
-             "Pone los bits de `set` y quita los de `clear` en un byte de un campo `bits` (banderas de misiones, "
-             "cofres, búhos...), para todos los jugadores. Devuelve si algo cambió.",
+COOP_MOD_API(worldSetBits, "world.setBits", "field, offset, set, clear?", "boolean",
+             "Sets the bits of `set` and clears those of `clear` in a byte of a `bits` field (quest flags, chests, "
+             "owls...), for all players. Returns whether anything changed.",
              WorldSetBits);
-COOP_MOD_API(worldAdd, "world.add", "field, offset, delta", "número",
-             "Suma `delta` (puede ser negativo) a un contador (`heartQuarters`, `keys`, `fairies`, `skulls`, "
-             "`bottles`). Devuelve lo que se sumó de verdad (el contador no sale de su rango).",
+COOP_MOD_API(worldAdd, "world.add", "field, offset, delta", "number",
+             "Adds `delta` (may be negative) to a counter (`heartQuarters`, `keys`, `fairies`, `skulls`, "
+             "`bottles`). Returns how much was actually added (the counter does not leave its range).",
              WorldAdd);
 
 } // namespace coop::server

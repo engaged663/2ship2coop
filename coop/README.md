@@ -1,197 +1,198 @@
-# Co-op mod — mapa del código
+# Co-op mod — code map
 
-Mod cooperativo online para 2 Ship 2 Harkinian (hasta 4 jugadores por IP, servidor dedicado).
-Diseño completo: `docs/superpowers/specs/2026-09-26-coop-a-nucleo-online-design.md` (A) y
-`docs/superpowers/specs/2026-09-26-coop-b-mundo-compartido-design.md` (B).
-**Lee este archivo y luego solo el archivo que vayas a tocar.**
+Online co-op mod for 2 Ship 2 Harkinian (up to 4 players per IP, dedicated server).
+Full design: `docs/superpowers/specs/2026-09-26-coop-a-nucleo-online-design.md` (A) and
+`docs/superpowers/specs/2026-09-26-coop-b-mundo-compartido-design.md` (B). (The specs and plans under
+`docs/superpowers/` are working notes written in Spanish.)
+**Read this file and then only the file you are going to touch.**
 
-Estado: **A (núcleo online)**, **B (mundo compartido)**, **C1/D1** (enemigos compartidos, anfitrión del servidor) y
-**D3** (réplica completa de la memoria de enemigos y NPCs) hechos; además objetos del escenario compartidos, final del
-juego para todos, el tiempo nunca se detiene (ni con el inventario abierto: «menú en vivo»), pasajeros de Epona
-entre escenas y **grupos** (invitaciones, minijuegos,
-misiones, diálogos y cinemáticas compartidos; jefes para toda la escena: ver «Grupos, minijuegos y misiones»), con sus
-límites arreglados (actores de cinemática y efectos para quien mira, minijuegos Juntos / Cada uno / Por turnos,
-contactos, resultados y textos con los valores de quien habla) y la **API de mods** (scripts Lua y plugins DLL en el
-servidor: ver «Mods»). Pendiente: D2 (spec D).
+Status: **A (online core)**, **B (shared world)**, **C1/D1** (shared enemies, server host) and
+**D3** (full replica of the enemy and NPC memory) are done; also shared scenery objects, the end of the
+game for everyone, time that never stops (not even with the inventory open: "live menu"), Epona passengers
+between scenes and **groups** (invitations, shared minigames,
+quests, dialogues and cutscenes; bosses for the whole scene: see "Groups, minigames and quests"), with their
+limits fixed (cutscene actors and effects for whoever is watching, Together / Each / Turn-based minigames,
+contacts, results and texts with the speaker's values) and the **mod API** (Lua scripts and DLL plugins on the
+server: see "Mods"). Pending: D2 (spec D).
 
-## Piezas
+## Pieces
 
-| Pieza | Carpeta | Qué es |
+| Piece | Folder | What it is |
 |---|---|---|
-| Librería común | `coop/common/` | protocolo + red (ENet), sin nada del juego. La usan servidor, bot, tests y juego |
-| Servidor | `coop/server/` → `2ship-coop-server.exe` | consola; autoridad de jugadores, chat, comandos, mundo y reloj |
-| Bot de pruebas | `coop/tools/CoopBot.cpp` → `2ship-coop-bot.exe` | jugador falso para probar con un solo PC |
-| Tests | `coop/tests/` → `coop-tests.exe` | unitarios + integración (servidor real en loopback) |
-| Cliente (juego) | `mm/2s2h/Coop/` | conexión, chat, otros Links, /tp, /gift, menú, jugar en el mundo del servidor |
+| Common library | `coop/common/` | protocol + network (ENet), nothing from the game. Used by server, bot, tests and game |
+| Server | `coop/server/` → `2ship-coop-server.exe` | console; authority for players, chat, commands, world and clock |
+| Test bot | `coop/tools/CoopBot.cpp` → `2ship-coop-bot.exe` | fake player to test with a single PC |
+| Tests | `coop/tests/` → `coop-tests.exe` | unit + integration (real server on loopback) |
+| Client (game) | `mm/2s2h/Coop/` | connection, chat, other Links, /tp, /gift, menu, playing in the server's world |
 
-## Mapa de archivos
+## File map
 
 ### `coop/common/`
-| Archivo | Responsabilidad |
+| File | Responsibility |
 |---|---|
-| `Protocol.h` | versión, puerto (7780/UDP), límites, nombres de eventos (`ev::`), niveles (`level::`) |
-| `Events.h/.cpp` | eventos JSON `{"t": ...}`: crear, serializar, validar, getters seguros |
-| `PlayerState.h/.cpp` | stream binario de la pose (una lista de campos para codificar y decodificar) |
-| `EponaState.h/.cpp` | stream binario de Eponas independientes: propietario, secuencia, estado, posición y montaje |
-| `LiveMenu.h/.cpp` | reglas puras del menú en vivo: cuándo se cierra solo (`LiveMenuWatch`) y cuántas veces se actualiza por fotograma (`LiveMenu_Steps`) |
-| `ByteStream.h` | `Writer`/`Reader` little-endian |
-| `Text.h/.cpp` | reglas de nick, saneado de chat y de textos, troceado de comandos con comillas, UTF-8, texto para la letra del juego (`ToGameFontText`, `SplitTextBoxes`) |
-| `ModRules.h/.cpp` | mods: qué opciones del juego puede forzar un servidor y qué objetos puede dar (servidor y juego) |
-| `GameIds.inc` | nombres ↔ ids de objetos, actores y escenas del juego (generado por `tools/gen_game_ids.py`; el juego lo comprueba con `static_assert`) |
-| `I18n.h/.cpp` + `I18nMessages.inc` | idiomas (es/en/zh/ru): `Tr(Msg::X, {args})`; todos los textos del servidor, una línea por texto |
-| `Transport.h/.cpp` | ENet: canal 0 fiable (JSON), canal 1 no fiable (poses) |
+| `Protocol.h` | version, port (7780/UDP), limits, event names (`ev::`), levels (`level::`) |
+| `Events.h/.cpp` | JSON events `{"t": ...}`: create, serialize, validate, safe getters |
+| `PlayerState.h/.cpp` | binary pose stream (one list of fields to encode and decode) |
+| `EponaState.h/.cpp` | binary stream of independent Eponas: owner, sequence, state, position and mount |
+| `LiveMenu.h/.cpp` | pure rules of the live menu: when it closes by itself (`LiveMenuWatch`) and how many times it updates per frame (`LiveMenu_Steps`) |
+| `ByteStream.h` | little-endian `Writer`/`Reader` |
+| `Text.h/.cpp` | nick rules, chat and text sanitizing, splitting commands with quotes, UTF-8, text for the game's font (`ToGameFontText`, `SplitTextBoxes`) |
+| `ModRules.h/.cpp` | mods: which game options a server can force and which items it can give (server and game) |
+| `GameIds.inc` | names ↔ ids of the game's items, actors and scenes (generated by `tools/gen_game_ids.py`; the game checks it with `static_assert`) |
+| `I18n.h/.cpp` + `I18nMessages.inc` | languages (es/en/zh/ru): `Tr(Msg::X, {args})`; every server text, one line per text |
+| `Transport.h/.cpp` | ENet: channel 0 reliable (JSON), channel 1 unreliable (poses) |
 | `Hex.*` | bytes ↔ hex |
-| `WorldFields.*` | esquema del mundo: nombre, tamaño y tipo de cada campo |
-| `WorldOps.*` | cambios del mundo: diferencias, aplicar validado, JSON; servidor y juego |
-| `Clock.*` | reloj de 3 días: abs ↔ día/hora, formato, regla de seguimiento del juego |
-| `WorldRules.*` | reglas del juego original que el mundo aplica fuera de él (espadas que robó Takkuri) |
-| `ActorImage.*` | D3: stream binario de la memoria de los actores replicados de una sala: registros, partes, límites |
-| `SlotCodec.h` | una ranura de `ActorImage` en el cable (tipo + valor), para otros streams |
-| `EffectImage.*` | eco de efectos: stream binario `kStreamEffects` (partículas con sus datos de inicio como ranuras) |
+| `WorldFields.*` | world schema: name, size and type of each field |
+| `WorldOps.*` | world changes: differences, validated apply, JSON; server and game |
+| `Clock.*` | 3-day clock: abs ↔ day/hour, format, rule for following the game |
+| `WorldRules.*` | rules of the original game that the world applies outside it (swords Takkuri stole) |
+| `ActorImage.*` | D3: binary stream of the memory of a room's replicated actors: records, parts, limits |
+| `SlotCodec.h` | one `ActorImage` slot on the wire (type + value), for other streams |
+| `EffectImage.*` | effect echo: binary stream `kStreamEffects` (particles with their start data as slots) |
 
 ### `coop/server/`
-| Archivo | Responsabilidad |
+| File | Responsibility |
 |---|---|
-| `main.cpp` | arranque, bucle, consola (Ctrl+C / cerrar ventana = parada ordenada) |
-| `Server.h/.cpp` | núcleo: recibe paquetes y los reparte a los handlers; enviar/broadcast/kick/stop |
-| `Registry.h/.cpp` | tablas de handlers + macros `COOP_SERVER_EVENT/STREAM/ON_DISCONNECT/ON_TICK` |
-| `CommandRegistry.h/.cpp` | comandos `/...` + macro `COOP_COMMAND` + permisos (`Perm::Player/Op/Console`) |
-| `PlayerRegistry.*` | clientes conectados (`RemoteClient`: nick, ip, escena, posición...) |
-| `AccessLists.*` | `bans.json` / `ops.json` (un admin = nick + la IP que tenía al darle `op`) |
-| `ServerConfig.*` | `server.json` (se crea con valores por defecto) |
-| `GiftManager.*` | regalos de rupias en curso (por conexión; un pago tardío se reembolsa) |
-| `Logger.*` | log a consola + `logs/server.log` |
+| `main.cpp` | startup, loop, console (Ctrl+C / closing the window = orderly stop) |
+| `Server.h/.cpp` | core: receives packets and hands them to the handlers; send/broadcast/kick/stop |
+| `Registry.h/.cpp` | handler tables + macros `COOP_SERVER_EVENT/STREAM/ON_DISCONNECT/ON_TICK` |
+| `CommandRegistry.h/.cpp` | `/...` commands + macro `COOP_COMMAND` + permissions (`Perm::Player/Op/Console`) |
+| `PlayerRegistry.*` | connected clients (`RemoteClient`: nick, ip, scene, position...) |
+| `AccessLists.*` | `bans.json` / `ops.json` (an admin = nick + the IP they had when given `op`) |
+| `ServerConfig.*` | `server.json` (created with default values) |
+| `GiftManager.*` | rupee gifts in progress (per connection; a late payment is refunded) |
+| `Logger.*` | log to console + `logs/server.log` |
 | `Handlers/SessionHandlers.cpp` | `hello` → `welcome`/`reject`, `leave` |
 | `Handlers/ChatHandlers.cpp` | `chat`, `cmd` |
-| `Handlers/StateHandlers.cpp` | reenvío de poses solo a la misma escena (con límite de ritmo y poses imposibles descartadas), `loc` |
-| `Handlers/GiftHandlers.cpp` | `gift_paid`, `gift_recv`, reembolsos, caducidad |
-| `Commands/*.cpp` | un archivo por comando o grupo: help, list, pm, tp, gift, kick/ban/unban/banlist, op/deop, say/stop, stats |
-| `World/SharedWorld.h` + `SharedWorld.cpp` | entrar, crear, salir, reenvío de cambios, inventarios, guardado, cuándo corre el reloj |
-| `World/SharedWorldCycle.cpp` | Doble Tiempo, Invertida, votación, reinicios, luna, /settime |
-| `World/WorldStore.*` | los campos del mundo, la copia del inicio del ciclo y `world.json` |
-| `World/WorldClock.*` | el reloj del servidor (velocidad, parado, saltos) |
-| `World/PlayerStore.*` | inventario propio de cada jugador (`players/<nick>.json`) |
-| `World/SotVote.*` | votación de la Canción del Tiempo |
-| `World/JsonFile.*` | leer/escribir JSON en disco sin dejar archivos a medias |
+| `Handlers/StateHandlers.cpp` | forwarding poses only to the same scene (rate-limited, impossible poses discarded), `loc` |
+| `Handlers/GiftHandlers.cpp` | `gift_paid`, `gift_recv`, refunds, expiry |
+| `Commands/*.cpp` | one file per command or group: help, list, pm, tp, gift, kick/ban/unban/banlist, op/deop, say/stop, stats |
+| `World/SharedWorld.h` + `SharedWorld.cpp` | enter, create, leave, forwarding changes, inventories, saving, when the clock runs |
+| `World/SharedWorldCycle.cpp` | Song of Double Time, Inverted, vote, restarts, moon, /settime |
+| `World/WorldStore.*` | the world fields, the copy of the cycle start and `world.json` |
+| `World/WorldClock.*` | the server's clock (speed, stopped, jumps) |
+| `World/PlayerStore.*` | each player's own inventory (`players/<nick>.json`) |
+| `World/SotVote.*` | Song of Time vote |
+| `World/JsonFile.*` | read/write JSON on disk without leaving half-written files |
 | `Handlers/WorldHandlers.cpp` | `world_enter/world_leave/world_init/wops/inv/cycle_result` |
 | `Handlers/ClockHandlers.cpp` | `clock_jump/clock_speed/sot_propose` |
 | `Commands/WorldCommands.cpp` | `/tiempo /si /no /settime /mundo /reiniciar` |
-| `World/RoomAuthority.*` | C: quién simula los enemigos de cada (escena, sala): el que lleva más tiempo y no está ocupado |
-| `Handlers/ActorHandlers.cpp` | C: `auth` y reenvío del stream de enemigos, `hit`, `hurt`, `drop` (con sus reglas) |
-| `Handlers/PropHandlers.cpp` | objetos del escenario (`prop`, `props`, `item`: lo roto se recuerda mientras alguien siga en la escena) |
-| `Handlers/EndingHandlers.cpp` | el final: etapas (`ending`), cuenta atrás de la torre (`rooftop`), sincronía (`ending_sync`) y ciclo nuevo al acabar (`ending_done`) |
-| `GroupBook.*` | reglas de grupos e invitaciones, sin red (probado en `TestGroups.cpp`) |
-| `Groups.*` | quién oye qué (compañeros, en la escena) y los eventos/textos de los cambios de grupo |
-| `Handlers/GroupHandlers.cpp` | caducidad de invitaciones; salir del mundo o desconectarse = salir del grupo al momento |
-| `Commands/GroupCommands.cpp` | `/invitar /aceptar /rechazar /grupo /dejargrupo` (y sus nombres en inglés); `tp` al invitador al aceptar |
-| `Handlers/ActivityHandlers.cpp` | `act` (también `result` y el resultado de una ronda), `act_hud`, `act_reward`, `follow`, `talk` (con `vars`), `cinema` (con `blur`), `title`: validados y al grupo en la escena o a toda la escena (`scope`) |
-| `Handlers/EffectHandlers.cpp` | eco de efectos: valida el paquete, sella al remitente y lo reenvía a su escena (`effects` en `server.json`) |
-| `Mods/ModHost.*` | **núcleo de los mods**: carga y descarga, eventos (`Fire`), temporizadores, comandos, datos, opciones forzadas, órdenes al juego (`SendOp`) |
-| `Mods/ModEvents.inc` | **una línea por evento** de los mods (nombre, se cancela, descripción, campos) |
-| `Mods/ModApi.*` + `Mods/Api/Api*.cpp` | **una línea `COOP_MOD_API` por función** (`server`, `players`, `chat`, `world`, `game`, `storage`, `mod`) y los lectores de argumentos (`ApiCall`) |
-| `Mods/LuaMod.*`, `LuaJson.*` | scripts: entorno seguro, límites de tiempo y memoria, `coop.*`, JSON ↔ Lua |
-| `Mods/PluginMod.*` | plugins: carga de la DLL, la ABI de `sdk/coop_plugin.h` |
-| `Mods/ModLoader.cpp`, `ModStorage.*`, `GameSettings.*`, `GameIds.*` | qué archivos cargar, datos de cada mod, opciones forzadas por jugador, nombres del juego |
-| `Mods/ModDocs.*` | genera `docs/mods/API.md` e `IDS.md` (`--mod-docs`) |
+| `World/RoomAuthority.*` | C: who simulates the enemies of each (scene, room): the one who has been there longest and is not busy |
+| `Handlers/ActorHandlers.cpp` | C: `auth` and forwarding the enemy stream, `hit`, `hurt`, `drop` (with their rules) |
+| `Handlers/PropHandlers.cpp` | scenery objects (`prop`, `props`, `item`: what is broken is remembered while someone stays in the scene) |
+| `Handlers/EndingHandlers.cpp` | the ending: stages (`ending`), tower countdown (`rooftop`), sync (`ending_sync`) and new cycle at the end (`ending_done`) |
+| `GroupBook.*` | rules for groups and invitations, no network (tested in `TestGroups.cpp`) |
+| `Groups.*` | who hears what (teammates, in the scene) and the events/texts of group changes |
+| `Handlers/GroupHandlers.cpp` | invitation expiry; leaving the world or disconnecting = leaving the group at once |
+| `Commands/GroupCommands.cpp` | `/invitar /aceptar /rechazar /grupo /dejargrupo` (and their English names); `tp` to the inviter on accepting |
+| `Handlers/ActivityHandlers.cpp` | `act` (also `result` and a round's result), `act_hud`, `act_reward`, `follow`, `talk` (with `vars`), `cinema` (with `blur`), `title`: validated and sent to the group in the scene or to the whole scene (`scope`) |
+| `Handlers/EffectHandlers.cpp` | effect echo: validates the packet, stamps the sender and forwards it to their scene (`effects` in `server.json`) |
+| `Mods/ModHost.*` | **mod core**: load and unload, events (`Fire`), timers, commands, data, forced options, commands to the game (`SendOp`) |
+| `Mods/ModEvents.inc` | **one line per mod event** (name, cancelable, description, fields) |
+| `Mods/ModApi.*` + `Mods/Api/Api*.cpp` | **one `COOP_MOD_API` line per function** (`server`, `players`, `chat`, `world`, `game`, `storage`, `mod`) and the argument readers (`ApiCall`) |
+| `Mods/LuaMod.*`, `LuaJson.*` | scripts: safe environment, time and memory limits, `coop.*`, JSON ↔ Lua |
+| `Mods/PluginMod.*` | plugins: loading the DLL, the ABI of `sdk/coop_plugin.h` |
+| `Mods/ModLoader.cpp`, `ModStorage.*`, `GameSettings.*`, `GameIds.*` | which files to load, each mod's data, per-player forced options, game names |
+| `Mods/ModDocs.*` | generates `docs/mods/API.md` and `IDS.md` (`--mod-docs`) |
 | `Commands/ModCommands.cpp` | `/mods`, `/mod reload/load/unload` |
-| `Handlers/ModHandlers.cpp` | `gev` y `stat` del juego (validados) → eventos de los mods; el tick de los mods |
+| `Handlers/ModHandlers.cpp` | the game's `gev` and `stat` (validated) → mod events; the mods' tick |
 
-Fuera de `server/`: `sdk/` (lo que necesita quien escribe un plugin: `coop_plugin.h`, `coop_plugin.hpp`, `example/`),
-`mods/ejemplo.lua` (script de ejemplo), `docs/mods/` (guía, referencia, ids, plugins), `tools/gen_game_ids.py`.
+Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, `coop_plugin.hpp`, `example/`),
+`mods/ejemplo.lua` (example script), `docs/mods/` (guide, reference, ids, plugins), `tools/gen_game_ids.py`.
 
-### `mm/2s2h/Coop/` (juego)
-| Archivo | Responsabilidad |
+### `mm/2s2h/Coop/` (game)
+| File | Responsibility |
 |---|---|
-| `CoopInit.cpp` | orden del trabajo de cada frame: red → mundo → reloj; al final, cambios del mundo; autoconexión |
-| `Client/NetClient.*` | hilo de red + colas (solo ese hilo toca ENet) |
-| `Client/Dispatcher.*` | evento → handlers; macros `COOP_ON_EVENT/ON_STREAM/ON_LOST` |
-| `Client/Session.*` | quién soy, quién está conectado y dónde |
-| `Chat/ChatModel.*` | historial del chat y envío (`/...` = comando del servidor) |
-| `Chat/ChatWindow.*` | overlay ImGui abajo a la izquierda (Enter abre, Esc cierra, ↑/↓ historial) |
-| `Puppet/PoseCapture.*` | envía la pose del Link local cada frame (whitelist de flags de estado) |
-| `Puppet/PuppetManager.*` | un actor marioneta por jugador remoto en mi escena; búfer anti-jitter |
-| `Puppet/PuppetActor.*` | actor `En_CoopPuppet`: estructura `Player` completa dibujada con `Player_Draw` |
-| `Features/Location.cpp` | envía `loc` al cambiar de escena/sala o al entrar/salir de una cinemática |
-| `Features/Ending.h` | **mapa del final del juego** (spec: `docs/superpowers/specs/2026-09-30-coop-final-del-juego-design.md`) |
-| `Features/Ending.cpp` | etapas: azotea (1), Canción del Juramento → guarida de Majora (2), Majora derrotada (3), final (4); si uno llega, los demás van |
-| `Features/RooftopTimer.cpp` | la cuenta atrás de la azotea es la del servidor (igual para todos; al acabar cae la luna) |
-| `Features/EndingMode.cpp` | el final se ve entero y sincronizado; el co-op se aparta; al acabar, ciclo nuevo |
-| `Group/Group.h` | **mapa de los grupos** en el juego; `GroupState.cpp` (copia del grupo e invitaciones, comandos), `InviteWindow.cpp` (ventana Aceptar/Rechazar), `GroupMenu.cpp` (sección del menú y opciones) |
-| `Activities/Activities.h` | **mapa de minijuegos y misiones**; `ActivityTable.cpp` (**una línea por minijuego/misión**), `Director.cpp` (este juego corre uno), `Guest.cpp` (un compañero corre uno aquí), `Follow.cpp` (`follow`), `Rewards.cpp` (premios) |
-| `Features/Cinema.h/.cpp` | cinemáticas vistas con la cámara (y la música) de quien las dirige: grupo o escena (jefes); rótulos de jefe |
-| `Features/BossArenas.cpp` | salas de jefe: quien simula al jefe dirige sus cinemáticas para todos y no cede sus salas |
-| `Features/TalkSync.h/.cpp` | diálogos espejo: el texto de un compañero en tu propia caja, al ritmo de quien habla |
-| `Features/MessageVars.*` | los valores de quien habla (nombre, puntos, tiempos, rupias, récords, códigos) en el texto espejo: viajan con `talk` y se ponen solo mientras se decodifica (**lista `Vars`**) |
-| `Features/EffectEcho.cpp` | eco de efectos: las partículas (`EffectSs`) de nuestro Link, de lo que simulamos, de nuestros golpes y de nuestra cinemática se crean en los demás juegos (**tabla `kInits`**: una línea por tipo de efecto) |
-| `Features/CoopEponaManager.*` | Eponas por jugador (dueño + copias); el pasajero sigue al conductor al cambiar de escena y vuelve a subir |
-| `Actors/CoopEngine.h` | C: la API en C que llaman los cambios `[COOP]` del motor |
-| `Actors/ReplicationRules.*` | D3: **qué actores se replican** (categorías ENEMY/BOSS/NPC + listas: enemigos archivados como prop, generadores, locales, objetos de minijuego) y los actores de cinemática (modo Cinema: nuestros, salvo mientras miramos la cinemática de otro) |
-| `Actors/ActorMemory.*`, `ProcessMemory.*`, `Leases.*` | D3: copia de la memoria por ranuras (máscara local por actor: la colisión dinámica es de cada juego); NPCs/enemigos prestados al jugador cercano y objetos del minijuego prestados a su director |
-| `Actors/PropSync.*` | jarrones, hierba (también la de campo y los grupos), cajas, rocas y rupias: roto/recogido para todos; lo que sueltan lo ven todos (**lista `kSharedProps`**) |
-| `Actors/TimeNeverStops.cpp` | en el mundo del servidor nada detiene el tiempo (pausa, ocarina, textos, máscaras): ganchos en z_actor/z_play/z_kankyo |
-| `Actors/LiveMenu.cpp` | **menú en vivo**: el menú de pausa (y el mapa de búhos) es solo una capa; Link sigue con un mando neutro, el mundo se dibuja detrás, sin silencio ni cambio de ritmo, y se cierra solo si el juego necesita a Link (`ForceClose`). Interruptor `gCoop.LiveMenu` |
-| `Actors/ActorRegistry.*` | C: los enemigos compartidos de la escena, su clave, esqueleto y colisiones |
-| `Actors/Authority.*` | C: la tabla `auth` en el juego |
-| `Actors/ActorSync.*` | C: la autoridad transmite; los demás aplican réplicas; objetivo = el Link más cercano |
-| `Actors/HitSync.*` | C: golpes a réplicas (`hit`) y de enemigos a otros jugadores (`hurt`), inyectados en las colisiones |
-| `Actors/DropSync.cpp` | C: cada juego tira sus propios objetos cuando muere un enemigo compartido |
-| `Actors/LiveFlags.*` | C: borra al momento los objetos únicos que recogió otro (fichas, hadas, piezas de corazón) |
-| `Features/Teleport.cpp` | aplica `tp`: mover en la misma sala o viajar con el sistema de reaparición |
-| `Features/Warp.*` | warp por reaparición: /tp y la entrada al mundo |
-| `Features/Gift.cpp` | pagar / recibir / reembolsar rupias |
-| `Features/SelfNameTag.cpp` | nick propio opcional |
-| `Features/DebugBoot.cpp` | prueba rápida: arranca en Ciudad Reloj con la partida de depuración; prueba de campos (`Debug.FieldSelfTest`) |
-| `World/FieldTable.*` | campo ↔ memoria del guardado (`static_assert`) |
-| `World/WorldSync.*` | sombra + diferencias → `wops`; aplicar los de otros |
-| `World/SaveBuilder.*` | construir el guardado en memoria, reglas de fin de ciclo en una copia |
-| `World/WorldSession.*` | entrar/salir, reinicios, CVars forzadas, subida del inventario, cálculo del ciclo |
-| `World/ClockSync.*` | reloj del servidor, canciones, luna |
-| `Menu/CoopMenu.*` | pestaña "Co-op" del menú (F1) |
-| `Mods/Mods.h` | **mapa de los mods en el juego**; `GameOps.cpp` (**una línea por orden** en `kOps`: cuándo puede ejecutarse y qué hace), `ModSettings.cpp` (opciones forzadas y su restauración), `GameEvents.cpp` (`gev`, `stat`), `GameIdsCheck.cpp` (`static_assert` de `GameIds.inc`). Interruptor `gCoop.Mods` |
+| `CoopInit.cpp` | order of each frame's work: network → world → clock; at the end, world changes; auto-connect |
+| `Client/NetClient.*` | network thread + queues (only that thread touches ENet) |
+| `Client/Dispatcher.*` | event → handlers; macros `COOP_ON_EVENT/ON_STREAM/ON_LOST` |
+| `Client/Session.*` | who I am, who is connected and where |
+| `Chat/ChatModel.*` | chat history and sending (`/...` = server command) |
+| `Chat/ChatWindow.*` | ImGui overlay at the bottom left (Enter opens, Esc closes, ↑/↓ history) |
+| `Puppet/PoseCapture.*` | sends the local Link's pose every frame (whitelist of state flags) |
+| `Puppet/PuppetManager.*` | one puppet actor per remote player in my scene; anti-jitter buffer |
+| `Puppet/PuppetActor.*` | actor `En_CoopPuppet`: full `Player` structure drawn with `Player_Draw` |
+| `Features/Location.cpp` | sends `loc` when changing scene/room or entering/leaving a cutscene |
+| `Features/Ending.h` | **map of the end of the game** (spec: `docs/superpowers/specs/2026-09-30-coop-final-del-juego-design.md`) |
+| `Features/Ending.cpp` | stages: rooftop (1), Oath to Order → Majora's lair (2), Majora defeated (3), ending (4); if one arrives, the others go |
+| `Features/RooftopTimer.cpp` | the rooftop countdown is the server's (same for everyone; when it ends the moon falls) |
+| `Features/EndingMode.cpp` | the ending is seen whole and in sync; co-op steps aside; at the end, new cycle |
+| `Group/Group.h` | **map of the groups** in the game; `GroupState.cpp` (group copy and invitations, commands), `InviteWindow.cpp` (Accept/Decline window), `GroupMenu.cpp` (menu section and options) |
+| `Activities/Activities.h` | **map of minigames and quests**; `ActivityTable.cpp` (**one line per minigame/quest**), `Director.cpp` (this game runs one), `Guest.cpp` (a teammate runs one here), `Follow.cpp` (`follow`), `Rewards.cpp` (prizes) |
+| `Features/Cinema.h/.cpp` | cutscenes seen with the camera (and music) of whoever directs them: group or scene (bosses); boss titles |
+| `Features/BossArenas.cpp` | boss rooms: whoever simulates the boss directs its cutscenes for everyone and does not give up its rooms |
+| `Features/TalkSync.h/.cpp` | mirror dialogues: a teammate's text in your own box, at the speaker's pace |
+| `Features/MessageVars.*` | the speaker's values (name, points, times, rupees, records, codes) in the mirrored text: they travel with `talk` and are only put in while decoding (**`Vars` list**) |
+| `Features/EffectEcho.cpp` | effect echo: the particles (`EffectSs`) of our Link, of what we simulate, of our hits and of our cutscene are created in the other games (**`kInits` table**: one line per effect type) |
+| `Features/CoopEponaManager.*` | per-player Eponas (owner + copies); the passenger follows the driver on scene change and mounts again |
+| `Actors/CoopEngine.h` | C: the C API that the engine's `[COOP]` changes call |
+| `Actors/ReplicationRules.*` | D3: **which actors are replicated** (ENEMY/BOSS/NPC categories + lists: enemies archived as props, spawners, local ones, minigame objects) and cutscene actors (Cinema mode: ours, except while watching someone else's cutscene) |
+| `Actors/ActorMemory.*`, `ProcessMemory.*`, `Leases.*` | D3: slot-based memory copy (local mask per actor: dynamic collision belongs to each game); NPCs/enemies lent to the nearby player and minigame objects lent to their director |
+| `Actors/PropSync.*` | pots, grass (also field grass and clumps), crates, rocks and rupees: broken/picked up for everyone; what they drop is seen by everyone (**`kSharedProps` list**) |
+| `Actors/TimeNeverStops.cpp` | in the server's world nothing stops time (pause, ocarina, texts, masks): hooks in z_actor/z_play/z_kankyo |
+| `Actors/LiveMenu.cpp` | **live menu**: the pause menu (and the owl map) is just a layer; Link carries on with a neutral controller, the world is drawn behind it, without silence or change of pace, and it closes by itself if the game needs Link (`ForceClose`). Switch `gCoop.LiveMenu` |
+| `Actors/ActorRegistry.*` | C: the scene's shared enemies, their key, skeleton and collisions |
+| `Actors/Authority.*` | C: the `auth` table in the game |
+| `Actors/ActorSync.*` | C: the authority transmits; the others apply replicas; target = the nearest Link |
+| `Actors/HitSync.*` | C: hits on replicas (`hit`) and from enemies to other players (`hurt`), injected into the collisions |
+| `Actors/DropSync.cpp` | C: each game drops its own objects when a shared enemy dies |
+| `Actors/LiveFlags.*` | C: instantly removes unique objects someone else picked up (tokens, fairies, heart pieces) |
+| `Features/Teleport.cpp` | applies `tp`: move within the same room or travel with the respawn system |
+| `Features/Warp.*` | respawn warp: /tp and entering the world |
+| `Features/Gift.cpp` | pay / receive / refund rupees |
+| `Features/SelfNameTag.cpp` | optional own nick |
+| `Features/DebugBoot.cpp` | quick test: starts in Clock Town with the debug save; field test (`Debug.FieldSelfTest`) |
+| `World/FieldTable.*` | field ↔ save memory (`static_assert`) |
+| `World/WorldSync.*` | shadow + differences → `wops`; apply those of others |
+| `World/SaveBuilder.*` | build the save in memory, end-of-cycle rules on a copy |
+| `World/WorldSession.*` | enter/leave, restarts, forced CVars, inventory upload, cycle calculation |
+| `World/ClockSync.*` | server clock, songs, moon |
+| `Menu/CoopMenu.*` | "Co-op" tab of the menu (F1) |
+| `Mods/Mods.h` | **map of mods in the game**; `GameOps.cpp` (**one line per command** in `kOps`: when it can run and what it does), `ModSettings.cpp` (forced options and their restoration), `GameEvents.cpp` (`gev`, `stat`), `GameIdsCheck.cpp` (`static_assert` of `GameIds.inc`). Switch `gCoop.Mods` |
 
-### Cambios fuera de estas carpetas (buscar `[COOP]`)
+### Changes outside these folders (search for `[COOP]`)
 - `mm/include/tables/actor_table.h`: actor `En_CoopPuppet` (0x2B2).
-- `CMakeLists.txt`: `add_subdirectory(coop)`. `mm/CMakeLists.txt`: enlaza `coop_common`.
-- `mm/src/code/z_sram_NES.c`, `mm/src/overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope_NES.c`: sin archivo
-  (`fileNum` 0xFF) no se lee ni escribe la memoria de guardado.
-- `mm/src/code/z_parameter.c` + `GameInteractor_VanillaBehavior.h`: `VB_START_MOON_CRASH` (la luna solo cae cuando lo
-  dice el servidor).
-- `mm/src/code/z_message.c` + `GameInteractor_VanillaBehavior.h`: `VB_SONG_OF_DOUBLE_TIME_SET_TIME` (el "sí" de la
-  Canción de Doble Tiempo no cambia la hora local: la mueve el servidor para todos).
-- `mm/src/code/z_actor.c`, `z_collision_check.c`, `z_skelanime.c`, `z_en_item00.c`: ganchos de réplica (C/D3).
-- `mm/src/code/z_actor.c`, `z_play.c`, `z_kankyo.c`: el tiempo no se detiene en el mundo (`TimeNeverStops.cpp`).
-- Menú en vivo (`LiveMenu.cpp`, spec `2026-10-01-coop-menu-en-vivo-design.md`): `z_play.c` (`Play_UpdateMain`: mundo y
-  cámara con mando neutro, cierre forzado, pasos del menú; `Play_Update`: la libreta no para el mundo;
-  `Play_PostWorldDraw`: el menú se ejecuta desde `OVERLAY`; `Play_DrawMain`: mundo en directo, sin captura),
-  `z_kaleido_setup.c` y `z_message.c` (abrir sin cambiar ritmo ni silenciar), `z_kaleido_scope_call.c` (sin esperar
-  a las bandas negras; dibujar aunque el código "cargado" sea el de Link), `z_player.c` (ni etiquetas A/B ni
-  botones de objetos tras el menú) y las comprobaciones de pausa que paraban cosas del mundo, con
+- `CMakeLists.txt`: `add_subdirectory(coop)`. `mm/CMakeLists.txt`: links `coop_common`.
+- `mm/src/code/z_sram_NES.c`, `mm/src/overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope_NES.c`: without a file
+  (`fileNum` 0xFF) the save memory is neither read nor written.
+- `mm/src/code/z_parameter.c` + `GameInteractor_VanillaBehavior.h`: `VB_START_MOON_CRASH` (the moon only falls when
+  the server says so).
+- `mm/src/code/z_message.c` + `GameInteractor_VanillaBehavior.h`: `VB_SONG_OF_DOUBLE_TIME_SET_TIME` (the "yes" of the
+  Song of Double Time does not change the local time: the server moves it for everyone).
+- `mm/src/code/z_actor.c`, `z_collision_check.c`, `z_skelanime.c`, `z_en_item00.c`: replica hooks (C/D3).
+- `mm/src/code/z_actor.c`, `z_play.c`, `z_kankyo.c`: time does not stop in the world (`TimeNeverStops.cpp`).
+- Live menu (`LiveMenu.cpp`, spec `2026-10-01-coop-menu-en-vivo-design.md`): `z_play.c` (`Play_UpdateMain`: world and
+  camera with a neutral controller, forced close, menu steps; `Play_Update`: the notebook does not stop the world;
+  `Play_PostWorldDraw`: the menu runs from `OVERLAY`; `Play_DrawMain`: live world, no capture),
+  `z_kaleido_setup.c` and `z_message.c` (open without changing pace or silencing), `z_kaleido_scope_call.c` (without
+  waiting for the black bars; draw even if the "loaded" code is Link's), `z_player.c` (no A/B labels nor
+  item buttons after the menu) and the pause checks that stopped things in the world, with
   `COOP_WORLD_PAUSED` / `Coop_PauseLive`: `z_kankyo.c`, `z_parameter.c`, `z_lifemeter.c`, `z_map_exp.c`,
-  `z_bgcheck.c`, `ovl_En_Okarina_Effect`. `World/WorldSession.cpp` cierra ese menú cuando llega un mundo nuevo
+  `z_bgcheck.c`, `ovl_En_Okarina_Effect`. `World/WorldSession.cpp` closes that menu when a new world arrives
   (`Coop_LiveMenuClose`).
-- `mm/src/code/z_demo.c`: el final espera a los jugadores rezagados (`Coop_CutsceneHold`) y avisa del último plano
-  (`Coop_OnFinale`). `mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipStoppingMoonCutscene.cpp`: en el mundo la
-  Canción del Juramento la lleva `Features/Ending.cpp`.
-- `mm/src/overlays/actors/ovl_En_Horse/z_en_horse.c`: copias de Epona de otros jugadores.
-- `mm/src/overlays/actors/ovl_player_actor/z_player.c` (`func_808482E0`: `Coop_OnGetItem/End`, premios del grupo),
+- `mm/src/code/z_demo.c`: the ending waits for the stragglers (`Coop_CutsceneHold`) and announces the last shot
+  (`Coop_OnFinale`). `mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipStoppingMoonCutscene.cpp`: in the world the
+  Oath to Order is run by `Features/Ending.cpp`.
+- `mm/src/overlays/actors/ovl_En_Horse/z_en_horse.c`: other players' Epona copies.
+- `mm/src/overlays/actors/ovl_player_actor/z_player.c` (`func_808482E0`: `Coop_OnGetItem/End`, group prizes),
   `mm/src/code/z_parameter.c` (`Rupees_ChangeBy`: `Coop_OnRupeesChanged`), `mm/src/code/z_actor.c`
   (`TitleCard_InitBossName`: `Coop_OnBossTitleCard`; `Player_SetCsAction*`: `Coop_CsActionTarget`).
-- Límites de los grupos: `mm/src/code/z_effect_soft_sprite.c` (`EffectSs_Spawn`: `Coop_OnEffectSpawn`),
-  `mm/src/code/z_play.c` (`Coop_CollisionPass` alrededor de las colisiones del fotograma), `mm/src/code/z_message.c`
-  (`Message_Decode`: `Coop_OnMessageDecode` al empezar y al acabar), y `Coop_AddActorRegion` en el `Init` de
-  `ovl_Boss_01/02/03/07`, `ovl_En_Knight` (sus tablas de efectos) y `ovl_Obj_Takaraya_Wall` (el laberinto).
-- Mods: `mm/src/code/z_actor.c` (`Enemy_StartFinishingBlow`: `Coop_OnEnemyDefeated`, el evento `enemy_killed`).
+- Group limits: `mm/src/code/z_effect_soft_sprite.c` (`EffectSs_Spawn`: `Coop_OnEffectSpawn`),
+  `mm/src/code/z_play.c` (`Coop_CollisionPass` around the frame's collisions), `mm/src/code/z_message.c`
+  (`Message_Decode`: `Coop_OnMessageDecode` at the start and at the end), and `Coop_AddActorRegion` in the `Init` of
+  `ovl_Boss_01/02/03/07`, `ovl_En_Knight` (their effect tables) and `ovl_Obj_Takaraya_Wall` (the maze).
+- Mods: `mm/src/code/z_actor.c` (`Enemy_StartFinishingBlow`: `Coop_OnEnemyDefeated`, the `enemy_killed` event).
 
-`server.json`: `language` (`es`, `en`, `zh`, `ru`; ver «Idiomas»), `sharedEnemies`, `sharedProps` (objetos del
-escenario), `endingForAll` (Luna/Majora/final para todos), `groups` (grupos), `bossCutscenes` (cinemáticas de jefes
-para toda la escena) y `effects` (eco de efectos) se pueden poner a `false`; `inviteSeconds` (10..600, 60 por defecto)
-es lo que dura una invitación. También: `timeSpeed` (velocidad de los tres días, 0.1..10), `voteSeconds` (10..300),
-`saveSeconds` (2..600), `giftMax` (1..999), `commandPermissions` (`{"tp": "op"}`: quién usa cada comando),
-`gameSettings` (opciones de 2 Ship forzadas a todos) y `mods` (carpetas, listas y límites: `docs/mods/README.md`).
+`server.json`: `language` (`es`, `en`, `zh`, `ru`; see "Languages"), `sharedEnemies`, `sharedProps` (scenery
+objects), `endingForAll` (Moon/Majora/ending for everyone), `groups` (groups), `bossCutscenes` (boss cutscenes
+for the whole scene) and `effects` (effect echo) can be set to `false`; `inviteSeconds` (10..600, 60 by default)
+is how long an invitation lasts. Also: `timeSpeed` (speed of the three days, 0.1..10), `voteSeconds` (10..300),
+`saveSeconds` (2..600), `giftMax` (1..999), `commandPermissions` (`{"tp": "op"}`: who uses each command),
+`gameSettings` (2 Ship options forced on everyone) and `mods` (folders, lists and limits: `docs/mods/README.md`).
 
-## Recetas (lo que más se modifica)
+## Recipes (what gets modified most)
 
-**Comando nuevo** (sin recompilar el juego): crea `coop/server/Commands/MiComando.cpp`:
+**New command** (without recompiling the game): create `coop/server/Commands/MyCommand.cpp`:
 ```cpp
 #include "server/CommandRegistry.h"
 #include "server/Server.h"
@@ -202,204 +203,204 @@ static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
 COOP_COMMAND(hola, "hola", Msg::HolaUsage, Msg::HolaHelp, Perm::Player, 0, Run);
 }
 ```
-y las tres líneas de texto (`HolaUsage`, `HolaHelp`, `HolaReply`) en `common/I18nMessages.inc`.
-Recompila solo el servidor. `/help` lo mostrará solo. Otro nombre para el mismo comando: `COOP_ALIAS(id, "otro", "hola");`.
+and the three text lines (`HolaUsage`, `HolaHelp`, `HolaReply`) in `common/I18nMessages.inc`.
+Only the server is recompiled. `/help` will show it on its own. Another name for the same command: `COOP_ALIAS(id, "other", "hola");`.
 
-**Texto nuevo** (log, respuesta, motivo de rechazo...): una línea `X(MiTexto, "es", "en", "zh", "ru")` en
-`common/I18nMessages.inc` (`{0}`, `{1}`... son los argumentos) y `Tr(Msg::MiTexto, { a, b })` donde se use.
-El compilador rechaza una línea a la que le falte un idioma, y el test `EveryTextExistsInEveryLanguage...` comprueba
-que los cuatro usan los mismos `{n}`.
+**New text** (log, reply, rejection reason...): one line `X(MyText, "es", "en", "zh", "ru")` in
+`common/I18nMessages.inc` (`{0}`, `{1}`... are the arguments) and `Tr(Msg::MyText, { a, b })` where it is used.
+The compiler rejects a line that is missing a language, and the test `EveryTextExistsInEveryLanguage...` checks
+that all four use the same `{n}`.
 
-**Evento nuevo**: nombre en `Protocol.h` (`ev::kMiEvento`), handler en el servidor con
-`COOP_SERVER_EVENT(id, ev::kMiEvento, true, Fn)` y en el juego con `COOP_ON_EVENT(id, coop::ev::kMiEvento, Fn)`.
-Añade un test en `coop/tests/`.
+**New event**: name in `Protocol.h` (`ev::kMyEvent`), handler on the server with
+`COOP_SERVER_EVENT(id, ev::kMyEvent, true, Fn)` and in the game with `COOP_ON_EVENT(id, coop::ev::kMyEvent, Fn)`.
+Add a test in `coop/tests/`.
 
-**Campo nuevo en la pose**: añádelo a `PlayerState` y **al final** de `VisitFields` en `PlayerState.cpp`, súbelo en
-`PoseCapture.cpp` y aplícalo en `PuppetActor.cpp::ApplyState`. Sube `kProtocolVersion`.
+**New pose field**: add it to `PlayerState` and **at the end** of `VisitFields` in `PlayerState.cpp`, upload it in
+`PoseCapture.cpp` and apply it in `PuppetActor.cpp::ApplyState`. Raise `kProtocolVersion`.
 
-**Campo nuevo del mundo**: añádelo **al final** de `kFields` (`coop/common/WorldFields.h`) y de `kAccess`
-(`FieldTable.cpp`: memoria directa con `SAVE_BYTES` o funciones de lectura/escritura), sube `kProtocolVersion`; los
-`static_assert` avisan si no coinciden.
+**New world field**: add it **at the end** of `kFields` (`coop/common/WorldFields.h`) and of `kAccess`
+(`FieldTable.cpp`: direct memory with `SAVE_BYTES` or read/write functions), raise `kProtocolVersion`; the
+`static_assert`s warn if they do not match.
 
-**Dato nuevo del jugador**: una línea al final de `kPlayerFields` (`FieldTable.cpp`); el servidor lo guarda sin mirarlo.
+**New player datum**: one line at the end of `kPlayerFields` (`FieldTable.cpp`); the server saves it without looking at it.
 
-**Función nueva de la API de mods** (scripts y plugins a la vez): en el `server/Mods/Api/Api<espacio>.cpp` que toque,
-una función `json Fn(ApiCall& call)` (los argumentos con `call.Player(0)`, `call.Str(1, "text")`, `call.IntOr(...)`;
-un error con `call.Fail(Tr(...))`) y su línea
-`COOP_MOD_API(id, "espacio.nombre", "player, text?", "número", "Descripción en español.", Fn);`. Un test en
-`tests/TestMods*.cpp` y `2ship-coop-server --mod-docs coop/docs/mods` (el test `ModApiReferenceInTheRepositoryIsUpToDate`
-falla hasta que la referencia se regenere).
+**New mod API function** (scripts and plugins at once): in the relevant `server/Mods/Api/Api<namespace>.cpp`,
+a function `json Fn(ApiCall& call)` (arguments with `call.Player(0)`, `call.Str(1, "text")`, `call.IntOr(...)`;
+an error with `call.Fail(Tr(...))`) and its line
+`COOP_MOD_API(id, "namespace.name", "player, text?", "number", "Description in English.", Fn);`. A test in
+`tests/TestMods*.cpp` and `2ship-coop-server --mod-docs coop/docs/mods` (the test `ModApiReferenceInTheRepositoryIsUpToDate`
+fails until the reference is regenerated).
 
-**Evento nuevo para los mods**: una línea en `server/Mods/ModEvents.inc` (nombre, se cancela, descripción, campos con
-`*` los que se pueden cambiar) y donde ocurre
-`if (server.Mods().Wants(ModEvent::X)) { json e = {...}; server.Mods().Fire(ModEvent::X, e); }`. Regenerar la
-referencia.
+**New event for mods**: a line in `server/Mods/ModEvents.inc` (name, cancelable, description, fields with
+`*` for those that can be changed) and where it happens
+`if (server.Mods().Wants(ModEvent::X)) { json e = {...}; server.Mods().Fire(ModEvent::X, e); }`. Regenerate the
+reference.
 
-**Orden nueva para el juego** (`game.*`): la función en `server/Mods/Api/ApiGame.cpp` arma `{op: "nombre", ...}` y la
-manda con `Send(call, op)`; en el juego, una función y una línea en `kOps` de `mm/2s2h/Coop/Mods/GameOps.cpp` (con
-cuándo puede ejecutarse: `Needs::Gameplay`, `FreeLink`...). El juego vuelve a comprobar cada campo.
+**New command to the game** (`game.*`): the function in `server/Mods/Api/ApiGame.cpp` builds `{op: "name", ...}` and
+sends it with `Send(call, op)`; in the game, a function and a line in `kOps` of `mm/2s2h/Coop/Mods/GameOps.cpp` (with
+when it can run: `Needs::Gameplay`, `FreeLink`...). The game checks every field again.
 
-**Funcionalidad nueva en el juego**: un archivo en `mm/2s2h/Coop/Features/` que se registra solo con
-`static RegisterShipInitFunc init(MiFuncion);` (patrón de las Enhancements de 2Ship). Si añades archivos, vuelve a
-ejecutar la configuración de CMake del juego (los fuentes se recogen con glob).
+**New feature in the game**: a file in `mm/2s2h/Coop/Features/` that registers itself with
+`static RegisterShipInitFunc init(MyFunction);` (the pattern of 2Ship's Enhancements). If you add files, run the
+game's CMake configuration again (sources are collected with glob).
 
-## Idiomas (es / en / zh / ru)
+## Languages (es / en / zh / ru)
 
-El servidor habla **un** idioma por proceso: logs, `/help`, respuestas de comandos, avisos del mundo, motivos de
-rechazo y expulsión. Se elige de tres formas (la última gana):
-1. `server.json` → `"language": "en"` (`es` por defecto; también vale `zh`, `ru`).
-2. `2ship-coop-server.exe --lang zh` al arrancar.
-3. En marcha: `/lang en` (admins y consola), sin argumento muestra el actual. Se guarda en `server.json`.
+The server speaks **one** language per process: logs, `/help`, command replies, world notices, rejection and kick
+reasons. It is chosen in three ways (the last one wins):
+1. `server.json` → `"language": "en"` (`es` by default; `zh` and `ru` also work).
+2. `2ship-coop-server.exe --lang zh` at startup.
+3. While running: `/lang en` (admins and console); without an argument it shows the current one. It is saved to `server.json`.
 
-Los nombres de los comandos no cambian (se escriben en ASCII), salvo que los de mundo tienen también su nombre en inglés:
-`/tiempo`=`/clock`, `/si`=`/yes`, `/mundo`=`/world`, `/reiniciar`=`/restart`. `motd` vacío = bienvenida por defecto en
-el idioma del servidor; uno escrito a mano se envía tal cual. Los textos del juego (menú, ventana de chat) siguen en
-español. Añadir un idioma: `Lang` + `LangCode/LangName` en `I18n.cpp` y una columna más en cada `X(...)` del `.inc`.
+Command names do not change (they are written in ASCII), except that the world ones also have an English name:
+`/tiempo`=`/clock`, `/si`=`/yes`, `/mundo`=`/world`, `/reiniciar`=`/restart`. An empty `motd` = default welcome in
+the server's language; one written by hand is sent as is. The game's texts (menu, chat window) are still in
+Spanish. Adding a language: `Lang` + `LangCode/LangName` in `I18n.cpp` and one more column in each `X(...)` of the `.inc`.
 
-## Compilar
+## Building
 
 ```powershell
-# Juego + servidor + bot + tests (Windows, desde la raíz del repo)
+# Game + server + bot + tests (Windows, from the repo root)
 cmake -S . -B build/x64 -G "Visual Studio 17 2022" -T v143 -A x64 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build/x64 --config Release --parallel
-# Solo servidor/bot/tests (rápido, también en Linux)
+# Server/bot/tests only (fast, also on Linux)
 cmake -S coop -B build/coop -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build/coop --config Release --parallel
 build/coop/Release/coop-tests.exe          # 345 tests
 ```
 
-## Probar sin amigos
+## Testing without friends
 
 ```powershell
 2ship-coop-server.exe --port 7780
-2ship-coop-bot.exe --target TuNick --mode mirror        # te imita a tu lado (también: circle, front)
-2ship-coop-bot.exe --nick Regalador --cmd "/gift TuNick 20"
+2ship-coop-bot.exe --target YourNick --mode mirror      # mimics you at your side (also: circle, front)
+2ship-coop-bot.exe --nick Gifter --cmd "/gift YourNick 20"
 ```
-En Git Bash, los argumentos que empiezan por `/` se convierten en rutas: usa `MSYS_NO_PATHCONV=1`.
+In Git Bash, arguments starting with `/` are converted to paths: use `MSYS_NO_PATHCONV=1`.
 
-## Mundo compartido (B)
+## Shared world (B)
 
-- Archivos del servidor: `world.json` (campos en hex, reloj, ciclo, copia del inicio del ciclo; si está dañado se
-  aparta como `world.json.bad`) y `players/<nick>.json` (inventario propio, posición; un nick que es un dispositivo
-  de Windows, como `con` o `nul`, usa `con-.json`; al crear un mundo nuevo se renombran a `.old`). Se guardan cada
-  10 s y al parar.
-- Comandos: `/tiempo`, `/si`, `/no` (todos); `/settime <día 1-3> <hh:mm>`, `/mundo`, `/reiniciar` (admins y consola).
-- Eventos: `world_enter/world_leave/world_full/world_init/wops/inv/clock/clock_jump/clock_speed/sot_propose/`
-  `cycle_compute/cycle_result` (campos en `Protocol.h`). Los `wops` que cambian el mundo vuelven a todos, también
-  a quien los envió (bits y bytes; los contadores se corrigen aparte): así todos aplican los cambios de un byte en el
-  orden del servidor y acaban con el mismo valor.
-- En el juego: `fileNum = 0xFF` (jugar en el servidor **nunca** escribe en los archivos de guardado del jugador); CVars
-  forzadas mientras se juega en el servidor (la lista de `kForcedCVars` en `WorldSession.cpp`). Sus valores
-  anteriores se guardan en `gCoop.World.RestoreCVars` y vuelven al salir, o al arrancar si el juego se cerró dentro.
-- Límites: `wops` ≤ 30/s, `inv` ≤ 2/s, ≤ 6 KB y ≤ 8 niveles de anidación, `world_enter`/`world_leave` ≤ 1 cada
-  2 s (ráfaga 6); protocolo v2.
+- Server files: `world.json` (fields in hex, clock, cycle, copy of the cycle start; if damaged it is set aside as
+  `world.json.bad`) and `players/<nick>.json` (own inventory, position; a nick that is a Windows device, such as
+  `con` or `nul`, uses `con-.json`; when a new world is created they are renamed to `.old`). They are saved every
+  10 s and on stop.
+- Commands: `/tiempo`, `/si`, `/no` (everyone); `/settime <day 1-3> <hh:mm>`, `/mundo`, `/reiniciar` (admins and console).
+- Events: `world_enter/world_leave/world_full/world_init/wops/inv/clock/clock_jump/clock_speed/sot_propose/`
+  `cycle_compute/cycle_result` (fields in `Protocol.h`). The `wops` that change the world go back to everyone, also
+  to whoever sent them (bits and bytes; counters are corrected separately): this way everyone applies a byte's changes
+  in the server's order and ends up with the same value.
+- In the game: `fileNum = 0xFF` (playing on the server **never** writes to the player's save files); CVars
+  forced while playing on the server (the `kForcedCVars` list in `WorldSession.cpp`). Their previous values
+  are saved in `gCoop.World.RestoreCVars` and come back on leaving, or at startup if the game was closed inside.
+- Limits: `wops` ≤ 30/s, `inv` ≤ 2/s, ≤ 6 KB and ≤ 8 levels of nesting, `world_enter`/`world_leave` ≤ 1 per
+  2 s (burst 6); protocol v2.
 
-## Grupos, minijuegos y misiones
+## Groups, minigames and quests
 
-Specs: `docs/superpowers/specs/2026-09-30-coop-grupos-actividades-design.md` y
-`docs/superpowers/specs/2026-09-30-coop-grupos-limites-design.md` (el arreglo de sus límites; lo que queda: su §13).
-Estar en un grupo es aceptar compartir con los compañeros cercanos: minijuegos, premios, diálogos y cinemáticas. Sin
-grupo nada cambia, salvo lo que es de toda la escena: las cinemáticas, rótulos y diálogos de los jefes y el eco de
-efectos.
+Specs: `docs/superpowers/specs/2026-09-30-coop-grupos-actividades-design.md` and
+`docs/superpowers/specs/2026-09-30-coop-grupos-limites-design.md` (the fix of their limits; what remains: its §13).
+Being in a group means agreeing to share with nearby teammates: minigames, prizes, dialogues and cutscenes. Without a
+group nothing changes, except what belongs to the whole scene: boss cutscenes, titles and dialogues, and the
+effect echo.
 
-- **Comandos** (también en el menú Co-op → "Grupo e invitaciones" y en la ventana de invitación): `/invitar <nick>...`
-  o `/invitar todos` (`/invite`, `all`), `/aceptar [nick]` (`/accept`: viajas junto a quien invitó), `/rechazar [nick]`
-  (`/decline`; sin nick, todas), `/grupo` (`/group`), `/dejargrupo` (`/leavegroup`). Máximo 4 por grupo; la invitación
-  dura `inviteSeconds`. `/list` muestra "(en *actividad*)".
-- **Minijuegos**: el juego que lo corre (el *director*) se queda su NPC, manda su marcador (`act_hud`, 10 por segundo)
-  y lleva al grupo a sus entradas especiales (`follow`). Modos:
-  - **Juntos**: los invitados juegan la misma partida con el mismo marcador. Cuenta lo que hacen: sus golpes a los
-    blancos replicados (`hit`) y sus **contactos** (tocar un blanco, meter una bomba en una cesta: `hit` con
-    `oc: true`, que el director reproduce con su Link o con un explosivo igual; `HitSync.cpp`).
-  - **Cada uno**: cada juego corre su propia carrera con los mismos rivales; nadie saca a nadie de su carrera y todos
-    ven el **resultado** de cada uno (`act result`: "Ana gana la carrera goron (01:23.45)"). Los ganchos de cada
-    carrera (cómo arranca el invitado, cómo acabó) son `ActivityHooks` en `ActivityTable.cpp`.
-  - **Por turnos** (los de un jugador por diseño): uno juega y los demás ven su tiempo y sus puntos en una ventanita;
-    al acabar (`act end` con `score` y `cs`) el chat dice su resultado y al siguiente del grupo que esté en la escena
-    y no haya jugado en 10 minutos le sale "Te toca".
-- **Objetos del minijuego prestados al director** (`props` en `ActivityTable.cpp`): actores de la sala que el minijuego
-  usa (la plataforma de Honey y Darling, los aros de los castores, las plataformas y rupias del patio Deku, las
-  antorchas del pescador). Se replican siempre y, mientras el director corre el minijuego (o acaba de hablar con su
-  NPC), su juego los pide prestados todos (a cualquier distancia) y los simula: `ours: true` actúa con el Link del
-  director (maquinaria), `false` con el Link más cercano (blancos). El servidor permite 48 préstamos por jugador.
-  **No pongas como `prop`** un objeto cuyo estado es de cada jugador o cuyo código mueve al jugador local (la barca del
-  pantano: su crucero empieza al cargar la escena y lleva la cámara y el viaje de vuelta), ni uno de un minijuego que
-  el juego no sabe que corre (las puertas del mayordomo: sin reloj ni marcador nada los mantendría prestados), ni uno
-  que solo existe en una capa de escena del que juega (los globos de Romani).
-- **Premios** (`Rewards.cpp`): lo de cada jugador (rupias, munición, corazones, contenido de botellas) se copia a los
-  compañeros que estaban allí; lo compartido por el mundo (máscaras, piezas de corazón, mejoras) ya lo da B; las
-  compras nunca se copian.
-- **Diálogos** (`TalkSync.cpp`) y **cinemáticas** (`Cinema.cpp`): se ven en el juego de los compañeros cercanos (o de
-  toda la escena con los jefes y minijefes) al ritmo y con la cámara de quien los vive. El texto espejo muestra los
-  valores de **quien habla** (`MessageVars.cpp`); la cámara lleva el temblor y el desenfoque de movimiento (`blur`).
-- **Actores de cinemática** (`Dm_*`, `Demo_*`: modo Cinema en `ReplicationRules.cpp`): son de cada juego, pero mientras
-  miras la cinemática de otro los mueve su juego (manda su memoria solo mientras su cámara se comparte; el servidor
-  reenvía los actores de quien manda `cinema` aunque no sea dueño de la sala) y se crean los que hizo en marcha.
-- **Eco de efectos** (`EffectEcho.cpp`, stream `kStreamEffects`): las partículas (`EffectSs`) que crean nuestro Link,
-  los actores que simulamos, nuestros golpes o la cinemática que dirigimos se crean también en los demás juegos (los
-  de cinemática, solo en quien la mira; el resto, a menos de 3000 unidades). Las tablas de efectos de los jefes y el
-  laberinto de los cofres viajan con su actor: `Coop_AddActorRegion(actor, tabla, bytes)` desde su `Init`.
-- **Protocolo v12**: `act` gana `result` (`won`, `cs`) y el resultado de `end` (`score`, `cs`); `talk` gana `vars`;
-  `cinema` gana `blur`; `hit` gana `oc`; stream `kStreamEffects`. (v11: `group`, `invite`, `invite_end`, `act`,
-  `act_hud`, `act_reward`, `follow`, `talk`, `title`; `cinema` con `scope` y `roll`.) Límites en `common/Protocol.h`.
+- **Commands** (also in the Co-op menu → "Grupo e invitaciones" and in the invitation window): `/invitar <nick>...`
+  or `/invitar todos` (`/invite`, `all`), `/aceptar [nick]` (`/accept`: you travel next to whoever invited), `/rechazar [nick]`
+  (`/decline`; without a nick, all of them), `/grupo` (`/group`), `/dejargrupo` (`/leavegroup`). At most 4 per group; the
+  invitation lasts `inviteSeconds`. `/list` shows "(en *activity*)".
+- **Minigames**: the game that runs it (the *director*) keeps its NPC, sends its scoreboard (`act_hud`, 10 per second)
+  and takes the group to its special entrances (`follow`). Modes:
+  - **Together**: guests play the same game with the same scoreboard. What they do counts: their hits on the
+    replicated targets (`hit`) and their **contacts** (touching a target, putting a bomb in a basket: `hit` with
+    `oc: true`, which the director reproduces with their Link or with an equal explosive; `HitSync.cpp`).
+  - **Each**: every game runs its own race with the same rivals; nobody takes anyone out of their race and everyone
+    sees each one's **result** (`act result`: "Ana wins the Goron race (01:23.45)"). The hooks of each
+    race (how the guest starts, how it ended) are `ActivityHooks` in `ActivityTable.cpp`.
+  - **Turn-based** (those that are single-player by design): one plays and the others see their time and points in a small window;
+    at the end (`act end` with `score` and `cs`) the chat says their result and the next one in the group who is in
+    the scene and has not played in 10 minutes gets "Your turn".
+- **Minigame objects lent to the director** (`props` in `ActivityTable.cpp`): actors in the room that the minigame
+  uses (Honey and Darling's platform, the beavers' hoops, the Deku playground's platforms and rupees, the
+  fisherman's torches). They are always replicated and, while the director runs the minigame (or has just talked to
+  their NPC), their game borrows all of them (at any distance) and simulates them: `ours: true` acts with the
+  director's Link (machinery), `false` with the nearest Link (targets). The server allows 48 loans per player.
+  **Do not make a `prop`** of an object whose state is per player or whose code moves the local player (the swamp
+  boat: its cruise starts when the scene loads and carries the camera and the trip back), nor one from a minigame that
+  the game does not know is running (the butler's doors: without a clock or scoreboard nothing would keep them lent), nor
+  one that only exists in a scene layer of the one playing (Romani's balloons).
+- **Prizes** (`Rewards.cpp`): what is per player (rupees, ammo, hearts, bottle contents) is copied to the
+  teammates who were there; what the world shares (masks, heart pieces, upgrades) is already given by B;
+  purchases are never copied.
+- **Dialogues** (`TalkSync.cpp`) and **cutscenes** (`Cinema.cpp`): they are seen in the games of nearby teammates (or of
+  the whole scene with bosses and mini-bosses) at the pace and with the camera of whoever lives them. The mirrored text shows the
+  values of **the speaker** (`MessageVars.cpp`); the camera carries the shake and the motion blur (`blur`).
+- **Cutscene actors** (`Dm_*`, `Demo_*`: Cinema mode in `ReplicationRules.cpp`): they belong to each game, but while
+  you watch someone else's cutscene their game moves them (it sends its memory only while its camera is shared; the server
+  forwards the actors of whoever sends `cinema` even if they do not own the room) and the ones it made on the fly are created.
+- **Effect echo** (`EffectEcho.cpp`, stream `kStreamEffects`): the particles (`EffectSs`) created by our Link,
+  by the actors we simulate, by our hits or by the cutscene we direct are also created in the other games (those of a
+  cutscene, only for whoever watches it; the rest, within 3000 units). The bosses' effect tables and the
+  chest maze travel with their actor: `Coop_AddActorRegion(actor, table, bytes)` from their `Init`.
+- **Protocol v12**: `act` gains `result` (`won`, `cs`) and the result of `end` (`score`, `cs`); `talk` gains `vars`;
+  `cinema` gains `blur`; `hit` gains `oc`; stream `kStreamEffects`. (v11: `group`, `invite`, `invite_end`, `act`,
+  `act_hud`, `act_reward`, `follow`, `talk`, `title`; `cinema` with `scope` and `roll`.) Limits in `common/Protocol.h`.
 
-**Receta: minijuego nuevo = una línea en `Activities/ActivityTable.cpp`** (clave ASCII, nombre, escena, NPC, modo,
-entradas especiales, equipo, sitios, objetos prestados, ganchos). Misión nueva: una línea `K::Quest` con sus NPCs (da
-nombre a la invitación). **Efecto nuevo que debe verse en los demás**: una línea en `kInits` (`EffectEcho.cpp`).
-**Tabla de un actor fuera de su instancia**: `Coop_AddActorRegion` en su `Init`.
+**Recipe: new minigame = one line in `Activities/ActivityTable.cpp`** (ASCII key, name, scene, NPC, mode,
+special entrances, team, places, lent objects, hooks). New quest: a `K::Quest` line with its NPCs (it gives
+the invitation its name). **New effect that must be seen by the others**: one line in `kInits` (`EffectEcho.cpp`).
+**An actor's table outside its instance**: `Coop_AddActorRegion` in its `Init`.
 
-| Clave | Minijuego | Modo | Objetos prestados | Notas |
+| Key | Minigame | Mode | Lent objects | Notes |
 |---|---|---|---|---|
-| `galeria_ciudad`, `galeria_pantano` | galerías de tiro | Juntos | — | arco en B; blancos replicados |
-| `honey_darling` | Honey y Darling | Juntos | `BG_FU_KAITEN` (plataforma) | flechas, bombchus y bombas de todos cuentan; la plataforma gira para todos |
-| `casa_espiritus` | casa de los espíritus | Juntos | — | entrada `GHOST_HUT 1` |
-| `carrera_castores` | carrera de los castores | Juntos | `EN_TWIG` (aros) | los aros miran el Link más cercano |
-| `espadachin` | escuela de espadachín | Juntos | — | los troncos son hijos del NPC |
-| `patio_deku` | patio de los Deku | Juntos | `EN_GAMELUPY`, `OBJ_LUPYGAMELIFT` | las rupias se cogen por contacto |
-| `carrera_goron`, `carrera_gorman` | carreras | Cada uno | — | entradas especiales; resultados compartidos; el NPC solo queda fijo al hablar |
-| `cartero`, `cofres`, `carrera_perros`, `mayordomo_deku` | de un jugador | Por turnos | — | "Te toca" al siguiente |
-| `saltos_pescador` | saltos del pescador | Por turnos | `OBJ_JGAME_LIGHT` (antorchas) | |
-| `globos_romani` | tiro con Romani | Por turnos | — | se juega en una capa de escena propia (los demás no están en ella) |
-| `barca_koume` | tiro en barca de Koume | Por turnos | — | la barca es de cada juego (ver arriba) |
+| `galeria_ciudad`, `galeria_pantano` | shooting galleries | Together | — | bow in B; replicated targets |
+| `honey_darling` | Honey and Darling | Together | `BG_FU_KAITEN` (platform) | everyone's arrows, bombchus and bombs count; the platform spins for everyone |
+| `casa_espiritus` | spirit house | Together | — | entrance `GHOST_HUT 1` |
+| `carrera_castores` | beaver race | Together | `EN_TWIG` (hoops) | the hoops face the nearest Link |
+| `espadachin` | swordsman school | Together | — | the logs are children of the NPC |
+| `patio_deku` | Deku playground | Together | `EN_GAMELUPY`, `OBJ_LUPYGAMELIFT` | the rupees are picked up by contact |
+| `carrera_goron`, `carrera_gorman` | races | Each | — | special entrances; shared results; the NPC is only fixed while talking |
+| `cartero`, `cofres`, `carrera_perros`, `mayordomo_deku` | single-player | Turn-based | — | "Your turn" to the next one |
+| `saltos_pescador` | fisherman's jumps | Turn-based | `OBJ_JGAME_LIGHT` (torches) | |
+| `globos_romani` | Romani shooting | Turn-based | — | played in a scene layer of its own (the others are not in it) |
+| `barca_koume` | Koume's boat shooting | Turn-based | — | the boat belongs to each game (see above) |
 
-## Mods (scripts Lua y plugins DLL)
+## Mods (Lua scripts and DLL plugins)
 
-Spec `docs/superpowers/specs/2026-10-02-coop-mods-api-design.md`. Guía para quien escribe mods: `docs/mods/README.md`
-(con `API.md` generada del código, `IDS.md` y `PLUGINS.md`); ejemplo `mods/ejemplo.lua`.
+Spec `docs/superpowers/specs/2026-10-02-coop-mods-api-design.md`. Guide for mod authors: `docs/mods/README.md`
+(with `API.md` generated from the code, `IDS.md` and `PLUGINS.md`); example `mods/ejemplo.lua`.
 
-- **Servidor**: `Server` posee un `ModHost` (`server/Mods/`) que carga los scripts (`LuaMod`, Lua 5.4 compilado como
-  C++, solo en el servidor) y los plugins (`PluginMod`), les reparte los eventos de `ModEvents.inc` y les sirve las
-  funciones `COOP_MOD_API`. Todo en el hilo del servidor; un mod se descarga sin dejar nada (eventos, temporizadores,
-  comandos) y lo que se pide desde dentro de un manejador se aplaza al tick siguiente.
-- **Juego** (`mm/2s2h/Coop/Mods/`): ejecuta las órdenes (`mod`) solo en la partida del servidor y con `gCoop.Mods`;
-  cada una espera (10 s como mucho) a poder ejecutarse; las opciones forzadas (`mod_cfg`) guardan las del jugador y se
-  devuelven al salir (también si el juego se cerró dentro: `gCoop.World.ModRestoreCVars`); avisa al servidor de
-  objetos, muertes, jefes, enemigos derrotados y de su vida, magia y rupias.
-- **Protocolo v13**: `mod` (S→C, `ops: [{op, ...}]`: órdenes de los mods para ese juego — `notify`, `message`, `sfx`,
-  `item`, `take`, `rupees`, `heal`, `damage`, `kill`, `magic`, `spawn`, `warp`), `mod_cfg` (S→C, `settings`: todas las
-  opciones de 2 Ship que el servidor fuerza a ese juego), `gev` (C→S, `k`: `item` + `id`, `death`, `boss` + `actor`,
-  `kill` + `actor, params, by, room, pos`: lo que pasa en un juego, para los mods), `stat` (C→S, `hp, hpMax, mp,
-  rupees`, al cambiar y como mucho 4 por segundo); `clock` gana `ups` (unidades de reloj por segundo: `timeSpeed`).
-  Límites en `common/Protocol.h`; solo valen para quien juega en la partida del servidor.
+- **Server**: `Server` owns a `ModHost` (`server/Mods/`) that loads the scripts (`LuaMod`, Lua 5.4 compiled as
+  C++, server only) and the plugins (`PluginMod`), hands them the events of `ModEvents.inc` and serves them the
+  `COOP_MOD_API` functions. Everything on the server's thread; a mod unloads without leaving anything (events, timers,
+  commands) and what is requested from inside a handler is deferred to the next tick.
+- **Game** (`mm/2s2h/Coop/Mods/`): runs the commands (`mod`) only in the server's game and with `gCoop.Mods`;
+  each one waits (10 s at most) until it can run; the forced options (`mod_cfg`) save the player's own and give
+  them back on leaving (also if the game was closed inside: `gCoop.World.ModRestoreCVars`); it tells the server about
+  items, deaths, bosses, defeated enemies and its health, magic and rupees.
+- **Protocol v13**: `mod` (S→C, `ops: [{op, ...}]`: mod commands for that game — `notify`, `message`, `sfx`,
+  `item`, `take`, `rupees`, `heal`, `damage`, `kill`, `magic`, `spawn`, `warp`), `mod_cfg` (S→C, `settings`: all the
+  2 Ship options the server forces on that game), `gev` (C→S, `k`: `item` + `id`, `death`, `boss` + `actor`,
+  `kill` + `actor, params, by, room, pos`: what happens in a game, for the mods), `stat` (C→S, `hp, hpMax, mp,
+  rupees`, on change and at most 4 per second); `clock` gains `ups` (clock units per second: `timeSpeed`).
+  Limits in `common/Protocol.h`; they only apply to whoever plays in the server's game.
 
-## CVars del cliente (`2ship2harkinian.json` → `CVars.gCoop`)
-`Nick`, `Host`, `Port`, `Password`, `AutoConnect`, `AutoEnter` (entrar en el mundo del servidor al conectar),
-`ShowOwnNameTag`, `Chat.Scale`, `Chat.Opacity`, `Debug.BootToClockTown`, `Debug.BootEntrance` (entrada; 55296 =
-Ciudad Reloj Sur, 54784 = Norte), `Debug.GrantHeartOnEnter` (prueba: +1 contenedor al entrar, una vez por ejecución),
-`Debug.FieldSelfTest` (prueba: leer y reescribir todos los campos no debe cambiar nada). Grupo (1 = sí, por defecto):
-`Group.Dialogues`, `Group.Cutscenes`, `Group.Minigames`, `Group.Rewards`, `Group.CinemaActors` (seguir los actores de
-cinemática de quien miras), `Group.Turns` (aviso "Te toca") y `Effects` (eco de efectos: mandar y recibir).
-`LiveMenu` (1 por defecto): el menú de pausa no pausa nada; 0 = como antes (imagen fija, Link esperando).
-`Mods` (1 por defecto): el juego acepta las órdenes y opciones de los mods del servidor y les cuenta lo que pasa; 0 =
-los ignora. `World.ModRestoreCVars` (interno): las opciones del jugador que un servidor ha forzado, para devolverlas.
+## Client CVars (`2ship2harkinian.json` → `CVars.gCoop`)
+`Nick`, `Host`, `Port`, `Password`, `AutoConnect`, `AutoEnter` (enter the server's world on connecting),
+`ShowOwnNameTag`, `Chat.Scale`, `Chat.Opacity`, `Debug.BootToClockTown`, `Debug.BootEntrance` (entrance; 55296 =
+South Clock Town, 54784 = North), `Debug.GrantHeartOnEnter` (test: +1 container on entering, once per run),
+`Debug.FieldSelfTest` (test: reading and rewriting all the fields must not change anything). Group (1 = yes, the default):
+`Group.Dialogues`, `Group.Cutscenes`, `Group.Minigames`, `Group.Rewards`, `Group.CinemaActors` (follow the cutscene
+actors of whoever you watch), `Group.Turns` ("Your turn" notice) and `Effects` (effect echo: send and receive).
+`LiveMenu` (1 by default): the pause menu pauses nothing; 0 = as before (still image, Link waiting).
+`Mods` (1 by default): the game accepts the server mods' commands and options and tells them what happens; 0 =
+ignores them. `World.ModRestoreCVars` (internal): the player's options that a server has forced, to give them back.
 
-## Seguridad del servidor
-- Los paquetes malformados o desconocidos se registran (limpios, solo los 3 primeros) y a los 50 se expulsa al cliente.
-- Poses: ≤30/s por jugador (ráfaga 40); `loc`: ≤5/s (ráfaga 10; el último cambio siempre llega). ENet no reensambla
-  paquetes de más de 16 KB. Límites en `common/Protocol.h`.
-- Las poses con valores que el juego no puede dibujar se descartan en el servidor y otra vez en el cliente
-  (`SanitizePlayerState`, límites comprobados contra el motor con `static_assert` en `PoseCapture.cpp`).
+## Server security
+- Malformed or unknown packets are logged (cleaned, only the first 3) and at 50 the client is kicked.
+- Poses: ≤30/s per player (burst 40); `loc`: ≤5/s (burst 10; the last change always arrives). ENet does not reassemble
+  packets over 16 KB. Limits in `common/Protocol.h`.
+- Poses with values the game cannot draw are discarded on the server and again on the client
+  (`SanitizePlayerState`, limits checked against the engine with `static_assert` in `PoseCapture.cpp`).
 
-## Diagnóstico
-- Juego: líneas `[Coop]` en `logs/2 Ship 2 Harkinian.log` (envío de pose, marionetas creadas/eliminadas y por qué).
-- Servidor: `logs/server.log` y el comando `stats` (poses recibidas/reenviadas por jugador).
+## Diagnostics
+- Game: `[Coop]` lines in `logs/2 Ship 2 Harkinian.log` (pose sending, puppets created/removed and why).
+- Server: `logs/server.log` and the `stats` command (poses received/forwarded per player).

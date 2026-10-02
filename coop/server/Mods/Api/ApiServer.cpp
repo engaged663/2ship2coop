@@ -119,33 +119,33 @@ json ServerConfigSet(ApiCall& call) {
 
 } // namespace
 
-COOP_MOD_API(serverInfo, "server.info", "", "tabla",
-             "Datos del servidor: `protocol` (versión del protocolo), `language` (`es`, `en`, `zh`, `ru`), `port`, "
-             "`maxPlayers`, `players` (conectados ahora), `uptimeMs`, `timeSpeed` y `mods` (cuántos hay cargados).",
+COOP_MOD_API(serverInfo, "server.info", "", "table",
+             "Server data: `protocol` (protocol version), `language` (`es`, `en`, `zh`, `ru`), `port`, "
+             "`maxPlayers`, `players` (connected now), `uptimeMs`, `timeSpeed` and `mods` (how many are loaded).",
              ServerInfo);
-COOP_MOD_API(serverNow, "server.now", "", "número",
-             "Milisegundos desde que arrancó el servidor. Sirve para medir tiempos; no es la hora del día.",
+COOP_MOD_API(serverNow, "server.now", "", "number",
+             "Milliseconds since the server started. Useful to measure durations; it is not the time of day.",
              ServerNow);
-COOP_MOD_API(serverLog, "server.log", "text, level?", "nada",
-             "Escribe una línea en el registro del servidor (consola y `logs/server.log`) con el nombre del mod "
-             "delante. `level`: `info` (por defecto), `warn` o `error`.",
+COOP_MOD_API(serverLog, "server.log", "text, level?", "nothing",
+             "Writes a line in the server log (console and `logs/server.log`) with the mod's name in front. "
+             "`level`: `info` (default), `warn` or `error`.",
              ServerLog);
-COOP_MOD_API(serverExec, "server.exec", "line", "texto",
-             "Ejecuta un comando como si se escribiera en la consola del servidor (con todos los permisos), por "
-             "ejemplo `coop.server.exec(\"kick Ana molestar\")`. Devuelve lo que el comando respondió.",
+COOP_MOD_API(serverExec, "server.exec", "line", "text",
+             "Runs a command as if it were typed in the server console (with every permission), for example "
+             "`coop.server.exec(\"kick Ana spam\")`. Returns what the command answered.",
              ServerExec);
-COOP_MOD_API(serverConfig, "server.config", "key", "valor",
-             "Lee una opción de `server.json`: `port`, `language`, `maxPlayers`, `motd`, `sharedEnemies`, "
+COOP_MOD_API(serverConfig, "server.config", "key", "value",
+             "Reads an option of `server.json`: `port`, `language`, `maxPlayers`, `motd`, `sharedEnemies`, "
              "`sharedProps`, `endingForAll`, `groups`, `bossCutscenes`, `inviteSeconds`, `effects`, `timeSpeed`, "
-             "`voteSeconds`, `saveSeconds`, `giftMax`, `commandPermissions`, `gameSettings`. La contraseña no se "
-             "puede leer.",
+             "`voteSeconds`, `saveSeconds`, `giftMax`, `commandPermissions`, `gameSettings`. The password cannot "
+             "be read.",
              ServerConfigGet);
-COOP_MOD_API(serverSetConfig, "server.setConfig", "key, value", "nada",
-             "Cambia una opción con el servidor en marcha (no se guarda en `server.json`): `motd`, `password`, "
+COOP_MOD_API(serverSetConfig, "server.setConfig", "key, value", "nothing",
+             "Changes an option while the server is running (it is not saved to `server.json`): `motd`, `password`, "
              "`maxPlayers` (1-4), `inviteSeconds`, `bossCutscenes`, `effects`, `voteSeconds`, `saveSeconds`, "
-             "`giftMax` y `timeSpeed`.",
+             "`giftMax` and `timeSpeed`.",
              ServerConfigSet);
-COOP_MOD_API(serverStop, "server.stop", "reason?", "nada",
-             "Detiene el servidor de forma ordenada (avisa a los jugadores y guarda el mundo).", ServerStop);
+COOP_MOD_API(serverStop, "server.stop", "reason?", "nothing",
+             "Stops the server in an orderly way (warns the players and saves the world).", ServerStop);
 
 } // namespace coop::server

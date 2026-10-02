@@ -134,7 +134,7 @@ TEST_CASE(ExamplePluginLoads) {
     a->Cmd("/ping");
     auto reply = a->WaitFor("sys", s);
     CHECK(reply.has_value());
-    CHECK(std::string((*reply)["text"]).find("pong (1 jugadores") != std::string::npos);
+    CHECK(std::string((*reply)["text"]).find("pong (1 players") != std::string::npos);
 }
 
 TEST_CASE(ConfiguredPluginsLoadFromTheirFolder) {

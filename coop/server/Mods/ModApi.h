@@ -9,7 +9,7 @@
 //       call.server.SendSystem(&to, call.Str(1, "text"), call.Level(2));
 //       return nullptr;
 //   }
-//   COOP_MOD_API(chatTell, "chat.tell", "player, text, level?", "nada", "Envía una línea...", ChatTell);
+//   COOP_MOD_API(chatTell, "chat.tell", "player, text, level?", "nothing", "Sends a line...", ChatTell);
 #include "Mod.h"
 
 #include <stdexcept>
@@ -66,8 +66,8 @@ using ApiFn = json (*)(ApiCall& call);
 struct ApiDef {
     const char* name;      // "namespace.function"
     const char* signature; // "player, text, level?" ("?" = may be left out)
-    const char* returns;   // for the reference (Spanish)
-    const char* doc;       // for the reference (Spanish)
+    const char* returns;   // for the reference
+    const char* doc;       // for the reference
     ApiFn fn;
 };
 

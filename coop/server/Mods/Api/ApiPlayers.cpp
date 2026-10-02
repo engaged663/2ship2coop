@@ -198,38 +198,38 @@ json PlayersTeleport(ApiCall& call) {
 
 } // namespace
 
-COOP_MOD_API(playersList, "players.list", "", "lista", "Los ids de los jugadores conectados.", PlayersList);
-COOP_MOD_API(playersCount, "players.count", "", "número", "Cuántos jugadores hay conectados.", PlayersCount);
-COOP_MOD_API(playersGet, "players.get", "player", "tabla o nil",
-             "Los datos de un jugador (por id o por nick), o `nil` si no está conectado: `id`, `nick`, `ip`, `op`, "
-             "`scene`, `sceneKey`, `sceneName`, `room`, `entrance`, `x`, `y`, `z`, `rot`, `inWorld` (juega en la "
-             "partida del servidor), `busy` (en una cinemática), `group` (0: sin grupo), `activity` (clave del "
-             "minijuego), `form` (0 Deidad Fiera, 1 Goron, 2 Zora, 3 Deku, 4 humano), `mask`, `connectedMs` y, cuando "
-             "su juego los ha comunicado, `health`, `maxHealth`, `magic` y `rupees`.",
+COOP_MOD_API(playersList, "players.list", "", "list", "The ids of the connected players.", PlayersList);
+COOP_MOD_API(playersCount, "players.count", "", "number", "How many players are connected.", PlayersCount);
+COOP_MOD_API(playersGet, "players.get", "player", "table or nil",
+             "A player's data (by id or nick), or `nil` if they are not connected: `id`, `nick`, `ip`, `op`, "
+             "`scene`, `sceneKey`, `sceneName`, `room`, `entrance`, `x`, `y`, `z`, `rot`, `inWorld` (playing in the "
+             "server's game), `busy` (in a cutscene), `group` (0: no group), `activity` (minigame key), "
+             "`form` (0 Fierce Deity, 1 Goron, 2 Zora, 3 Deku, 4 human), `mask`, `connectedMs` and, once their game "
+             "has reported them, `health`, `maxHealth`, `magic` and `rupees`.",
              PlayersGet);
-COOP_MOD_API(playersFind, "players.find", "nick", "número o nil",
-             "El id del jugador con ese nick (sin distinguir mayúsculas), o `nil`.", PlayersFind);
-COOP_MOD_API(playersInScene, "players.inScene", "scene", "lista",
-             "Los ids de los jugadores que están en esa escena (su id o su nombre, como `\"SOUTH_CLOCK_TOWN\"`).",
+COOP_MOD_API(playersFind, "players.find", "nick", "number or nil",
+             "The id of the player with that nick (case-insensitive), or `nil`.", PlayersFind);
+COOP_MOD_API(playersInScene, "players.inScene", "scene", "list",
+             "The ids of the players who are in that scene (its id or its name, such as `\"SOUTH_CLOCK_TOWN\"`).",
              PlayersInScene);
-COOP_MOD_API(playersInWorld, "players.inWorld", "", "lista",
-             "Los ids de los jugadores que están jugando en la partida del servidor.", PlayersInWorld);
-COOP_MOD_API(playersNear, "players.near", "player, radius", "lista",
-             "Los ids de los otros jugadores de su misma escena que están a `radius` unidades o menos (un Link mide "
-             "unas 60 de alto).",
+COOP_MOD_API(playersInWorld, "players.inWorld", "", "list",
+             "The ids of the players who are playing in the server's game.", PlayersInWorld);
+COOP_MOD_API(playersNear, "players.near", "player, radius", "list",
+             "The ids of the other players in the same scene who are within `radius` units (Link is about 60 tall).",
              PlayersNear);
-COOP_MOD_API(playersKick, "players.kick", "player, reason?", "nada", "Expulsa a un jugador del servidor.", PlayersKick);
-COOP_MOD_API(playersBan, "players.ban", "player, reason?", "nada",
-             "Banea el nick y la IP de un jugador conectado y lo expulsa (como `/ban`).", PlayersBan);
-COOP_MOD_API(playersIsOp, "players.isOp", "player", "booleano", "Si ese jugador es administrador.", PlayersIsOp);
-COOP_MOD_API(playersSetOp, "players.setOp", "player, op", "nada",
-             "Da (`true`) o quita (`false`) los permisos de administrador a un jugador conectado. Quedan ligados a "
-             "su nick y a la IP que tiene ahora.",
+COOP_MOD_API(playersKick, "players.kick", "player, reason?", "nothing", "Kicks a player from the server.",
+             PlayersKick);
+COOP_MOD_API(playersBan, "players.ban", "player, reason?", "nothing",
+             "Bans the nick and IP of a connected player and kicks them (like `/ban`).", PlayersBan);
+COOP_MOD_API(playersIsOp, "players.isOp", "player", "boolean", "Whether that player is an admin.", PlayersIsOp);
+COOP_MOD_API(playersSetOp, "players.setOp", "player, op", "nothing",
+             "Grants (`true`) or removes (`false`) admin permissions for a connected player. They are tied to "
+             "their nick and to the IP they have now.",
              PlayersSetOp);
-COOP_MOD_API(playersTeleport, "players.teleport", "player, dest", "nada",
-             "Lleva a un jugador junto a otro (`dest` = id o nick, como `/tp`) o a un punto exacto: `dest` = "
-             "`{ scene = \"SOUTH_CLOCK_TOWN\", x = 0, y = 0, z = 0, room = 0, rot = 0 }` (`scene` por nombre o id; "
-             "también vale `entrance` en su lugar). Si Link está en un diálogo o una cinemática, su juego no lo mueve.",
+COOP_MOD_API(playersTeleport, "players.teleport", "player, dest", "nothing",
+             "Takes a player next to another one (`dest` = id or nick, like `/tp`) or to an exact point: `dest` = "
+             "`{ scene = \"SOUTH_CLOCK_TOWN\", x = 0, y = 0, z = 0, room = 0, rot = 0 }` (`scene` by name or id; "
+             "`entrance` also works instead). If Link is in a dialogue or a cutscene, their game does not move them.",
              PlayersTeleport);
 
 } // namespace coop::server

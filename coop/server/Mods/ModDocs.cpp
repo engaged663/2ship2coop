@@ -28,31 +28,30 @@ struct CallbackApi {
 };
 
 const CallbackApi kCallbackApis[] = {
-    { "on", "event, fn", "número",
-      "Escucha un evento: uno de la lista de abajo o uno propio entre mods (con `:` en el nombre). `fn(e)` recibe la "
-      "tabla del evento; en uno que se puede cancelar, `return false` (o `e.cancel = true`) lo cancela, y asignar un "
-      "campo que se puede cambiar (`e.text = \"...\"`) lo cambia. Devuelve el id de la suscripción. Un nombre sin `:` "
-      "que no está en la lista es un error (así no pasa desapercibido uno mal escrito)." },
-    { "off", "id", "booleano", "Deja de escuchar: el id que devolvió `coop.on`." },
-    { "emit", "name, payload?", "tabla, booleano",
-      "Lanza un evento propio para otros mods (el nombre lleva `:`, como `\"economia:pago\"`) con la tabla `payload`. "
-      "Devuelve la tabla tal como la dejaron sus manejadores (pueden cambiar cualquier campo) y si alguno lo canceló. "
-      "Los plugins pueden escuchar estos eventos, pero solo los scripts los lanzan." },
-    { "timer.after", "ms, fn", "número",
-      "Llama a `fn()` una vez, dentro de `ms` milisegundos (como poco 10; como mucho 30 días). Devuelve el id del "
-      "temporizador." },
-    { "timer.every", "ms, fn", "número",
-      "Llama a `fn()` cada `ms` milisegundos (como poco 10) hasta que se cancele o se descargue el mod. Devuelve su "
+    { "on", "event, fn", "number",
+      "Listens to an event: one from the list below or a custom one between mods (with `:` in the name). `fn(e)` "
+      "receives the event table; in a cancelable one, `return false` (or `e.cancel = true`) cancels it, and "
+      "assigning a writable field (`e.text = \"...\"`) changes it. Returns the subscription id. A name without `:` "
+      "that is not in the list is an error (so a misspelled one does not go unnoticed)." },
+    { "off", "id", "boolean", "Stops listening: the id that `coop.on` returned." },
+    { "emit", "name, payload?", "table, boolean",
+      "Fires a custom event for other mods (the name contains `:`, like `\"economy:payment\"`) with the `payload` "
+      "table. Returns the table as its handlers left it (they may change any field) and whether any of them "
+      "cancelled it. Plugins can listen to these events, but only scripts fire them." },
+    { "timer.after", "ms, fn", "number",
+      "Calls `fn()` once, `ms` milliseconds from now (at least 10; at most 30 days). Returns the timer id." },
+    { "timer.every", "ms, fn", "number",
+      "Calls `fn()` every `ms` milliseconds (at least 10) until it is cancelled or the mod is unloaded. Returns its "
       "id." },
-    { "timer.cancel", "id", "booleano", "Cancela un temporizador de este mod." },
-    { "commands.register", "name, opts?, fn", "nada",
-      "Crea el comando `/name`. `opts` = `{ usage = \"/name <x>\", help = \"...\", perm = \"player\" | \"op\" | "
-      "\"console\", minArgs = 0, aliases = { \"otro\" } }` (todo opcional; `perm` dice quién puede usarlo y "
-      "`commandPermissions` de `server.json` puede cambiarlo). `fn(ctx, args)` recibe quién lo escribe (`ctx.player`, "
-      "que falta si es la consola; `ctx.nick`, `ctx.isConsole`, `ctx.isOp`) y sus argumentos (textos); lo que "
-      "devuelve es la respuesta: un texto y, si quieres, su nivel (`\"ok\"`, `\"warn\"`, `\"error\"`). `/help` lo "
-      "muestra con su ayuda. Un nombre que ya existe es un error." },
-    { "commands.unregister", "name", "booleano", "Quita un comando de este mod." },
+    { "timer.cancel", "id", "boolean", "Cancels a timer of this mod." },
+    { "commands.register", "name, opts?, fn", "nothing",
+      "Creates the command `/name`. `opts` = `{ usage = \"/name <x>\", help = \"...\", perm = \"player\" | \"op\" | "
+      "\"console\", minArgs = 0, aliases = { \"other\" } }` (all optional; `perm` says who can use it and "
+      "`commandPermissions` in `server.json` can change it). `fn(ctx, args)` receives who typed it (`ctx.player`, "
+      "missing if it is the console; `ctx.nick`, `ctx.isConsole`, `ctx.isOp`) and its arguments (strings); what it "
+      "returns is the reply: a text and, optionally, its level (`\"ok\"`, `\"warn\"`, `\"error\"`). `/help` shows "
+      "it with its help. A name that already exists is an error." },
+    { "commands.unregister", "name", "boolean", "Removes a command of this mod." },
 };
 
 // Where each namespace goes in the reference; one that is not here goes after these, by name.
@@ -74,28 +73,28 @@ size_t NamespaceRank(const std::string& space) {
 void Function(std::string& md, const std::string& name, const std::string& signature, const std::string& returns,
               const std::string& doc) {
     md += "#### `coop." + name + "(" + signature + ")`\n\n";
-    md += "Devuelve: " + returns + "\n\n";
+    md += "Returns: " + returns + "\n\n";
     md += doc + "\n\n";
 }
 
 void Functions(std::string& md) {
-    md += "## Funciones\n\n";
-    md += "En un script se llaman `coop.<espacio>.<función>(...)`; en un plugin, `api.Call(\"<espacio>.<función>\", "
-          "{ ... })` con los mismos argumentos en una lista. Un argumento con `?` se puede omitir (o pasar `nil`). Si "
-          "uno está mal, la función lanza un error que empieza por su nombre (en Lua, con el archivo y la línea; "
-          "`pcall` lo atrapa).\n\n";
-    md += "Argumentos que se repiten:\n\n";
-    md += "- **player**: un jugador conectado, por su id (número) o su nick.\n";
-    md += "- **target**: un jugador, una lista de jugadores o `\"*\"` (todos). Las órdenes al juego (`game.*`) solo "
-          "llegan a los que juegan en la partida del servidor y devuelven a cuántos llegaron.\n";
-    md += "- **item**, **actor**, **scene**: un id del juego o su nombre de [IDS.md](IDS.md) (`\"MASK_BUNNY\"`, "
+    md += "## Functions\n\n";
+    md += "In a script they are called `coop.<namespace>.<function>(...)`; in a plugin, "
+          "`api.Call(\"<namespace>.<function>\", { ... })` with the same arguments in a list. An argument with `?` "
+          "can be omitted (or passed as `nil`). If one is wrong, the function raises an error that starts with its "
+          "name (in Lua, with the file and line; `pcall` catches it).\n\n";
+    md += "Arguments that repeat:\n\n";
+    md += "- **player**: a connected player, by id (number) or nick.\n";
+    md += "- **target**: a player, a list of players or `\"*\"` (everyone). Commands to the game (`game.*`) only "
+          "reach those playing in the server's game and return how many they reached.\n";
+    md += "- **item**, **actor**, **scene**: a game id or its name from [IDS.md](IDS.md) (`\"MASK_BUNNY\"`, "
           "`\"EN_DODONGO\"`, `\"SOUTH_CLOCK_TOWN\"`).\n";
-    md += "- **level**: `\"info\"` (si se omite), `\"ok\"`, `\"warn\"` o `\"error\"`: el color de la línea en el "
+    md += "- **level**: `\"info\"` (if omitted), `\"ok\"`, `\"warn\"` or `\"error\"`: the color of the line in the "
           "chat.\n\n";
 
-    md += "### Funciones que reciben funciones\n\n";
-    md += "Las da cada motor: en un plugin son métodos de `coop::Plugin` (`On`, `Off`, `After`, `Every`, "
-          "`CancelTimer`, `Command`; mira [PLUGINS.md](PLUGINS.md)).\n\n";
+    md += "### Functions that take functions\n\n";
+    md += "Each engine provides them: in a plugin they are methods of `coop::Plugin` (`On`, `Off`, `After`, "
+          "`Every`, `CancelTimer`, `Command`; see [PLUGINS.md](PLUGINS.md)).\n\n";
     for (const CallbackApi& api : kCallbackApis) {
         Function(md, api.name, api.signature, api.returns, api.doc);
     }
@@ -117,24 +116,24 @@ void Functions(std::string& md) {
 }
 
 void Events(std::string& md) {
-    md += "## Eventos\n\n";
-    md += "Un script escucha un evento con `coop.on(\"nombre\", function(e) ... end)` y un plugin con "
-          "`api.On(\"nombre\", ...)`. El manejador recibe los campos del evento (`e.nick`, `e.player`...); `player` es "
-          "el id del jugador y vale para las funciones mientras siga conectado. En los eventos que se pueden cancelar, "
-          "`return false` (o `e.cancel = true`) impide lo que anuncian, y los campos que se pueden cambiar se cambian "
-          "asignándolos. Los manejadores se llaman en el orden en que se suscribieron; si uno cancela, los siguientes "
-          "no lo reciben.\n\n";
+    md += "## Events\n\n";
+    md += "A script listens to an event with `coop.on(\"name\", function(e) ... end)` and a plugin with "
+          "`api.On(\"name\", ...)`. The handler receives the event's fields (`e.nick`, `e.player`...); `player` is "
+          "the player's id and is valid for the functions as long as they stay connected. In cancelable events, "
+          "`return false` (or `e.cancel = true`) prevents what they announce, and writable fields are changed by "
+          "assigning them. Handlers are called in the order they subscribed; if one cancels, the following ones do "
+          "not receive it.\n\n";
     for (const ModEventDef& ev : ModEventDefs()) {
-        md += "### `" + std::string(ev.name) + "`" + (ev.cancelable ? " (se puede cancelar)" : "") + "\n\n";
+        md += "### `" + std::string(ev.name) + "`" + (ev.cancelable ? " (cancelable)" : "") + "\n\n";
         md += std::string(ev.doc) + "\n\n";
         if (ev.fields.empty()) {
-            md += "Sin campos.\n\n";
+            md += "No fields.\n\n";
             continue;
         }
-        md += "| Campo | Tipo | Se puede cambiar | Qué es |\n";
+        md += "| Field | Type | Writable | What it is |\n";
         md += "|---|---|---|---|\n";
         for (const ModFieldDef& f : ev.fields) {
-            md += "| `" + f.name + "` | " + f.type + " | " + (f.writable ? "sí" : "") + " | " + f.doc + " |\n";
+            md += "| `" + f.name + "` | " + f.type + " | " + (f.writable ? "yes" : "") + " | " + f.doc + " |\n";
         }
         md += "\n";
     }
@@ -154,12 +153,12 @@ void IdTable(std::string& md, ids::Kind kind, const char* title) {
     }
     std::sort(rows.begin(), rows.end());
     md += std::string("## ") + title + "\n\n";
-    md += "| Nombre | Id | Descripción |\n";
+    md += "| Name | Id | Description |\n";
     md += "|---|---|---|\n";
     for (const auto& [id, name] : rows) {
         std::string about = ids::TitleOf(kind, id);
         if (kind == ids::Kind::Item && !mods::ItemGivable(id)) {
-            about = "no se puede dar ni quitar";
+            about = "cannot be given or taken";
         }
         md += "| `" + name + "` | " + Hex(id) + " (" + std::to_string(id) + ") | " + about + " |\n";
     }
@@ -179,26 +178,26 @@ bool WriteFile(const std::filesystem::path& path, const std::string& text, std::
 } // namespace
 
 std::string ModApiMarkdown() {
-    std::string md = "# Referencia de la API de mods\n\n";
-    md += "> Generada por `2ship-coop-server --mod-docs <carpeta>` a partir del código. No la edites a mano.\n\n";
-    md += "Guía para empezar: [README.md](README.md). Nombres de objetos, actores y escenas: [IDS.md](IDS.md). "
-          "Plugins DLL: [PLUGINS.md](PLUGINS.md).\n\n";
+    std::string md = "# Mod API reference\n\n";
+    md += "> Generated by `2ship-coop-server --mod-docs <folder>` from the code. Do not edit by hand.\n\n";
+    md += "Getting started guide: [README.md](README.md). Item, actor and scene names: [IDS.md](IDS.md). "
+          "DLL plugins: [PLUGINS.md](PLUGINS.md).\n\n";
     Functions(md);
     Events(md);
     return md;
 }
 
 std::string ModIdsMarkdown() {
-    std::string md = "# Nombres del juego: objetos, actores y escenas\n\n";
-    md += "> Generada por `2ship-coop-server --mod-docs <carpeta>` a partir de `coop/common/GameIds.inc`. No la "
-          "edites a mano.\n\n";
-    md += "Las funciones `game.*` aceptan el nombre (sin distinguir mayúsculas, con o sin el prefijo del juego: "
-          "`ITEM_`, `ACTOR_`, `SCENE_`) o el número. `coop.game.ids(\"item\")` (o `\"actor\"`, `\"scene\"`) da la "
-          "tabla entera y `coop.game.idOf` / `coop.game.nameOf` traducen de uno a otro. Los sonidos no tienen nombre: "
-          "son los `NA_SE_*` de `mm/include/sfx.h`.\n\n";
-    IdTable(md, ids::Kind::Item, "Objetos");
-    IdTable(md, ids::Kind::Actor, "Actores");
-    IdTable(md, ids::Kind::Scene, "Escenas");
+    std::string md = "# Game names: items, actors and scenes\n\n";
+    md += "> Generated by `2ship-coop-server --mod-docs <folder>` from `coop/common/GameIds.inc`. Do not edit by "
+          "hand.\n\n";
+    md += "The `game.*` functions accept the name (case-insensitive, with or without the game prefix: "
+          "`ITEM_`, `ACTOR_`, `SCENE_`) or the number. `coop.game.ids(\"item\")` (or `\"actor\"`, `\"scene\"`) "
+          "returns the whole table and `coop.game.idOf` / `coop.game.nameOf` convert from one to the other. Sounds "
+          "have no name: they are the `NA_SE_*` in `mm/include/sfx.h`.\n\n";
+    IdTable(md, ids::Kind::Item, "Items");
+    IdTable(md, ids::Kind::Actor, "Actors");
+    IdTable(md, ids::Kind::Scene, "Scenes");
     return md;
 }
 

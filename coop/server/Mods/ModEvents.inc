@@ -1,73 +1,73 @@
 // The events a mod can listen to: X(Id, "name", cancelable, "what happened", "field:type[*] what it is|...").
 // Types: int, number, string, bool, list, table. A handler may change the fields marked with * (and only those).
-// The texts are the Spanish reference: coop/docs/mods/API.md is generated from this table (ModDocs.cpp), so no
+// The texts are the English reference: coop/docs/mods/API.md is generated from this table (ModDocs.cpp), so no
 // description may contain the character |.
-X(ServerStart, "server_start", false, "El servidor ha arrancado y los mods configurados están cargados.", "")
-X(ServerStop, "server_stop", false, "El servidor va a detenerse.", "reason:string Motivo de la parada")
+X(ServerStart, "server_start", false, "The server has started and the configured mods are loaded.", "")
+X(ServerStop, "server_stop", false, "The server is about to stop.", "reason:string Why it is stopping")
 X(PlayerConnect, "player_connect", true,
-  "Un jugador ha pasado las comprobaciones del servidor (versión, nick, baneos, contraseña) y va a entrar. "
-  "Cancelarlo lo rechaza con `reason`.",
-  "nick:string Nick con el que entra|ip:string Su dirección IP|reason:string* Motivo que verá si se cancela")
-X(PlayerJoin, "player_join", false, "Un jugador ha entrado en el servidor.",
-  "player:int Id del jugador|nick:string Su nick|ip:string Su dirección IP")
-X(PlayerLeave, "player_leave", false, "Un jugador se ha desconectado. Su id todavía vale dentro del manejador.",
-  "player:int Id del jugador|nick:string Su nick|reason:string Motivo (desconectado, expulsado...)")
-X(PlayerScene, "player_scene", false, "Un jugador ha cambiado de escena o de sala.",
-  "player:int Id del jugador|nick:string Su nick|scene:int Id de la escena|sceneKey:string Clave de la escena "
-  "(`SOUTH_CLOCK_TOWN`...; vacía si no se conoce)|sceneName:string Nombre que muestra el juego|room:int Sala|"
-  "entrance:int Entrada por la que llegó|prevScene:int Escena anterior (-1: ninguna)|prevRoom:int Sala anterior")
+  "A player has passed the server's checks (version, nick, bans, password) and is about to enter. "
+  "Cancelling it rejects them with `reason`.",
+  "nick:string Nick they enter with|ip:string Their IP address|reason:string* Reason they will see if it is cancelled")
+X(PlayerJoin, "player_join", false, "A player has entered the server.",
+  "player:int Player id|nick:string Their nick|ip:string Their IP address")
+X(PlayerLeave, "player_leave", false, "A player has disconnected. Their id is still valid inside the handler.",
+  "player:int Player id|nick:string Their nick|reason:string Reason (disconnected, kicked...)")
+X(PlayerScene, "player_scene", false, "A player has changed scene or room.",
+  "player:int Player id|nick:string Their nick|scene:int Scene id|sceneKey:string Scene key "
+  "(`SOUTH_CLOCK_TOWN`...; empty if unknown)|sceneName:string Name the game shows|room:int Room|"
+  "entrance:int Entrance they arrived through|prevScene:int Previous scene (-1: none)|prevRoom:int Previous room")
 X(PlayerStats, "player_stats", false,
-  "La vida, la magia o las rupias de un jugador han cambiado (como mucho 4 avisos por segundo y jugador).",
-  "player:int Id del jugador|nick:string Su nick|health:int Vida (16 = un corazón)|maxHealth:int Vida máxima|"
-  "magic:int Magia (48 = barra normal, 96 = doble)|rupees:int Rupias|prevHealth:int Vida anterior|"
-  "prevMagic:int Magia anterior|prevRupees:int Rupias anteriores")
-X(PlayerDeath, "player_death", false, "Un jugador se ha quedado sin vida (aunque un hada lo reviva después).",
-  "player:int Id del jugador|nick:string Su nick|scene:int Escena en la que estaba")
+  "A player's health, magic or rupees have changed (at most 4 notices per second and player).",
+  "player:int Player id|nick:string Their nick|health:int Health (16 = one heart)|maxHealth:int Maximum health|"
+  "magic:int Magic (48 = normal bar, 96 = double)|rupees:int Rupees|prevHealth:int Previous health|"
+  "prevMagic:int Previous magic|prevRupees:int Previous rupees")
+X(PlayerDeath, "player_death", false, "A player has run out of health (even if a fairy revives them afterwards).",
+  "player:int Player id|nick:string Their nick|scene:int Scene they were in")
 X(PlayerItem, "player_item", false,
-  "El juego ha dado un objeto a un jugador (también munición, corazones y rupias recogidas).",
-  "player:int Id del jugador|nick:string Su nick|item:int Id del objeto|itemKey:string Su nombre "
-  "(`MASK_BUNNY`...; vacío si no se conoce)")
+  "The game has given an item to a player (also ammo, hearts and picked-up rupees).",
+  "player:int Player id|nick:string Their nick|item:int Item id|itemKey:string Its name "
+  "(`MASK_BUNNY`...; empty if unknown)")
 X(EnemyKilled, "enemy_killed", false,
-  "Un enemigo ha recibido el golpe final. `player` es quien lo dio (o el juego que lo simulaba si no se sabe).",
-  "player:int Id del jugador|nick:string Su nick|actor:int Id del actor|actorKey:string Su nombre "
-  "(`EN_DODONGO`...)|params:int Parámetros del actor|scene:int Escena|room:int Sala|x:number Posición|"
-  "y:number Posición|z:number Posición")
-X(BossDefeated, "boss_defeated", false, "Un jefe ha sido derrotado en el juego de ese jugador.",
-  "player:int Id del jugador|nick:string Su nick|actor:int Id del actor del jefe|actorKey:string Su nombre|"
-  "scene:int Escena")
-X(Chat, "chat", true, "Un jugador escribe en el chat. Cancelarlo impide que el mensaje se envíe.",
-  "player:int Id del jugador|nick:string Su nick|text:string* El mensaje")
+  "An enemy has taken the final blow. `player` is who dealt it (or the game that simulated it if unknown).",
+  "player:int Player id|nick:string Their nick|actor:int Actor id|actorKey:string Its name "
+  "(`EN_DODONGO`...)|params:int Actor parameters|scene:int Scene|room:int Room|x:number Position|"
+  "y:number Position|z:number Position")
+X(BossDefeated, "boss_defeated", false, "A boss has been defeated in that player's game.",
+  "player:int Player id|nick:string Their nick|actor:int Boss actor id|actorKey:string Its name|"
+  "scene:int Scene")
+X(Chat, "chat", true, "A player writes in the chat. Cancelling it stops the message from being sent.",
+  "player:int Player id|nick:string Their nick|text:string* The message")
 X(Command, "command", true,
-  "Alguien va a ejecutar un comando (ya con permiso y argumentos suficientes). Cancelarlo impide que se ejecute.",
-  "player:int Id del jugador (0: la consola)|nick:string Su nick|name:string Comando, sin la barra|"
-  "args:list Argumentos|line:string La línea completa")
-X(WorldEnter, "world_enter", false, "Un jugador ha entrado en la partida del servidor.",
-  "player:int Id del jugador|nick:string Su nick")
-X(WorldLeave, "world_leave", false, "Un jugador ha salido de la partida del servidor.",
-  "player:int Id del jugador|nick:string Su nick")
-X(WorldCreated, "world_created", false, "Se ha creado el mundo del servidor (lo creó el juego de ese jugador).",
-  "player:int Id del jugador|nick:string Su nick")
+  "Someone is about to run a command (already with permission and enough arguments). Cancelling it stops it from running.",
+  "player:int Player id (0: the console)|nick:string Their nick|name:string Command, without the slash|"
+  "args:list Arguments|line:string The full line")
+X(WorldEnter, "world_enter", false, "A player has entered the server's game.",
+  "player:int Player id|nick:string Their nick")
+X(WorldLeave, "world_leave", false, "A player has left the server's game.",
+  "player:int Player id|nick:string Their nick")
+X(WorldCreated, "world_created", false, "The server's world has been created (by that player's game).",
+  "player:int Player id|nick:string Their nick")
 X(WorldChange, "world_change", false,
-  "El mundo compartido ha cambiado (ya aplicado). Las listas son las de `wops`: bits `[campo, byte, pone, quita]`, "
-  "bytes `[campo, byte, valor]`, adds `[campo, byte, cuánto]`.",
-  "player:int Id de quien lo cambió (0: el servidor o un mod)|bits:list Cambios de bits|bytes:list Cambios de bytes|"
-  "adds:list Cambios de contadores")
-X(WorldHour, "world_hour", false, "El reloj del mundo ha pasado a otra hora del juego.",
-  "day:int Día (1-3)|hour:int Hora (0-23)|night:bool Es de noche (18:00-5:59)|abs:int Reloj absoluto (0 = día 1, "
-  "6:00)|jump:bool El reloj saltó (canción, comando, ciclo nuevo) en vez de avanzar")
+  "The shared world has changed (already applied). The lists are those of `wops`: bits `[field, byte, set, clear]`, "
+  "bytes `[field, byte, value]`, adds `[field, byte, amount]`.",
+  "player:int Id of who changed it (0: the server or a mod)|bits:list Bit changes|bytes:list Byte changes|"
+  "adds:list Counter changes")
+X(WorldHour, "world_hour", false, "The world clock has moved to another game hour.",
+  "day:int Day (1-3)|hour:int Hour (0-23)|night:bool It is night (18:00-5:59)|abs:int Absolute clock (0 = day 1, "
+  "6:00)|jump:bool The clock jumped (song, command, new cycle) instead of advancing")
 X(VoteStart, "vote_start", true,
-  "Un jugador propone volver al Amanecer del Primer Día (Canción del Tiempo). Cancelarlo impide la votación.",
-  "player:int Id del jugador|nick:string Su nick")
-X(VoteEnd, "vote_end", false, "La votación de la Canción del Tiempo ha terminado.", "passed:bool Ha salido adelante")
-X(CycleReset, "cycle_reset", false, "Ha empezado un ciclo nuevo de tres días.",
-  "cycle:int Número del ciclo nuevo|reason:string `sot` (votación), `moon` (cayó la luna), `restart` (comando) o "
-  "`ending` (final del juego)")
-X(MoonCrash, "moon_crash", false, "El reloj ha llegado al final del tercer día: la luna cae.",
-  "cycle:int Ciclo que termina")
-X(GroupChange, "group_change", false, "Un grupo ha cambiado de miembros o se ha deshecho (sin miembros).",
-  "group:int Id del grupo|leader:int Id del líder (0: deshecho)|members:list Ids de sus miembros")
-X(Activity, "activity", false, "Un jugador empieza o termina un minijuego, o comunica su resultado.",
-  "player:int Id del jugador|nick:string Su nick|state:string `start`, `end` o `result`|key:string Clave del "
-  "minijuego|name:string Su nombre|score:int Puntos (al terminar)|cs:int Tiempo en centésimas|won:bool Ganó "
-  "(solo en `result`)")
-X(ModUnload, "mod_unload", false, "Este mod va a descargarse (solo lo recibe él).", "")
+  "A player proposes going back to Dawn of the First Day (Song of Time). Cancelling it stops the vote.",
+  "player:int Player id|nick:string Their nick")
+X(VoteEnd, "vote_end", false, "The Song of Time vote has ended.", "passed:bool It passed")
+X(CycleReset, "cycle_reset", false, "A new three-day cycle has started.",
+  "cycle:int Number of the new cycle|reason:string `sot` (vote), `moon` (the moon fell), `restart` (command) or "
+  "`ending` (end of the game)")
+X(MoonCrash, "moon_crash", false, "The clock has reached the end of the third day: the moon falls.",
+  "cycle:int Cycle that ends")
+X(GroupChange, "group_change", false, "A group has changed members or has been disbanded (no members).",
+  "group:int Group id|leader:int Leader id (0: disbanded)|members:list Ids of its members")
+X(Activity, "activity", false, "A player starts or ends a minigame, or reports its result.",
+  "player:int Player id|nick:string Their nick|state:string `start`, `end` or `result`|key:string Minigame "
+  "key|name:string Its name|score:int Points (at the end)|cs:int Time in hundredths of a second|won:bool Won "
+  "(only in `result`)")
+X(ModUnload, "mod_unload", false, "This mod is about to be unloaded (only it receives this).", "")

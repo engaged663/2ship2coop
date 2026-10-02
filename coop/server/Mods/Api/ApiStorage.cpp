@@ -37,19 +37,19 @@ json StorageSave(ApiCall& call) {
 
 } // namespace
 
-COOP_MOD_API(storageGet, "storage.get", "key, default?", "valor",
-             "Lo que este mod guardó con esa clave, o `default` si no hay nada. Los datos de cada mod son suyos: "
-             "otro mod no los ve.",
+COOP_MOD_API(storageGet, "storage.get", "key, default?", "value",
+             "What this mod saved under that key, or `default` if there is nothing. Each mod's data is its own: "
+             "another mod does not see it.",
              StorageGet);
-COOP_MOD_API(storageSet, "storage.set", "key, value", "nada",
-             "Guarda un valor (número, texto, booleano o tabla) que seguirá ahí cuando el servidor se reinicie. "
-             "`nil` lo borra. Se escribe en `<dataDir>/<mod>.json` como mucho cada 2 segundos y al parar.",
+COOP_MOD_API(storageSet, "storage.set", "key, value", "nothing",
+             "Saves a value (number, text, boolean or table) that will still be there when the server restarts. "
+             "`nil` deletes it. It is written to `<dataDir>/<mod>.json` at most every 2 seconds and on stop.",
              StorageSet);
-COOP_MOD_API(storageRemove, "storage.remove", "key", "booleano", "Borra una clave. Devuelve si existía.",
+COOP_MOD_API(storageRemove, "storage.remove", "key", "boolean", "Deletes a key. Returns whether it existed.",
              StorageRemove);
-COOP_MOD_API(storageKeys, "storage.keys", "", "lista", "Las claves que este mod tiene guardadas, en orden alfabético.",
+COOP_MOD_API(storageKeys, "storage.keys", "", "list", "The keys this mod has saved, in alphabetical order.",
              StorageKeys);
-COOP_MOD_API(storageSave, "storage.save", "", "nada",
-             "Escribe ahora mismo los datos en el disco (normalmente no hace falta).", StorageSave);
+COOP_MOD_API(storageSave, "storage.save", "", "nothing",
+             "Writes the data to disk right now (normally not needed).", StorageSave);
 
 } // namespace coop::server

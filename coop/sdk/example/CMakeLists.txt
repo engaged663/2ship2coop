@@ -1,17 +1,17 @@
-# Compila el plugin de ejemplo por su cuenta, con la carpeta del SDK que acompaña al servidor:
-#   sdk/coop_plugin.h  sdk/coop_plugin.hpp  sdk/nlohmann/json.hpp  sdk/example/ (esta carpeta)
+# Builds the example plugin on its own, with the SDK folder that comes with the server:
+#   sdk/coop_plugin.h  sdk/coop_plugin.hpp  sdk/nlohmann/json.hpp  sdk/example/ (this folder)
 #
 #   cmake -S example -B build
 #   cmake --build build --config Release        -> build/Release/ejemplo-plugin.dll
 #
-# Para tu propio plugin: copia esta carpeta, cambia el nombre y los .cpp, y deja la ruta a los .hpp del SDK.
+# For your own plugin: copy this folder, change the name and the .cpp files, and keep the path to the SDK's .hpp.
 cmake_minimum_required(VERSION 3.16)
 project(ejemplo_plugin LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# El mismo runtime estático que el servidor: la DLL no necesita instalar nada más en la máquina del servidor.
+# The same static runtime as the server: the DLL needs nothing else installed on the server's machine.
 if (MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     add_compile_options(/utf-8)
