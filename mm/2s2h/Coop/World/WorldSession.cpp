@@ -25,6 +25,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #include <chrono>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -559,6 +560,20 @@ void WorldSession_SetEndingCVars(bool ending) {
         ShipInit::Init(c.name);
     }
     sEndingSavedCVars.clear();
+}
+
+bool WorldSession_IsForcedCVar(const char* name) {
+    for (const ForcedCVar& c : kForcedCVars) {
+        if (std::strcmp(c.name, name) == 0) {
+            return true;
+        }
+    }
+    for (const ForcedCVar& c : kEndingCVars) {
+        if (std::strcmp(c.name, name) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void WorldSession_FrameStart() {

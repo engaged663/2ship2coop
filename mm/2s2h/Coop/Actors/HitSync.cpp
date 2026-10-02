@@ -25,6 +25,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <chrono>
 #include <cmath>
 #include <deque>
 
@@ -66,6 +67,12 @@ ColliderElement sFakeAtElement;
 
 bool InWorld() {
     return WorldSession_Active() && gPlayState != nullptr;
+}
+
+int64_t NowMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
 }
 
 // Element i of a collider (JntSph: its i-th sphere; the other shapes have one). nullptr if out of range.
@@ -286,6 +293,8 @@ void HitSync_InjectPending(TrackedActor& t) {
             attacker = &GET_PLAYER(gPlayState)->actor; // its puppet is not here (yet): the hit still counts
         }
         InjectHit(col, elem, attacker, h.dmgFlags, h.effect, h.damage, h.hitEffect, { h.pos[0], h.pos[1], h.pos[2] });
+        t.lastHitFrom = h.from; // if this blow kills it, the mods hear it was theirs (Mods/GameEvents.cpp)
+        t.lastHitMs = NowMs();
         SPDLOG_INFO("[Coop] Player {} hit enemy {} of room {}: damage {} -> health {}", (int)h.from, t.key,
                     (int)t.room, h.damage, (int)t.actor->colChkInfo.health);
     }

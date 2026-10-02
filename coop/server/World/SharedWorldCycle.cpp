@@ -2,6 +2,7 @@
 // computed by one game (cycle_compute -> cycle_result, the original end-of-cycle code), the moon and /settime.
 #include "SharedWorld.h"
 
+#include "server/Mods/ModHost.h"
 #include "server/Server.h"
 
 #include "common/Clock.h"
@@ -66,6 +67,12 @@ void SharedWorld::ProposeSot(RemoteClient& c) {
         mServer.SendSystem(&c, Tr(Msg::VoteAlready), level::kWarn);
         return;
     }
+    if (mServer.Mods().Wants(ModEvent::VoteStart)) { // a mod may refuse the Song of Time
+        json e = { { "player", c.id }, { "nick", c.nick } };
+        if (!mServer.Mods().Fire(ModEvent::VoteStart, e)) {
+            return;
+        }
+    }
     int64_t now = Now();
     mVote.Start(c.peer, now, mServer.Config().voteTimeoutMs);
     if (InWorld().size() > 1) {
@@ -98,16 +105,21 @@ void SharedWorld::EvaluateVote() {
     }
     uint32_t proposer = mVote.Proposer();
     mVote.Cancel();
+    if (mServer.Mods().Wants(ModEvent::VoteEnd)) {
+        json e = { { "passed", result == SotVote::Result::Passed } };
+        mServer.Mods().Fire(ModEvent::VoteEnd, e);
+    }
     if (result == SotVote::Result::Failed) {
         Announce(Tr(Msg::VoteFailed), level::kWarn, nullptr);
         return;
     }
     RemoteClient* p = mServer.Players().ByPeer(proposer);
-    BeginReset(p != nullptr ? p->nick : Tr(Msg::VoteSourceWord), proposer);
+    BeginReset(p != nullptr ? p->nick : Tr(Msg::VoteSourceWord), proposer, "sot");
 }
 
-void SharedWorld::BeginReset(const std::string& by, uint32_t preferredPeer) {
+void SharedWorld::BeginReset(const std::string& by, uint32_t preferredPeer, const char* reason) {
     mResetting = true;
+    mResetReason = reason;
     mTried.clear();
     UpdateClock(); // stops while resetting
     Announce(Tr(Msg::ResetBy, { by }), level::kOk, nullptr);
@@ -177,12 +189,20 @@ void SharedWorld::CycleResult(RemoteClient& c, const json& ev) {
         mServer.SendEvent(*p, FullEvent(*p, "sot"));
     }
     mServer.Log().Info(Tr(Msg::CycleStarted, { std::to_string(mStore.Cycle()) }));
+    if (mServer.Mods().Wants(ModEvent::CycleReset)) {
+        json e = { { "cycle", mStore.Cycle() }, { "reason", mResetReason } };
+        mServer.Mods().Fire(ModEvent::CycleReset, e);
+    }
     EnterWaiting();
 }
 
 void SharedWorld::MoonFalls() {
     int64_t now = Now();
     int oldCycle = mStore.Cycle();
+    if (mServer.Mods().Wants(ModEvent::MoonCrash)) {
+        json e = { { "cycle", oldCycle } };
+        mServer.Mods().Fire(ModEvent::MoonCrash, e);
+    }
     mVote.Cancel();
     mStore.RestoreCycleStart(oldCycle + 1);
     mPlayers.RestoreCycleStart(oldCycle, oldCycle + 1);
@@ -192,6 +212,10 @@ void SharedWorld::MoonFalls() {
     Announce(Tr(Msg::MoonFell), level::kWarn, nullptr);
     for (RemoteClient* p : Receivers()) {
         mServer.SendEvent(*p, FullEvent(*p, "moon"));
+    }
+    if (mServer.Mods().Wants(ModEvent::CycleReset)) {
+        json e = { { "cycle", mStore.Cycle() }, { "reason", "moon" } };
+        mServer.Mods().Fire(ModEvent::CycleReset, e);
     }
 }
 
@@ -208,7 +232,7 @@ void SharedWorld::FinishGame(RemoteClient& by) {
         return;
     }
     mVote.Cancel();
-    BeginReset(Tr(Msg::FinishBy, { by.nick }), by.peer);
+    BeginReset(Tr(Msg::FinishBy, { by.nick }), by.peer, "ending");
 }
 
 bool SharedWorld::SetTime(uint32_t abs, const std::string& by, std::string* err) {
@@ -236,15 +260,18 @@ bool SharedWorld::SetClockStopped(bool stopped, const std::string& by, std::stri
         *err = Tr(Msg::ResetWait);
         return false;
     }
-    bool was = !mClock.Running();
-    if (stopped == was) {
+    if (stopped == mFrozen) {
         *err = Tr(stopped ? Msg::ClockAlreadyStopped : Msg::ClockAlreadyRunning);
         return false;
     }
-    mClock.SetRunning(!stopped, Now());
+    mFrozen = stopped; // remembered: nobody coming or going starts it again (UpdateClock)
     mDirty = true;
     Announce(Tr(stopped ? Msg::ClockStopped : Msg::ClockResumed, { by }), level::kInfo, nullptr);
-    SendClock(nullptr, false);
+    bool wasRunning = mClock.Running();
+    UpdateClock();
+    if (wasRunning == mClock.Running()) {
+        SendClock(nullptr, false); // UpdateClock only tells when the clock starts or stops
+    }
     return true;
 }
 
@@ -262,7 +289,7 @@ bool SharedWorld::Restart(const std::string& by, std::string* err) {
         return false;
     }
     mVote.Cancel();
-    BeginReset(by, 0);
+    BeginReset(by, 0, "restart");
     return true;
 }
 

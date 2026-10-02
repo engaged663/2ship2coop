@@ -1,5 +1,6 @@
 #include "Groups.h"
 
+#include "Mods/ModHost.h"
 #include "Server.h"
 
 #include <algorithm>
@@ -64,6 +65,18 @@ json Groups_Event(Server& server, const Group* g) {
 
 void Groups_Publish(Server& server, const GroupChanges& ch, uint8_t cause) {
     GroupBook& book = server.Groups();
+    if (server.Mods().Wants(ModEvent::GroupChange)) {
+        for (uint32_t id : ch.groups) {
+            if (const Group* g = book.Find(id)) {
+                json e = { { "group", g->id }, { "leader", g->Leader() }, { "members", g->members } };
+                server.Mods().Fire(ModEvent::GroupChange, e);
+            }
+        }
+        for (uint32_t id : ch.dissolved) {
+            json e = { { "group", id }, { "leader", 0 }, { "members", json::array() } };
+            server.Mods().Fire(ModEvent::GroupChange, e);
+        }
+    }
     for (uint32_t id : ch.groups) {
         const Group* g = book.Find(id);
         if (g == nullptr) {

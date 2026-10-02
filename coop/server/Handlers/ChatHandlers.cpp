@@ -1,5 +1,6 @@
 // Public chat ("chat") and slash commands typed in the game ("cmd").
 #include "server/CommandRegistry.h"
+#include "server/Mods/ModHost.h"
 #include "server/Registry.h"
 #include "server/Server.h"
 
@@ -16,6 +17,16 @@ void OnChat(Server& server, RemoteClient& client, const json& ev) {
     std::string text = SanitizeChat(GetString(ev, "text"), kChatMaxChars);
     if (text.empty()) {
         return;
+    }
+    if (server.Mods().Wants(ModEvent::Chat)) { // a mod may change the line or keep it from being sent
+        json e = { { "player", client.id }, { "nick", client.nick }, { "text", text } };
+        if (!server.Mods().Fire(ModEvent::Chat, e)) {
+            return;
+        }
+        text = SanitizeChat(GetString(e, "text"), kChatMaxChars);
+        if (text.empty()) {
+            return;
+        }
     }
     json out = MakeEvent(ev::kChat);
     out["from"] = client.nick;

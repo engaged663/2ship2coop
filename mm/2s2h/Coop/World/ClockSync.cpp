@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 
 extern "C" {
 #include "functions.h"
@@ -39,6 +40,8 @@ bool sHave = false;
 uint32_t sAbs = 0;
 bool sInverted = false;
 bool sStopped = true;
+double sUps = clock::kUnitsPerSecond; // how fast the server's clock runs: units a second (its "ups": the speed of the
+                                      // world, server.json timeSpeed, and the Inverted Song of Time together)
 int64_t sAtMs = 0;
 int64_t sSpeedAllowedAtMs = 0;
 int64_t sDayWrongSinceMs = 0;
@@ -55,13 +58,16 @@ uint32_t ServerAbs() {
         return sAbs;
     }
     int64_t elapsed = std::clamp<int64_t>(NowMs() - sAtMs, 0, clock::kMaxExtrapolationMs);
-    return (uint32_t)std::min<int64_t>(sAbs + elapsed * clock::UnitsPerSecond(sInverted) / 1000, clock::kMoonAbs);
+    return (uint32_t)std::min<int64_t>(sAbs + (int64_t)((double)elapsed * sUps / 1000.0), clock::kMoonAbs);
 }
 
 void Store(const json& serverClock) {
     sAbs = (uint32_t)std::clamp<int64_t>(GetInt(serverClock, "abs", 0), 0, clock::kMoonAbs);
     sInverted = GetBool(serverClock, "inv");
     sStopped = GetBool(serverClock, "stopped", true);
+    double ups = GetNumber(serverClock, "ups", -1.0);
+    bool valid = std::isfinite(ups) && ups >= 0.0 && ups <= clock::kUnitsPerSecond * kMaxTimeSpeed;
+    sUps = valid ? ups : clock::UnitsPerSecond(sInverted);
     sAtMs = NowMs();
     sHave = true;
 }

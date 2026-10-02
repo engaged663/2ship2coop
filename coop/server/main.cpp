@@ -1,9 +1,12 @@
 // 2ship-coop-server: dedicated co-op server for 2 Ship 2 Harkinian.
 // Files live in the working directory: server.json (settings), bans.json, ops.json, world.json + players/
-// (the shared world, see World/SharedWorld.h) and logs/server.log.
-// Usage: 2ship-coop-server [--port N] [--lang es|en|zh|ru]
+// (the shared world, see World/SharedWorld.h), logs/server.log and the mods' folders (mods/, plugins/: see
+// coop/docs/mods/README.md).
+// Usage: 2ship-coop-server [--port N] [--lang es|en|zh|ru] [--mods-dir D] [--plugins-dir D] [--script F]...
+//                          [--plugin F]... [--no-mods] [--mod-docs D]   (ServerConfig.h: ApplyCommandLine)
 #include "server/AccessLists.h"
 #include "server/Logger.h"
+#include "server/Mods/ModDocs.h"
 #include "server/Server.h"
 #include "server/ServerConfig.h"
 
@@ -23,7 +26,6 @@
 #endif
 
 using namespace coop::server;
-using coop::ParseInt;
 
 namespace {
 
@@ -65,6 +67,22 @@ int main(int argc, char** argv) {
     std::signal(SIGTERM, OnSignal);
 #endif
 
+    // --mod-docs <dir>: write the mod reference (API.md, IDS.md) and exit, without server.json, logs or the port.
+    {
+        ServerConfig scratch;
+        CommandLine line;
+        ApplyCommandLine(scratch, argc, argv, &line);
+        if (!line.modDocsDir.empty()) {
+            std::string why;
+            if (!WriteModDocs(line.modDocsDir, &why)) {
+                std::cerr << coop::Tr(coop::Msg::ModDocsFailed, { line.modDocsDir, why }) << std::endl;
+                return 1;
+            }
+            std::cout << coop::Tr(coop::Msg::ModDocsWritten, { line.modDocsDir }) << std::endl;
+            return 0;
+        }
+    }
+
     std::error_code ec;
     std::filesystem::create_directories("logs", ec);
     Logger log("logs/server.log", true);
@@ -78,23 +96,10 @@ int main(int argc, char** argv) {
     if (!err.empty()) {
         log.Warn(err);
     }
-    for (int i = 1; i + 1 < argc; i++) {
-        if (std::string(argv[i]) == "--port") {
-            int port = 0;
-            if (ParseInt(argv[i + 1], port) && port > 0 && port <= 65535) {
-                config.port = (uint16_t)port;
-            } else {
-                log.Warn(coop::Tr(coop::Msg::BadPortArg, { argv[i + 1] }));
-            }
-        } else if (std::string(argv[i]) == "--lang") {
-            coop::Lang lang;
-            if (coop::ParseLang(argv[i + 1], lang)) {
-                config.language = lang;
-                coop::SetLang(lang);
-            } else {
-                log.Warn(coop::Tr(coop::Msg::BadLangArg, { argv[i + 1] }));
-            }
-        }
+    CommandLine commandLine;
+    err = ApplyCommandLine(config, argc, argv, &commandLine);
+    if (!err.empty()) {
+        log.Warn(err);
     }
 
     AccessLists access("bans.json", "ops.json");

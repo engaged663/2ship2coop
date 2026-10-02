@@ -1,0 +1,878 @@
+# Nombres del juego: objetos, actores y escenas
+
+> Generada por `2ship-coop-server --mod-docs <carpeta>` a partir de `coop/common/GameIds.inc`. No la edites a mano.
+
+Las funciones `game.*` aceptan el nombre (sin distinguir mayúsculas, con o sin el prefijo del juego: `ITEM_`, `ACTOR_`, `SCENE_`) o el número. `coop.game.ids("item")` (o `"actor"`, `"scene"`) da la tabla entera y `coop.game.idOf` / `coop.game.nameOf` traducen de uno a otro. Los sonidos no tienen nombre: son los `NA_SE_*` de `mm/include/sfx.h`.
+
+## Objetos
+
+| Nombre | Id | Descripción |
+|---|---|---|
+| `OCARINA_OF_TIME` | 0x00 (0) |  |
+| `BOW` | 0x01 (1) |  |
+| `ARROW_FIRE` | 0x02 (2) |  |
+| `ARROW_ICE` | 0x03 (3) |  |
+| `ARROW_LIGHT` | 0x04 (4) |  |
+| `OCARINA_FAIRY` | 0x05 (5) |  |
+| `BOMB` | 0x06 (6) |  |
+| `BOMBCHU` | 0x07 (7) |  |
+| `DEKU_STICK` | 0x08 (8) |  |
+| `DEKU_NUT` | 0x09 (9) |  |
+| `MAGIC_BEANS` | 0x0A (10) |  |
+| `SLINGSHOT` | 0x0B (11) |  |
+| `POWDER_KEG` | 0x0C (12) |  |
+| `PICTOGRAPH_BOX` | 0x0D (13) |  |
+| `LENS_OF_TRUTH` | 0x0E (14) |  |
+| `HOOKSHOT` | 0x0F (15) |  |
+| `SWORD_GREAT_FAIRY` | 0x10 (16) |  |
+| `LONGSHOT` | 0x11 (17) |  |
+| `BOTTLE` | 0x12 (18) |  |
+| `POTION_RED` | 0x13 (19) |  |
+| `POTION_GREEN` | 0x14 (20) |  |
+| `POTION_BLUE` | 0x15 (21) |  |
+| `FAIRY` | 0x16 (22) |  |
+| `DEKU_PRINCESS` | 0x17 (23) |  |
+| `MILK_BOTTLE` | 0x18 (24) |  |
+| `MILK_HALF` | 0x19 (25) |  |
+| `FISH` | 0x1A (26) |  |
+| `BUG` | 0x1B (27) |  |
+| `BLUE_FIRE` | 0x1C (28) |  |
+| `POE` | 0x1D (29) |  |
+| `BIG_POE` | 0x1E (30) |  |
+| `SPRING_WATER` | 0x1F (31) |  |
+| `HOT_SPRING_WATER` | 0x20 (32) |  |
+| `ZORA_EGG` | 0x21 (33) |  |
+| `GOLD_DUST` | 0x22 (34) |  |
+| `MUSHROOM` | 0x23 (35) |  |
+| `SEAHORSE` | 0x24 (36) |  |
+| `CHATEAU` | 0x25 (37) |  |
+| `HYLIAN_LOACH` | 0x26 (38) |  |
+| `OBABA_DRINK` | 0x27 (39) |  |
+| `MOONS_TEAR` | 0x28 (40) |  |
+| `DEED_LAND` | 0x29 (41) |  |
+| `DEED_SWAMP` | 0x2A (42) |  |
+| `DEED_MOUNTAIN` | 0x2B (43) |  |
+| `DEED_OCEAN` | 0x2C (44) |  |
+| `ROOM_KEY` | 0x2D (45) |  |
+| `LETTER_MAMA` | 0x2E (46) |  |
+| `LETTER_TO_KAFEI` | 0x2F (47) |  |
+| `PENDANT_OF_MEMORIES` | 0x30 (48) |  |
+| `TINGLE_MAP` | 0x31 (49) |  |
+| `MASK_DEKU` | 0x32 (50) |  |
+| `MASK_GORON` | 0x33 (51) |  |
+| `MASK_ZORA` | 0x34 (52) |  |
+| `MASK_FIERCE_DEITY` | 0x35 (53) |  |
+| `MASK_TRUTH` | 0x36 (54) |  |
+| `MASK_KAFEIS_MASK` | 0x37 (55) |  |
+| `MASK_ALL_NIGHT` | 0x38 (56) |  |
+| `MASK_BUNNY` | 0x39 (57) |  |
+| `MASK_KEATON` | 0x3A (58) |  |
+| `MASK_GARO` | 0x3B (59) |  |
+| `MASK_ROMANI` | 0x3C (60) |  |
+| `MASK_CIRCUS_LEADER` | 0x3D (61) |  |
+| `MASK_POSTMAN` | 0x3E (62) |  |
+| `MASK_COUPLE` | 0x3F (63) |  |
+| `MASK_GREAT_FAIRY` | 0x40 (64) |  |
+| `MASK_GIBDO` | 0x41 (65) |  |
+| `MASK_DON_GERO` | 0x42 (66) |  |
+| `MASK_KAMARO` | 0x43 (67) |  |
+| `MASK_CAPTAIN` | 0x44 (68) |  |
+| `MASK_STONE` | 0x45 (69) |  |
+| `MASK_BREMEN` | 0x46 (70) |  |
+| `MASK_BLAST` | 0x47 (71) |  |
+| `MASK_SCENTS` | 0x48 (72) |  |
+| `MASK_GIANT` | 0x49 (73) |  |
+| `BOW_FIRE` | 0x4A (74) |  |
+| `BOW_ICE` | 0x4B (75) |  |
+| `BOW_LIGHT` | 0x4C (76) |  |
+| `SWORD_KOKIRI` | 0x4D (77) |  |
+| `SWORD_RAZOR` | 0x4E (78) |  |
+| `SWORD_GILDED` | 0x4F (79) |  |
+| `SWORD_DEITY` | 0x50 (80) | no se puede dar ni quitar |
+| `SHIELD_HERO` | 0x51 (81) |  |
+| `SHIELD_MIRROR` | 0x52 (82) |  |
+| `QUIVER_30` | 0x53 (83) |  |
+| `QUIVER_40` | 0x54 (84) |  |
+| `QUIVER_50` | 0x55 (85) |  |
+| `BOMB_BAG_20` | 0x56 (86) |  |
+| `BOMB_BAG_30` | 0x57 (87) |  |
+| `BOMB_BAG_40` | 0x58 (88) |  |
+| `WALLET_DEFAULT` | 0x59 (89) | no se puede dar ni quitar |
+| `WALLET_ADULT` | 0x5A (90) |  |
+| `WALLET_GIANT` | 0x5B (91) |  |
+| `FISHING_ROD` | 0x5C (92) | no se puede dar ni quitar |
+| `REMAINS_ODOLWA` | 0x5D (93) |  |
+| `REMAINS_GOHT` | 0x5E (94) |  |
+| `REMAINS_GYORG` | 0x5F (95) |  |
+| `REMAINS_TWINMOLD` | 0x60 (96) |  |
+| `SONG_SONATA` | 0x61 (97) |  |
+| `SONG_LULLABY` | 0x62 (98) |  |
+| `SONG_NOVA` | 0x63 (99) |  |
+| `SONG_ELEGY` | 0x64 (100) |  |
+| `SONG_OATH` | 0x65 (101) |  |
+| `SONG_SARIA` | 0x66 (102) |  |
+| `SONG_TIME` | 0x67 (103) |  |
+| `SONG_HEALING` | 0x68 (104) |  |
+| `SONG_EPONA` | 0x69 (105) |  |
+| `SONG_SOARING` | 0x6A (106) |  |
+| `SONG_STORMS` | 0x6B (107) |  |
+| `SONG_SUN` | 0x6C (108) |  |
+| `BOMBERS_NOTEBOOK` | 0x6D (109) |  |
+| `SKULL_TOKEN` | 0x6E (110) |  |
+| `HEART_CONTAINER` | 0x6F (111) |  |
+| `HEART_PIECE` | 0x70 (112) |  |
+| `SONG_LULLABY_INTRO` | 0x73 (115) |  |
+| `KEY_BOSS` | 0x74 (116) |  |
+| `COMPASS` | 0x75 (117) |  |
+| `DUNGEON_MAP` | 0x76 (118) |  |
+| `STRAY_FAIRIES` | 0x77 (119) | no se puede dar ni quitar |
+| `KEY_SMALL` | 0x78 (120) |  |
+| `MAGIC_JAR_SMALL` | 0x79 (121) |  |
+| `MAGIC_JAR_BIG` | 0x7A (122) |  |
+| `HEART_PIECE_2` | 0x7B (123) |  |
+| `INVALID_1` | 0x7C (124) | no se puede dar ni quitar |
+| `INVALID_2` | 0x7D (125) | no se puede dar ni quitar |
+| `INVALID_3` | 0x7E (126) | no se puede dar ni quitar |
+| `INVALID_4` | 0x7F (127) | no se puede dar ni quitar |
+| `INVALID_5` | 0x80 (128) | no se puede dar ni quitar |
+| `INVALID_6` | 0x81 (129) | no se puede dar ni quitar |
+| `INVALID_7` | 0x82 (130) | no se puede dar ni quitar |
+| `RECOVERY_HEART` | 0x83 (131) |  |
+| `RUPEE_GREEN` | 0x84 (132) |  |
+| `RUPEE_BLUE` | 0x85 (133) |  |
+| `RUPEE_10` | 0x86 (134) |  |
+| `RUPEE_RED` | 0x87 (135) |  |
+| `RUPEE_PURPLE` | 0x88 (136) |  |
+| `RUPEE_SILVER` | 0x89 (137) |  |
+| `RUPEE_HUGE` | 0x8A (138) |  |
+| `DEKU_STICKS_5` | 0x8B (139) |  |
+| `DEKU_STICKS_10` | 0x8C (140) |  |
+| `DEKU_NUTS_5` | 0x8D (141) |  |
+| `DEKU_NUTS_10` | 0x8E (142) |  |
+| `BOMBS_5` | 0x8F (143) |  |
+| `BOMBS_10` | 0x90 (144) |  |
+| `BOMBS_20` | 0x91 (145) |  |
+| `BOMBS_30` | 0x92 (146) |  |
+| `ARROWS_10` | 0x93 (147) |  |
+| `ARROWS_30` | 0x94 (148) |  |
+| `ARROWS_40` | 0x95 (149) |  |
+| `ARROWS_50` | 0x96 (150) |  |
+| `BOMBCHUS_20` | 0x97 (151) |  |
+| `BOMBCHUS_10` | 0x98 (152) |  |
+| `BOMBCHUS_1` | 0x99 (153) |  |
+| `BOMBCHUS_5` | 0x9A (154) |  |
+| `DEKU_STICK_UPGRADE_20` | 0x9B (155) |  |
+| `DEKU_STICK_UPGRADE_30` | 0x9C (156) |  |
+| `DEKU_NUT_UPGRADE_30` | 0x9D (157) |  |
+| `DEKU_NUT_UPGRADE_40` | 0x9E (158) |  |
+| `CHATEAU_2` | 0x9F (159) |  |
+| `MILK` | 0xA0 (160) |  |
+| `GOLD_DUST_2` | 0xA1 (161) |  |
+| `HYLIAN_LOACH_2` | 0xA2 (162) |  |
+| `SEAHORSE_CAUGHT` | 0xA3 (163) |  |
+| `MAP_POINT_GREAT_BAY` | 0xA4 (164) | no se puede dar ni quitar |
+| `MAP_POINT_ZORA_HALL` | 0xA5 (165) | no se puede dar ni quitar |
+| `MAP_POINT_ROMANI_RANCH` | 0xA6 (166) | no se puede dar ni quitar |
+| `MAP_POINT_DEKU_PALACE` | 0xA7 (167) | no se puede dar ni quitar |
+| `MAP_POINT_WOODFALL` | 0xA8 (168) | no se puede dar ni quitar |
+| `MAP_POINT_CLOCK_TOWN` | 0xA9 (169) | no se puede dar ni quitar |
+| `MAP_POINT_SNOWHEAD` | 0xAA (170) | no se puede dar ni quitar |
+| `MAP_POINT_IKANA_GRAVEYARD` | 0xAB (171) | no se puede dar ni quitar |
+| `MAP_POINT_IKANA_CANYON` | 0xAC (172) | no se puede dar ni quitar |
+| `MAP_POINT_GORON_VILLAGE` | 0xAD (173) | no se puede dar ni quitar |
+| `MAP_POINT_STONE_TOWER` | 0xAE (174) | no se puede dar ni quitar |
+| `MAP_POINT_GREAT_BAY_COAST` | 0xAF (175) | no se puede dar ni quitar |
+| `MAP_POINT_SOUTHERN_SWAMP` | 0xB0 (176) | no se puede dar ni quitar |
+| `MAP_POINT_MOUNTAIN_VILLAGE` | 0xB1 (177) | no se puede dar ni quitar |
+| `MAP_POINT_MILK_ROAD` | 0xB2 (178) | no se puede dar ni quitar |
+| `MAP_POINT_ZORA_CAPE` | 0xB3 (179) | no se puede dar ni quitar |
+| `SHIP` | 0xB4 (180) | no se puede dar ni quitar |
+
+## Actores
+
+| Nombre | Id | Descripción |
+|---|---|---|
+| `PLAYER` | 0x00 (0) | Player |
+| `EN_TEST` | 0x01 (1) | Crater Marks |
+| `EN_GIRLA` | 0x02 (2) | Shop Items |
+| `EN_PART` | 0x03 (3) | Enemy body parts |
+| `EN_LIGHT` | 0x04 (4) | Deku Shrine Flames |
+| `EN_DOOR` | 0x05 (5) | Wooden Door |
+| `EN_BOX` | 0x06 (6) | Chest |
+| `EN_PAMETFROG` | 0x07 (7) | Gekko (Miniboss) |
+| `EN_OKUTA` | 0x08 (8) | Octorok |
+| `EN_BOM` | 0x09 (9) | Bomb / Powder Keg |
+| `EN_WALLMAS` | 0x0A (10) | Wallmaster |
+| `EN_DODONGO` | 0x0B (11) | Dodongo |
+| `EN_FIREFLY` | 0x0C (12) | Keese |
+| `EN_HORSE` | 0x0D (13) | Epona |
+| `EN_ITEM00` | 0x0E (14) | Collectibles |
+| `EN_ARROW` | 0x0F (15) | Arrow / Deku Nut |
+| `EN_ELF` | 0x10 (16) | Fairy |
+| `EN_NIW` | 0x11 (17) | Cucco |
+| `EN_TITE` | 0x12 (18) | Tektite |
+| `EN_PEEHAT` | 0x14 (20) | Peehat |
+| `EN_BUTTE` | 0x15 (21) | Butterfly |
+| `EN_INSECT` | 0x16 (22) | Non-burrowing bug |
+| `EN_FISH` | 0x17 (23) | Fish |
+| `EN_HOLL` | 0x18 (24) | Loading Hall/Hole |
+| `EN_DINOFOS` | 0x19 (25) | Dinolfos |
+| `EN_HATA` | 0x1A (26) | Red Flag on Post |
+| `EN_ZL1` | 0x1B (27) | (Empty) |
+| `EN_VIEWER` | 0x1C (28) | Cutscene Actor(?) |
+| `EN_BUBBLE` | 0x1D (29) | Shabom (OoT) |
+| `DOOR_SHUTTER` | 0x1E (30) | Studded Lifting Door/Ikana Castle Rolling Door |
+| `EN_BOOM` | 0x20 (32) | Zora Boomerang |
+| `EN_TORCH2` | 0x21 (33) | Elegy of Emptiness Shell |
+| `EN_MINIFROG` | 0x22 (34) | Frog Choir Frog |
+| `EN_ST` | 0x24 (36) | Large Skulltula |
+| `EN_A_OBJ` | 0x26 (38) | gameplay_keep item(?) |
+| `OBJ_WTURN` | 0x27 (39) | Stone Tower Temple Inverter |
+| `EN_RIVER_SOUND` | 0x28 (40) | Environmental noises |
+| `EN_OSSAN` | 0x2A (42) | Trading Post Shop |
+| `EN_FAMOS` | 0x2D (45) | Death Armos (Inv. Stone Tower) |
+| `EN_BOMBF` | 0x2F (47) | Bomb Flower |
+| `EN_AM` | 0x32 (50) | Armos |
+| `EN_DEKUBABA` | 0x33 (51) | Deku Baba |
+| `EN_M_FIRE1` | 0x34 (52) | Deku Nut Effect |
+| `EN_M_THUNDER` | 0x35 (53) | Spin Attack/Sword Beam |
+| `BG_BREAKWALL` | 0x36 (54) | Great Bay Temple Weather(?) |
+| `DOOR_WARP1` | 0x38 (56) | Blue Warp portal/crystal / Majora's Mask boss warp platform |
+| `OBJ_SYOKUDAI` | 0x39 (57) | Torch |
+| `ITEM_B_HEART` | 0x3A (58) | Heart Container |
+| `EN_DEKUNUTS` | 0x3B (59) | Mad Scrub |
+| `EN_BBFALL` | 0x3C (60) | Red Bubble |
+| `ARMS_HOOK` | 0x3D (61) | Hookshot Tip |
+| `EN_BB` | 0x3E (62) | Blue Bubble |
+| `BG_KEIKOKU_SPR` | 0x3F (63) | Termina Field Fountain Water |
+| `EN_WOOD02` | 0x41 (65) | Tree/Shrub |
+| `EN_DEATH` | 0x43 (67) | Gomess |
+| `EN_MINIDEATH` | 0x44 (68) | Gomess's Bat |
+| `EN_VM` | 0x47 (71) | Beamos |
+| `DEMO_EFFECT` | 0x48 (72) | Cutscene Effect |
+| `DEMO_KANKYO` | 0x49 (73) | BG Effect (Lost Woods/Giant's Chamber/Moon) |
+| `EN_FLOORMAS` | 0x4A (74) | Floormaster |
+| `EN_RD` | 0x4C (76) | Redead/Gibdo (can't talk to player) |
+| `BG_F40_FLIFT` | 0x4D (77) | Grey Square Stone Elevator (Stone Tower Temple) |
+| `OBJ_MURE` | 0x4F (79) | Bug/Insect/Butterfly spawner |
+| `EN_SW` | 0x50 (80) | Skullwalltula |
+| `OBJECT_KANKYO` | 0x51 (81) | Snow/Rain (SK backstory)/Bubble (Pinnacle Rock) |
+| `EN_HORSE_LINK_CHILD` | 0x54 (84) | Child Epona (OoT) (Broken) |
+| `DOOR_ANA` | 0x55 (85) | Grotto Hold Entrance |
+| `EN_ENCOUNT1` | 0x5B (91) | Spawner (Dragonfly/Skullfish/Wallmaster) |
+| `DEMO_TRE_LGT` | 0x5C (92) | Light from Treasure Chest |
+| `EN_ENCOUNT2` | 0x5F (95) | Majora's Mask Balloon (Astral Observatory) |
+| `EN_FIRE_ROCK` | 0x60 (96) | (Empty) |
+| `BG_CTOWER_ROT` | 0x61 (97) | Twisting Path w/Stone Doors to Clock Tower |
+| `MIR_RAY` | 0x62 (98) | Reflectable light ray (OoT) (Broken) |
+| `EN_SB` | 0x64 (100) | Shellblade |
+| `EN_BIGSLIME` | 0x65 (101) | Fused Jellies & Gekko |
+| `EN_KAREBABA` | 0x66 (102) | Wilted Dekubaba/Mini Baba |
+| `EN_IN` | 0x67 (103) | Gorman Brother |
+| `EN_RU` | 0x69 (105) | Adult Ruto (OoT) |
+| `EN_BOM_CHU` | 0x6A (106) | Bombchu |
+| `EN_HORSE_GAME_CHECK` | 0x6B (107) | Gorman Race Track Dirt Patch |
+| `EN_RR` | 0x6C (108) | Like Like |
+| `EN_FR` | 0x73 (115) | (Unknown) - EnFr |
+| `EN_FISHING` | 0x79 (121) | Fishing Pond Elements |
+| `OBJ_OSHIHIKI` | 0x7A (122) | Pushable Block |
+| `EFF_DUST` | 0x7B (123) | Dust Effect |
+| `BG_UMAJUMP` | 0x7C (124) | Horse Jumping Fence |
+| `ARROW_FIRE` | 0x7D (125) | Fire Arrow |
+| `ARROW_ICE` | 0x7E (126) | Ice Arrow |
+| `ARROW_LIGHT` | 0x7F (127) | Light Arrow |
+| `ITEM_ETCETERA` | 0x80 (128) | Leftover Collectible Items (OoT) |
+| `OBJ_KIBAKO` | 0x81 (129) | Small grabbable crate |
+| `OBJ_TSUBO` | 0x82 (130) | Pot |
+| `EN_IK` | 0x84 (132) | Iron Knuckle |
+| `DEMO_SHD` | 0x89 (137) | (Unknown) - DemoShd |
+| `EN_DNS` | 0x8A (138) | King's Chamber Deku Guard (Deku Palace) |
+| `ELF_MSG` | 0x8B (139) | Tatl Hint (proximity C-Up?) |
+| `EN_HONOTRAP` | 0x8C (140) | Fire-shooting Eye Switch |
+| `EN_TUBO_TRAP` | 0x8D (141) | Flying Pot Trap |
+| `OBJ_ICE_POLY` | 0x8E (142) | Large Ice Block (meltable) |
+| `EN_FZ` | 0x8F (143) | Freezard |
+| `EN_KUSA` | 0x90 (144) | Grass |
+| `OBJ_BEAN` | 0x91 (145) | Floating Bean Plant/Soft Soil |
+| `OBJ_BOMBIWA` | 0x92 (146) | Bombable Boulder |
+| `OBJ_SWITCH` | 0x93 (147) | Floor/Eye Switch |
+| `OBJ_LIFT` | 0x95 (149) | Brown Elevator (Dampe's Grave) |
+| `OBJ_HSBLOCK` | 0x96 (150) | Hookshot Block |
+| `EN_OKARINA_TAG` | 0x97 (151) | Ocarina Music Staff Spot |
+| `EN_GOROIWA` | 0x99 (153) | Rolling Boulder |
+| `EN_DAIKU` | 0x9C (156) | Carpenter |
+| `EN_NWC` | 0x9D (157) | Cucco chick |
+| `ITEM_INBOX` | 0x9E (158) | In-chest Item Draw (unused) |
+| `EN_GE1` | 0x9F (159) | White-clad Gerudo Pirate |
+| `OBJ_BLOCKSTOP` | 0xA0 (160) | Push Block trigger (Snowhead) |
+| `EN_SDA` | 0xA1 (161) | Dynamic Player Shadow |
+| `EN_CLEAR_TAG` | 0xA2 (162) | Various Effects |
+| `EN_GM` | 0xA4 (164) | Gorman |
+| `EN_MS` | 0xA5 (165) | Bean Seller |
+| `EN_HS` | 0xA6 (166) | Grog |
+| `BG_INGATE` | 0xA7 (167) | Swamp Tour Boat |
+| `EN_KANBAN` | 0xA8 (168) | Square Signpost |
+| `EN_ATTACK_NIW` | 0xAA (170) | Attacking Cucco |
+| `EN_MK` | 0xAE (174) | Marine Researcher |
+| `EN_OWL` | 0xAF (175) | Kaepora Gaebora |
+| `EN_ISHI` | 0xB0 (176) | Liftable Rocks/Silver Boulders |
+| `OBJ_HANA` | 0xB1 (177) | Orange Graveyard Flower |
+| `OBJ_LIGHTSWITCH` | 0xB2 (178) | Sun Switch / STT Flip switch |
+| `OBJ_MURE2` | 0xB3 (179) | Rock Circle Spawner |
+| `EN_FU` | 0xB5 (181) | Honey & Darling |
+| `EN_STREAM` | 0xB8 (184) | Water Vortex (OoT) |
+| `EN_MM` | 0xB9 (185) | Rock Sirloin |
+| `EN_WEATHER_TAG` | 0xBC (188) | Local Weather Changes |
+| `EN_ANI` | 0xBD (189) | Man in Tree in South Termina Field |
+| `EN_JS` | 0xBF (191) | Moon Child |
+| `EN_OKARINA_EFFECT` | 0xC4 (196) | Song of Storms Storm |
+| `EN_MAG` | 0xC5 (197) | Title Logo |
+| `ELF_MSG2` | 0xC6 (198) | Tatl Hint (Z-Target C-Up?) |
+| `BG_F40_SWLIFT` | 0xC7 (199) | Stone Tower vertically oscillating platform (unused) |
+| `EN_KAKASI` | 0xCA (202) | Pierre the Scarecrow |
+| `OBJ_MAKEOSHIHIKI` | 0xCB (203) | Pushable Block Switch Flag Handler |
+| `OCEFF_SPOT` | 0xCC (204) | Sun's Song Ocarina Effect |
+| `EN_TORCH` | 0xCE (206) | Grotto chest spawner |
+| `SHOT_SUN` | 0xD0 (208) | Sun hitbox (OoT)/Fairy Spawner(?) |
+| `OBJ_ROOMTIMER` | 0xD3 (211) | Room Timer |
+| `EN_SSH` | 0xD4 (212) | Cursed Man (Swamp Spider House) |
+| `OCEFF_WIPE` | 0xD6 (214) | Song of Time Ocarina Effect |
+| `OCEFF_STORM` | 0xD7 (215) | Song of Storms Ocarina Effect |
+| `OBJ_DEMO` | 0xD8 (216) | Proximity-based cutscene trigger |
+| `EN_MINISLIME` | 0xD9 (217) | Mini Jelly Droplet |
+| `EN_NUTSBALL` | 0xDA (218) | Deku Nut projectile |
+| `OCEFF_WIPE2` | 0xDF (223) | Epona's Song Ocarina Effect |
+| `OCEFF_WIPE3` | 0xE0 (224) | Saria's Song Ocarina Effect (OoT) |
+| `EN_DG` | 0xE2 (226) | Dog |
+| `EN_SI` | 0xE3 (227) | Gold Skulltula Token |
+| `OBJ_COMB` | 0xE4 (228) | Beehive |
+| `OBJ_KIBAKO2` | 0xE5 (229) | Large Wooden Crate |
+| `EN_HS2` | 0xE7 (231) | Targetable Nothing |
+| `OBJ_MURE3` | 0xE8 (232) | Group Rupee spawner |
+| `EN_TG` | 0xE9 (233) | Target Game (Honey & Darling) |
+| `EN_WF` | 0xEC (236) | Wolfos/White Wolfos |
+| `EN_SKB` | 0xED (237) | Stalchild |
+| `EN_GS` | 0xEF (239) | Gossip Stone |
+| `OBJ_SOUND` | 0xF0 (240) | Invisible Sound Emitter |
+| `EN_CROW` | 0xF1 (241) | Guay |
+| `EN_COW` | 0xF3 (243) | Cow |
+| `OCEFF_WIPE4` | 0xF6 (246) | Scarecrow's Song Ocarina Effect |
+| `EN_ZO` | 0xF8 (248) | Zora (Unused) |
+| `OBJ_MAKEKINSUTA` | 0xF9 (249) | Soft Soil w/Skulltula (Swamp Spider House) |
+| `EN_GE3` | 0xFA (250) | Aviel (Gerudo Pirate Leader) |
+| `OBJ_HAMISHI` | 0xFC (252) | Bronze Boulder |
+| `EN_ZL4` | 0xFD (253) | Glitched Skull Kid T-pose |
+| `EN_MM2` | 0xFE (254) | Postman's Letter to Himself |
+| `DOOR_SPIRAL` | 0x100 (256) | Staircase |
+| `OBJ_PZLBLOCK` | 0x102 (258) | Puzzle Block |
+| `OBJ_TOGE` | 0x103 (259) | Blade Trap |
+| `OBJ_ARMOS` | 0x105 (261) | Non-Hostile Armos |
+| `OBJ_BOYO` | 0x106 (262) | (Unknown) |
+| `EN_GRASSHOPPER` | 0x109 (265) | Dragonfly |
+| `OBJ_GRASS` | 0x10B (267) | Optimized Manager for ObjGrassUnit grasses |
+| `OBJ_GRASS_CARRY` | 0x10C (268) | Carried grass from ObjGrassUnit |
+| `OBJ_GRASS_UNIT` | 0x10D (269) | Grass pattern initializer |
+| `BG_FIRE_WALL` | 0x110 (272) | Wall of Fire from BgSpoutFire |
+| `EN_BU` | 0x111 (273) | Dummied out Enemy |
+| `EN_ENCOUNT3` | 0x112 (274) | Garo Spawner |
+| `EN_JSO` | 0x113 (275) | Garo |
+| `OBJ_CHIKUWA` | 0x114 (276) | Falling row of blocks (unused) |
+| `EN_KNIGHT` | 0x115 (277) | Igos du Ikana/IdI Lackey |
+| `EN_WARP_TAG` | 0x116 (278) | Warp to Moon Trial Entrance |
+| `EN_AOB_01` | 0x117 (279) | Mamamu Yan |
+| `EN_BOJ_01` | 0x118 (280) | (Empty) |
+| `EN_BOJ_02` | 0x119 (281) | (Empty) |
+| `EN_BOJ_03` | 0x11A (282) | (Empty) |
+| `EN_ENCOUNT4` | 0x11B (283) | Stalchild/Fire Wall spawner (Keeta Chase) |
+| `EN_BOM_BOWL_MAN` | 0x11C (284) | Bomber Line |
+| `EN_SYATEKI_MAN` | 0x11D (285) | Shooting Gallery Guy |
+| `BG_ICICLE` | 0x11F (287) | Icicle |
+| `EN_SYATEKI_CROW` | 0x120 (288) | Shooting Gallery Guay |
+| `EN_BOJ_04` | 0x121 (289) | (Empty) |
+| `EN_CNE_01` | 0x122 (290) | Market NPC (Unused) |
+| `EN_BBA_01` | 0x123 (291) | Bomb Shop Lady NPC (Unused) |
+| `EN_BJI_01` | 0x124 (292) | Professor Shikashi (Astral Observatory) |
+| `BG_SPDWEB` | 0x125 (293) | Spider web |
+| `EN_MT_TAG` | 0x128 (296) | Goron Race Controls |
+| `BOSS_01` | 0x129 (297) | Odolwa/Odolwa Bug/Odolwa Afterimage |
+| `BOSS_02` | 0x12A (298) | Twinmold |
+| `BOSS_03` | 0x12B (299) | Gyorg |
+| `BOSS_04` | 0x12C (300) | Wart |
+| `BOSS_05` | 0x12D (301) | Bio Deku Baba |
+| `BOSS_06` | 0x12E (302) | Igos du Ikana window |
+| `BOSS_07` | 0x12F (303) | Majora |
+| `BG_DY_YOSEIZO` | 0x130 (304) | Great Fairy |
+| `EN_BOJ_05` | 0x132 (306) | (Empty) |
+| `EN_SOB1` | 0x135 (309) | Shop (Zora/Goron/Bomb) |
+| `EN_GO` | 0x138 (312) | Goron |
+| `EN_RAF` | 0x13A (314) | Carnivorous Lily Pad |
+| `OBJ_FUNEN` | 0x13B (315) | Stone Tower Smoke |
+| `OBJ_RAILLIFT` | 0x13C (316) | Moving Deku Flower Platform |
+| `BG_NUMA_HANA` | 0x13D (317) | Big Wooden Flower (Woodfall Temple) |
+| `OBJ_FLOWERPOT` | 0x13E (318) | Breakable Pot with Grass |
+| `OBJ_SPINYROLL` | 0x13F (319) | Horizontal Spike-Covered Log |
+| `DM_HINA` | 0x140 (320) | Boss Mask cutscene object |
+| `EN_SYATEKI_WF` | 0x141 (321) | Shooting Gallery Wolfos |
+| `OBJ_SKATEBLOCK` | 0x142 (322) | Ice-Sliding Pushable Block |
+| `OBJ_ICEBLOCK` | 0x143 (323) | Ice Block Surrounding Frozen Enemy |
+| `EN_BIGPAMET` | 0x144 (324) | Snapper |
+| `EN_SYATEKI_DEKUNUTS` | 0x145 (325) | Shooting Gallery Scrub |
+| `ELF_MSG3` | 0x146 (326) | Tatl Message (Proximity?) |
+| `EN_FG` | 0x147 (327) | Enemy Frog (beta) |
+| `DM_RAVINE` | 0x148 (328) | Tree Trunk (Lost Woods cutscene) |
+| `DM_SA` | 0x149 (329) | Glitched Skull Kid T-Pose (cutscene) |
+| `EN_SLIME` | 0x14A (330) | Chuchu |
+| `EN_PR` | 0x14B (331) | Desbreko |
+| `OBJ_TOUDAI` | 0x14C (332) | Clock Tower spotlight (unused) |
+| `OBJ_ENTOTU` | 0x14D (333) | Clock Town smoking chimney |
+| `OBJ_BELL` | 0x14E (334) | Stock Pot Inn bell |
+| `EN_SYATEKI_OKUTA` | 0x14F (335) | Shooting Gallery Octorok |
+| `OBJ_SHUTTER` | 0x151 (337) | West Clock Town bank closing shutter |
+| `DM_ZL` | 0x152 (338) | Child Zelda |
+| `EN_ELFGRP` | 0x153 (339) | Stray Fairy group manager |
+| `DM_TSG` | 0x154 (340) | Mask effect handler (when Link falls in intro) |
+| `EN_BAGUO` | 0x155 (341) | Nejiron |
+| `OBJ_VSPINYROLL` | 0x156 (342) | Vertical spike rollers |
+| `OBJ_SMORK` | 0x157 (343) | Romani Ranch Chimney Smoke |
+| `EN_TEST2` | 0x158 (344) | Lens of Truth-affected object |
+| `EN_TEST3` | 0x159 (345) | Kafei |
+| `EN_TEST4` | 0x15A (346) | Three-day events |
+| `EN_BAT` | 0x15B (347) | Bad Bat |
+| `EN_SEKIHI` | 0x15C (348) | Mikau's Grave/Song Pedestal |
+| `EN_WIZ` | 0x15D (349) | Wizrobe |
+| `EN_WIZ_BROCK` | 0x15E (350) | Wizrobe Warp Platform |
+| `EN_WIZ_FIRE` | 0x15F (351) | Wizrobe Fire/Ice Attack |
+| `EFF_CHANGE` | 0x160 (352) | EoE Beam of Light |
+| `DM_STATUE` | 0x161 (353) | Pillar of Water (Giant's Chamber) |
+| `OBJ_FIRESHIELD` | 0x162 (354) | Ring of Fire |
+| `BG_LADDER` | 0x163 (355) | Wooden Ladder |
+| `EN_MKK` | 0x164 (356) | Black/White Boe |
+| `DEMO_GETITEM` | 0x165 (357) | Cutscene Object for Great Fairy Mask/Sword |
+| `EN_DNB` | 0x167 (359) | Exploding Snow Mountain? (unused) |
+| `EN_DNH` | 0x168 (360) | Koume (Boat House) |
+| `EN_DNK` | 0x169 (361) | Hallucinatory Mad Scrub |
+| `EN_DNQ` | 0x16A (362) | Deku King |
+| `BG_KEIKOKU_SAKU` | 0x16C (364) | Spiked Fence (Termina Field) |
+| `OBJ_HUGEBOMBIWA` | 0x16D (365) | Milk Road/Goron Racetrack Boulder |
+| `EN_FIREFLY2` | 0x16E (366) | (Empty) |
+| `EN_RAT` | 0x16F (367) | Real Bombchu |
+| `EN_WATER_EFFECT` | 0x170 (368) | Water/Rock Drop Spawner/Gyorg splashing effect |
+| `EN_KUSA2` | 0x171 (369) | Keaton Grass |
+| `BG_SPOUT_FIRE` | 0x172 (370) | Proximity-activated Fire Wall Spawner |
+| `BG_DBLUE_MOVEBG` | 0x174 (372) | Great Bay Moving parts |
+| `EN_DY_EXTRA` | 0x175 (373) | Great Fairy Beam |
+| `EN_BAL` | 0x176 (374) | Tingle (w/Balloon) |
+| `EN_GINKO_MAN` | 0x177 (375) | Bank Teller |
+| `EN_WARP_UZU` | 0x178 (376) | Pirates' Fortress Telescope |
+| `OBJ_DRIFTICE` | 0x179 (377) | Floating Ice Platform (Mountain Village) |
+| `EN_LOOK_NUTS` | 0x17A (378) | Patrolling Deku Guard |
+| `EN_MUSHI2` | 0x17B (379) | Bugs from Bottle |
+| `EN_FALL` | 0x17C (380) | Moon/Moon effect/Moon Tear |
+| `EN_MM3` | 0x17D (381) | Counting Game Postman |
+| `BG_CRACE_MOVEBG` | 0x17E (382) | Sliding Doors (Deku Shrine) |
+| `EN_DNO` | 0x17F (383) | Deku Butler |
+| `EN_PR2` | 0x180 (384) | Skullfish |
+| `EN_PRZ` | 0x181 (385) | Defeated Skullfish |
+| `EN_JSO2` | 0x182 (386) | Garo Master |
+| `OBJ_ETCETERA` | 0x183 (387) | Deku Flower |
+| `EN_EGOL` | 0x184 (388) | Eyegore |
+| `OBJ_MINE` | 0x185 (389) | Spike metal mine |
+| `OBJ_PURIFY` | 0x186 (390) | Poisoned/Purified Water Element |
+| `EN_TRU` | 0x187 (391) | Koume (Woods of Mystery) |
+| `EN_TRT` | 0x188 (392) | Kotake |
+| `EN_TEST5` | 0x18B (395) | Spring Water modifier |
+| `EN_TEST6` | 0x18C (396) | Song of Time Effect |
+| `EN_AZ` | 0x18D (397) | Beaver Bro |
+| `EN_ESTONE` | 0x18E (398) | Rubble (Eyegore) |
+| `BG_HAKUGIN_POST` | 0x18F (399) | Central Pillar (Snowhead Temple) |
+| `DM_OPSTAGE` | 0x190 (400) | Lost Woods Cutscene Trees/Floor |
+| `DM_STK` | 0x191 (401) | Skull Kid (Cutscene)/Majora's Mask (Cutscene) |
+| `DM_CHAR00` | 0x192 (402) | Tatl/Tael (Cutscene) |
+| `DM_CHAR01` | 0x193 (403) | Woodfall scene object |
+| `DM_CHAR02` | 0x194 (404) | Ocarina of Time (Clock Tower rooftop cutscenes) |
+| `DM_CHAR03` | 0x195 (405) | Deku Mask (Cutscene) |
+| `DM_CHAR04` | 0x196 (406) | Tatl/Tael (unused) |
+| `DM_CHAR05` | 0x197 (407) | Cutscene Mask object |
+| `DM_CHAR06` | 0x198 (408) | Mountain Village Snowy landscape fadeout |
+| `DM_CHAR07` | 0x199 (409) | Milk Bar Object |
+| `DM_CHAR08` | 0x19A (410) | Large Great Bay Turtle |
+| `DM_CHAR09` | 0x19B (411) | Pirates' Fortress CS character |
+| `OBJ_TOKEIDAI` | 0x19C (412) | Clock Tower Component |
+| `EN_MNK` | 0x19E (414) | Monkey |
+| `EN_EGBLOCK` | 0x19F (415) | Pillar (weak to Eyegore, unused) |
+| `EN_GUARD_NUTS` | 0x1A0 (416) | Deku Palace Entrace guard |
+| `BG_HAKUGIN_BOMBWALL` | 0x1A1 (417) | Bombable Wall (Snowhead Temple) |
+| `OBJ_TOKEI_TOBIRA` | 0x1A2 (418) | Clock Tower Swinging Doors |
+| `BG_HAKUGIN_ELVPOLE` | 0x1A3 (419) | Raisable pillar (Snowhead Temple) |
+| `EN_MA4` | 0x1A4 (420) | Romani |
+| `EN_TWIG` | 0x1A5 (421) | Beaver Race Ring |
+| `EN_PO_FUSEN` | 0x1A6 (422) | Poe Balloon (Romani Ranch) |
+| `EN_DOOR_ETC` | 0x1A7 (423) | Wooden Door (copy) |
+| `EN_BIGOKUTA` | 0x1A8 (424) | Big Octo |
+| `BG_ICEFLOE` | 0x1A9 (425) | Ice Platform from Ice Arrow |
+| `OBJ_OCARINALIFT` | 0x1AA (426) | Triforce Elevator? |
+| `EN_TIME_TAG` | 0x1AB (427) | Event Trigger |
+| `BG_OPEN_SHUTTER` | 0x1AC (428) | Sliding doors |
+| `BG_OPEN_SPOT` | 0x1AD (429) | Spotlight (Human -> Deku cutscene) |
+| `BG_FU_KAITEN` | 0x1AE (430) | Rotating Platform (Honey & Darling) |
+| `OBJ_AQUA` | 0x1AF (431) | Bottle Water |
+| `EN_ELFORG` | 0x1B0 (432) | Stray Fairy |
+| `EN_ELFBUB` | 0x1B1 (433) | Stray Fairy (bubble) |
+| `EN_FU_MATO` | 0x1B3 (435) | Target (Honey & Darling) |
+| `EN_FU_KAGO` | 0x1B4 (436) | Bomb Basket (Honey & Darling) |
+| `EN_OSN` | 0x1B5 (437) | Happy Mask Salesman |
+| `BG_CTOWER_GEAR` | 0x1B6 (438) | Inside Clock Tower Cog/Organ |
+| `EN_TRT2` | 0x1B7 (439) | Kotake (Southern Swamp/Woods of Mystery) |
+| `OBJ_TOKEI_STEP` | 0x1B8 (440) | Door (to top of Clock Tower) |
+| `BG_LOTUS` | 0x1B9 (441) | Lily Pad |
+| `EN_KAME` | 0x1BA (442) | Snapper |
+| `OBJ_TAKARAYA_WALL` | 0x1BB (443) | Treasure Chest Shop board manager |
+| `BG_FU_MIZU` | 0x1BC (444) | Water (Honey & Darling) |
+| `EN_SELLNUTS` | 0x1BD (445) | Business Scrub (carrying bags) |
+| `BG_DKJAIL_IVY` | 0x1BE (446) | Cuttable Ivy |
+| `OBJ_VISIBLOCK` | 0x1C0 (448) | Lens of Truth Platform |
+| `EN_TAKARAYA` | 0x1C1 (449) | Treasure Chest Shop Girl |
+| `EN_TSN` | 0x1C2 (450) | Great Bay Fisherman |
+| `EN_DS2N` | 0x1C3 (451) | Potion Shop Owner (OoT) |
+| `EN_FSN` | 0x1C4 (452) | Curiosity Shop Man |
+| `EN_SHN` | 0x1C5 (453) | Swamp Tourist Center Guide |
+| `EN_STOP_HEISHI` | 0x1C7 (455) | Gate-Blocking Soldier |
+| `OBJ_BIGICICLE` | 0x1C8 (456) | Large Icicle |
+| `EN_LIFT_NUTS` | 0x1C9 (457) | Deku Scrub Playground Employee |
+| `EN_TK` | 0x1CA (458) | Dampe |
+| `BG_MARKET_STEP` | 0x1CC (460) | Scenery (West Clocktown) |
+| `OBJ_LUPYGAMELIFT` | 0x1CD (461) | Rupee Elevator (Deku Scrub Elevator) |
+| `EN_TEST7` | 0x1CE (462) | Song of Soaring effect |
+| `OBJ_LIGHTBLOCK` | 0x1CF (463) | Sun Block |
+| `MIR_RAY2` | 0x1D0 (464) | Reflectable light ray |
+| `EN_WDHAND` | 0x1D1 (465) | Dexihand |
+| `EN_GAMELUPY` | 0x1D2 (466) | Deku Scrub Playground Rupee |
+| `BG_DANPEI_MOVEBG` | 0x1D3 (467) | Floating Block (Deku Shrine/Snowhead Temple) |
+| `EN_SNOWWD` | 0x1D4 (468) | Snow-Covered Tree |
+| `EN_PM` | 0x1D5 (469) | Postman |
+| `EN_GAKUFU` | 0x1D6 (470) | 2D Song Button (Termina Field) |
+| `ELF_MSG4` | 0x1D7 (471) | Tatl Hint (Proximity C-Up Copy?) |
+| `ELF_MSG5` | 0x1D8 (472) | Tatl Message (Proximity copy?) |
+| `EN_COL_MAN` | 0x1D9 (473) | Lab Heart Piece/Garo Master Falling rock/Garo Master Bomb |
+| `EN_TALK_GIBUD` | 0x1DA (474) | Talking Gibdo |
+| `EN_GIANT` | 0x1DB (475) | Giant |
+| `OBJ_SNOWBALL` | 0x1DC (476) | Large Snowball |
+| `BOSS_HAKUGIN` | 0x1DD (477) | Goht |
+| `EN_GB2` | 0x1DE (478) | Spirit House Owner |
+| `EN_ONPUMAN` | 0x1DF (479) | Monkey Instrument Prompt |
+| `BG_TOBIRA01` | 0x1E0 (480) | Goron Shrine Gate |
+| `EN_TAG_OBJ` | 0x1E1 (481) | Seahorse Spawner (unused) |
+| `OBJ_DHOUSE` | 0x1E2 (482) | Stone Bridge |
+| `OBJ_HAKAISI` | 0x1E3 (483) | Gravestone |
+| `BG_HAKUGIN_SWITCH` | 0x1E4 (484) | Goron Link Switch |
+| `EN_SNOWMAN` | 0x1E6 (486) | Eeno |
+| `TG_SW` | 0x1E7 (487) | Skulltula bonk detector |
+| `EN_PO_SISTERS` | 0x1E8 (488) | Poe Sister |
+| `EN_PP` | 0x1E9 (489) | Hiploop |
+| `EN_HAKUROCK` | 0x1EA (490) | Goht Debris |
+| `EN_HANABI` | 0x1EB (491) | Fireworks |
+| `OBJ_DOWSING` | 0x1EC (492) | Switch/Chest/Collectible Detector |
+| `OBJ_WIND` | 0x1ED (493) | Updraft Current/Water Current |
+| `EN_RACEDOG` | 0x1EE (494) | Racetrack Dog |
+| `EN_KENDO_JS` | 0x1EF (495) | Swordsman |
+| `BG_BOTIHASIRA` | 0x1F0 (496) | Keeta Race Gatepost |
+| `EN_FISH2` | 0x1F1 (497) | Marine Research Lab Fish |
+| `EN_PST` | 0x1F2 (498) | Postbox |
+| `EN_POH` | 0x1F3 (499) | Poe |
+| `OBJ_SPIDERTENT` | 0x1F4 (500) | Tent-Shaped spide web |
+| `EN_ZORAEGG` | 0x1F5 (501) | Zora Egg |
+| `EN_KBT` | 0x1F6 (502) | Zubora |
+| `EN_GG` | 0x1F7 (503) | Darmani's Ghost |
+| `EN_MARUTA` | 0x1F8 (504) | Practice Log |
+| `OBJ_SNOWBALL2` | 0x1F9 (505) | Small Snowball |
+| `EN_GG2` | 0x1FA (506) | Darmani's Ghost (copy) |
+| `OBJ_GHAKA` | 0x1FB (507) | Darmani's Gravestone |
+| `EN_DNP` | 0x1FC (508) | Deku Princess |
+| `EN_DAI` | 0x1FD (509) | Biggoron |
+| `BG_GORON_OYU` | 0x1FE (510) | Goron Hot Spring Water |
+| `EN_KGY` | 0x1FF (511) | Gabora |
+| `EN_INVADEPOH` | 0x200 (512) | Alien |
+| `EN_GK` | 0x201 (513) | Goron Elder's Son |
+| `EN_AN` | 0x202 (514) | Anju |
+| `EN_BEE` | 0x204 (516) | Giant Bee |
+| `EN_OT` | 0x205 (517) | Seahorse |
+| `EN_DRAGON` | 0x206 (518) | Deep Python |
+| `OBJ_DORA` | 0x207 (519) | Gong |
+| `EN_BIGPO` | 0x208 (520) | Big Poe |
+| `OBJ_KENDO_KANBAN` | 0x209 (521) | Cuttable Board (Swordsman's School) |
+| `OBJ_HARIKO` | 0x20A (522) | Little Cow Statue Head |
+| `EN_STH` | 0x20B (523) | Guy looking at Moon/Uncursed Man (Swamp Spider House) |
+| `BG_SINKAI_KABE` | 0x20C (524) | Deep Python manager |
+| `BG_HAKA_CURTAIN` | 0x20D (525) | Flat's Tomb Curtain |
+| `BG_KIN2_BOMBWALL` | 0x20E (526) | Bombable Wall (Ocean Spider House) |
+| `BG_KIN2_FENCE` | 0x20F (527) | Fireplace Gate (Ocean Spider House) |
+| `BG_KIN2_PICTURE` | 0x210 (528) | Skullkid Painting (Ocean Spider House) |
+| `BG_KIN2_SHELF` | 0x211 (529) | Drawers (Ocean Spider House) |
+| `EN_RAIL_SKB` | 0x212 (530) | Stalchildren Circle |
+| `EN_JG` | 0x213 (531) | Goron Elder |
+| `EN_TRU_MT` | 0x214 (532) | Koume on Broom |
+| `OBJ_UM` | 0x215 (533) | Cremia's Cart |
+| `EN_NEO_REEBA` | 0x216 (534) | (New!) Leevers |
+| `BG_MBAR_CHAIR` | 0x217 (535) | Milk Bar Chair |
+| `BG_IKANA_BLOCK` | 0x218 (536) | Rotating Room Pushblock (Stone Tower Temple) |
+| `BG_IKANA_MIRROR` | 0x219 (537) | Mirror (Stone Tower Temple) |
+| `BG_IKANA_ROTARYROOM` | 0x21A (538) | Rotating Room (Stone Tower Temple) |
+| `BG_DBLUE_BALANCE` | 0x21B (539) | Seesaw/Waterwhell w/ platforms (Great Bay Temple) |
+| `BG_DBLUE_WATERFALL` | 0x21C (540) | Waterfall (Great Bay Temple) |
+| `EN_KAIZOKU` | 0x21D (541) | Fighter Pirate |
+| `EN_GE2` | 0x21E (542) | Purple Gerudo Pirate |
+| `EN_MA_YTS` | 0x21F (543) | Romani (paired) |
+| `EN_MA_YTO` | 0x220 (544) | Cremia |
+| `OBJ_TOKEI_TURRET` | 0x221 (545) | Flag/Carnival Platform (South Clock Town) |
+| `BG_DBLUE_ELEVATOR` | 0x222 (546) | Elevator (Great Bay Temple) |
+| `OBJ_WARPSTONE` | 0x223 (547) | Owl Statue |
+| `EN_ZOG` | 0x224 (548) | Mikau |
+| `OBJ_ROTLIFT` | 0x225 (549) | Spiked Rotating Platform |
+| `OBJ_JG_GAKKI` | 0x226 (550) | Goron Elder's Drum |
+| `BG_INIBS_MOVEBG` | 0x227 (551) | Twinmold Arena |
+| `EN_ZOT` | 0x228 (552) | Zora with Directions/Pot Game Zora |
+| `OBJ_TREE` | 0x229 (553) | Tree |
+| `OBJ_Y2LIFT` | 0x22A (554) | Elevator Platform |
+| `OBJ_Y2SHUTTER` | 0x22B (555) | Sliding grated shutters |
+| `OBJ_BOAT` | 0x22C (556) | Pirate Boat |
+| `OBJ_TARU` | 0x22D (557) | Wooden Barrel/Breakable Pirate Panel |
+| `OBJ_HUNSUI` | 0x22E (558) | Switch-Activated Geyser |
+| `EN_JC_MATO` | 0x22F (559) | Boat Cruise Target |
+| `MIR_RAY3` | 0x230 (560) | Mirror shield reflection and glow |
+| `EN_ZOB` | 0x231 (561) | Japas (Zora Bassist) |
+| `ELF_MSG6` | 0x232 (562) | Tatl Hint (3rd proximity C-Up?) |
+| `OBJ_NOZOKI` | 0x233 (563) | Sakon's Hideout Object |
+| `EN_TOTO` | 0x234 (564) | Toto |
+| `EN_RAILGIBUD` | 0x235 (565) | Patrolling Gibdos |
+| `EN_BABA` | 0x236 (566) | Bomb Shop Lady (used) |
+| `EN_SUTTARI` | 0x237 (567) | Sakon |
+| `EN_ZOD` | 0x238 (568) | Zora Drummer Tijo |
+| `EN_KUJIYA` | 0x239 (569) | Lottery Shop |
+| `EN_GEG` | 0x23A (570) | Goron with Don Gero's Mask |
+| `OBJ_KINOKO` | 0x23B (571) | Mushroom |
+| `OBJ_YASI` | 0x23C (572) | Palm Tree |
+| `EN_TANRON1` | 0x23D (573) | Moth Swarm (Woodfall Temple) |
+| `EN_TANRON2` | 0x23E (574) | Wart's Bubble |
+| `EN_TANRON3` | 0x23F (575) | Small fish (Gyorg) |
+| `OBJ_CHAN` | 0x240 (576) | Goron Shrine Chandelier |
+| `EN_ZOS` | 0x241 (577) | Evan (Zora Synthesizer) |
+| `EN_S_GORO` | 0x242 (578) | Goron Shrine Goron/Bomb Shop Goron |
+| `EN_NB` | 0x243 (579) | Anju's Grandma |
+| `EN_JA` | 0x244 (580) | Juggler |
+| `BG_F40_BLOCK` | 0x245 (581) | Stone Tower Block |
+| `BG_F40_SWITCH` | 0x246 (582) | Stone Tower Floor Switch |
+| `EN_PO_COMPOSER` | 0x247 (583) | Flat/Sharp |
+| `EN_GURUGURU` | 0x248 (584) | Guru Guru |
+| `OCEFF_WIPE5` | 0x249 (585) | Ocarina Effect (Sonata/Lullaby/Bossa Nova/Elegy/Oath) |
+| `EN_STONE_HEISHI` | 0x24A (586) | Shiro |
+| `OCEFF_WIPE6` | 0x24B (587) | Song of Soaring Ocarina Effect |
+| `EN_SCOPENUTS` | 0x24C (588) | Business Scrub (Heart Piece) |
+| `EN_SCOPECROW` | 0x24D (589) | Guay (Astral Observatory Telescope) |
+| `OCEFF_WIPE7` | 0x24E (590) | Song of Healing Ocarina Effect |
+| `EFF_KAMEJIMA_WAVE` | 0x24F (591) | Turtle Awakening Wave |
+| `EN_HG` | 0x250 (592) | Gibdo (Pamela's Father) |
+| `EN_HGO` | 0x251 (593) | Pamela's Father |
+| `EN_ZOV` | 0x252 (594) | Lulu (Zora Vocalist) |
+| `EN_AH` | 0x253 (595) | Anju's Mother |
+| `OBJ_HGDOOR` | 0x254 (596) | Closet Door (Music Box House) |
+| `BG_IKANA_BOMBWALL` | 0x255 (597) | Bombable Tan Floor File (Stone Tower Temple) |
+| `BG_IKANA_RAY` | 0x256 (598) | Large light ray (Stone Tower Temple) |
+| `BG_IKANA_SHUTTER` | 0x257 (599) | Metal Shutter (Stone Tower Temple) |
+| `BG_HAKA_BOMBWALL` | 0x258 (600) | Bombable Wall (Beneath the Well) |
+| `BG_HAKA_TOMB` | 0x259 (601) | Flat's Tomb |
+| `EN_SC_RUPPE` | 0x25A (602) | Giant Rupee |
+| `BG_IKNV_DOUKUTU` | 0x25B (603) | Sharp's Cave |
+| `BG_IKNV_OBJ` | 0x25C (604) | Waterwheel/Stone Tower Door/Sakon's Hideout Door |
+| `EN_PAMERA` | 0x25D (605) | Pamela |
+| `OBJ_HSSTUMP` | 0x25E (606) | Hookshottable Tree |
+| `EN_HIDDEN_NUTS` | 0x25F (607) | Sleeping Deku Scrub |
+| `EN_ZOW` | 0x260 (608) | Complaining Water |
+| `EN_TALK` | 0x261 (609) | Green Target Spot |
+| `EN_AL` | 0x262 (610) | Madame Aroma |
+| `EN_TAB` | 0x263 (611) | Mr. Barten |
+| `EN_NIMOTSU` | 0x264 (612) | Bomb Shop Bag (Stolen) |
+| `EN_HIT_TAG` | 0x265 (613) | Invisible Rupee Hitbox |
+| `EN_RUPPECROW` | 0x266 (614) | Guay (circling Clock Town) |
+| `EN_TANRON4` | 0x267 (615) | Seagull |
+| `EN_TANRON5` | 0x268 (616) | Destructible Item (Twinmold Arena) |
+| `EN_TANRON6` | 0x269 (617) | Invisible Enemy (unused) |
+| `EN_DAIKU2` | 0x26A (618) | Milk Road Carpenter |
+| `EN_MUTO` | 0x26B (619) | Mutoh (carpenter boss) |
+| `EN_BAISEN` | 0x26C (620) | Viscen (Clock Town Guard leader) |
+| `EN_HEISHI` | 0x26D (621) | Soldier (Mayor's Office) |
+| `EN_DEMO_HEISHI` | 0x26E (622) | Shiro (Unused?) |
+| `EN_DT` | 0x26F (623) | Mayor Detour |
+| `EN_CHA` | 0x270 (624) | Laundry Pool Bell |
+| `OBJ_DINNER` | 0x271 (625) | Cremia & Romani's Dinner |
+| `EFF_LASTDAY` | 0x272 (626) | Moon Crash CS Fire Wall |
+| `BG_IKANA_DHARMA` | 0x273 (627) | Punchable Pillar Segments (Stone Tower Temple) |
+| `EN_AKINDONUTS` | 0x274 (628) | Trade Quest business scrub |
+| `EFF_STK` | 0x275 (629) | Skull Kid effect |
+| `EN_IG` | 0x276 (630) | Link the Goron |
+| `EN_RG` | 0x277 (631) | Racing Goron |
+| `EN_OSK` | 0x278 (632) | Igos du Ikana's head/IdI lackey's head |
+| `EN_STH2` | 0x279 (633) | Guy waving at telescope |
+| `EN_YB` | 0x27A (634) | Kamaro |
+| `EN_RZ` | 0x27B (635) | Judo (Red)/Marilla (Blue) Rosa |
+| `EN_SCOPECOIN` | 0x27C (636) | Rupees (from telescope) |
+| `EN_BJT` | 0x27D (637) | Hand in Toilet |
+| `EN_BOMJIMA` | 0x27E (638) | Bomber Jim |
+| `EN_BOMJIMB` | 0x27F (639) | Bomber (being chased) |
+| `EN_BOMBERS` | 0x280 (640) | Blue-Hatted Bomber |
+| `EN_BOMBERS2` | 0x281 (641) | Hideout Guard |
+| `EN_BOMBAL` | 0x282 (642) | Majora's Mask Balloon (Clock Town) |
+| `OBJ_MOON_STONE` | 0x283 (643) | Moon's Tear |
+| `OBJ_MU_PICT` | 0x284 (644) | Dialogue Handler (Music Box House) |
+| `BG_IKNINSIDE` | 0x285 (645) | Object (Ancient Castle of Ikana) |
+| `EFF_ZORABAND` | 0x286 (646) | Indigo-Gos |
+| `OBJ_KEPN_KOYA` | 0x287 (647) | Gorman Bros. Building |
+| `OBJ_USIYANE` | 0x288 (648) | Cow Barn Roof |
+| `EN_NNH` | 0x289 (649) | Deku Butler's Son's Corpse |
+| `OBJ_KZSAKU` | 0x28A (650) | Underwater Grate |
+| `OBJ_MILK_BIN` | 0x28B (651) | Milk Jar |
+| `EN_KITAN` | 0x28C (652) | Keaton |
+| `BG_ASTR_BOMBWALL` | 0x28D (653) | Bombable Wall (Astral Laboratory) |
+| `BG_IKNIN_SUSCEIL` | 0x28E (654) | Hot Checkered Celing (Ikana Castle) |
+| `EN_BSB` | 0x28F (655) | Captain Keeta |
+| `EN_RECEPGIRL` | 0x290 (656) | Mayor's Receptionist |
+| `EN_THIEFBIRD` | 0x291 (657) | Takkuri |
+| `EN_JGAME_TSN` | 0x292 (658) | Jumping Game |
+| `OBJ_JGAME_LIGHT` | 0x293 (659) | Jumping Game Torch |
+| `OBJ_YADO` | 0x294 (660) | 2nd Floor Window (Stockpot Inn) |
+| `DEMO_SYOTEN` | 0x295 (661) | Ikana Canyon Cleansing CS Effect |
+| `DEMO_MOONEND` | 0x296 (662) | Moon Disappearing CS |
+| `BG_LBFSHOT` | 0x297 (663) | Rainbow Hookshot Pillar |
+| `BG_LAST_BWALL` | 0x298 (664) | Bombable, Climbable Wall (Moon) |
+| `EN_AND` | 0x299 (665) | Anju (Wedding Dress) |
+| `EN_INVADEPOH_DEMO` | 0x29A (666) | Alien CS Actor |
+| `OBJ_DANPEILIFT` | 0x29B (667) | Floating Block (Deku Shrine/Snowhead Temple) |
+| `EN_FALL2` | 0x29C (668) | Warp Beam from Moon? |
+| `DM_AL` | 0x29D (669) | Madame Aroma (Cutscene) |
+| `DM_AN` | 0x29E (670) | Anju (Cutscene) |
+| `DM_AH` | 0x29F (671) | Anju's Mother (Cutscene) |
+| `DM_NB` | 0x2A0 (672) | Anju's Grandma (Credits) |
+| `EN_DRS` | 0x2A1 (673) | Wedding Dress Mannequin |
+| `EN_ENDING_HERO` | 0x2A2 (674) | Mayor Detour (credits) |
+| `DM_BAL` | 0x2A3 (675) | Tingle (Cutscene) |
+| `EN_PAPER` | 0x2A4 (676) | Tingle Confetti |
+| `EN_HINT_SKB` | 0x2A5 (677) | Hinting Stalchild (Oceanside Spider House) |
+| `DM_TAG` | 0x2A6 (678) | Cutscene? |
+| `EN_BH` | 0x2A7 (679) | Brown Bird |
+| `EN_ENDING_HERO2` | 0x2A8 (680) | Viscen watching moon (cutscene) |
+| `EN_ENDING_HERO3` | 0x2A9 (681) | Mutoh watching moon (cutscene) |
+| `EN_ENDING_HERO4` | 0x2AA (682) | Soldier watching moon (cutscene) |
+| `EN_ENDING_HERO5` | 0x2AB (683) | Carpenter watching moon (cutscene) |
+| `EN_ENDING_HERO6` | 0x2AC (684) | Cutscene character (unused) |
+| `DM_GM` | 0x2AD (685) | Dm_An duplicate |
+| `OBJ_SWPRIZE` | 0x2AE (686) | Item Drop Spawner (soft soil) |
+| `EN_INVISIBLE_RUPPE` | 0x2AF (687) | Invisible Ruppe |
+| `OBJ_ENDING` | 0x2B0 (688) | Stump/Lighting (credits end) |
+| `EN_RSN` | 0x2B1 (689) | Bomb Shop Man (credits) |
+
+## Escenas
+
+| Nombre | Id | Descripción |
+|---|---|---|
+| `SOUTHERN_SWAMP_CLEARED` | 0x00 (0) | Southern Swamp (Clear) |
+| `GROTTOS` | 0x07 (7) | Lone Peak Shrine & Grottos |
+| `CUTSCENE` | 0x08 (8) | Cutscene Scene |
+| `MAGIC_HAGS_POTION_SHOP` | 0x0A (10) | Magic Hags' Potion Shop |
+| `MAJORAS_LAIR` | 0x0B (11) | Majora's Lair |
+| `BENEATH_THE_GRAVERYARD` | 0x0C (12) | Beneath the Graveyard |
+| `CURIOSITY_SHOP` | 0x0D (13) | Curiosity Shop |
+| `RANCH_HOUSE` | 0x10 (16) | Mama's House & Barn |
+| `HONEY_AND_DARLINGS_SHOP` | 0x11 (17) | Honey & Darling's Shop |
+| `MAYORS_RESIDENCE` | 0x12 (18) | The Mayor's Residence |
+| `IKANA_CANYON` | 0x13 (19) | Ikana Canyon |
+| `PIRATES_FORTRESS` | 0x14 (20) | Pirates' Fortress |
+| `MILK_BAR` | 0x15 (21) | Milk Bar |
+| `STONE_TOWER_TEMPLE` | 0x16 (22) | Stone Tower Temple |
+| `TREASURE_CHEST_SHOP` | 0x17 (23) | Treasure Chest Shop |
+| `STONE_TOWER_TEMPLE_INVERTED` | 0x18 (24) | Inverted Stone Tower Temple |
+| `CLOCK_TOWER_ROOFTOP` | 0x19 (25) | Clock Tower Rooftop |
+| `OPENING_DUNGEON` | 0x1A (26) | Before Clock Town |
+| `WOODFALL_TEMPLE` | 0x1B (27) | Woodfall Temple |
+| `PATH_TO_MOUNTAIN_VILLAGE` | 0x1C (28) | Path to Mountain Village |
+| `IKANA_CASTLE` | 0x1D (29) | Ancient Castle of Ikana |
+| `DEKU_SCRUB_PLAYGROUND` | 0x1E (30) | Deku Scrub Playground |
+| `ODOLWAS_LAIR` | 0x1F (31) | Odolwa's Lair |
+| `TOWN_SHOOTING_GALLERY` | 0x20 (32) | Town Shooting Gallery |
+| `SNOWHEAD_TEMPLE` | 0x21 (33) | Snowhead Temple |
+| `MILK_ROAD` | 0x22 (34) | Milk Road |
+| `PIRATES_FORTRESS_INTERIOR` | 0x23 (35) | Pirates' Fortress Interior |
+| `SWAMP_SHOOTING_GALLERY` | 0x24 (36) | Swamp Shooting Gallery |
+| `PINNACLE_ROCK` | 0x25 (37) | Pinnacle Rock |
+| `FAIRY_FOUNTAIN` | 0x26 (38) | Fairy's Fountain |
+| `SWAMP_SPIDER_HOUSE` | 0x27 (39) | Swamp Spider House |
+| `OCEANSIDE_SPIDER_HOUSE` | 0x28 (40) | Oceanside Spider House |
+| `ASTRAL_OBSERVATORY` | 0x29 (41) | Astral Observatory |
+| `MOON_DEKU_TRIAL` | 0x2A (42) | Moon Deku Trial |
+| `DEKU_PALACE` | 0x2B (43) | Deku Palace |
+| `MOUNTAIN_SMITHY` | 0x2C (44) | Mountain Smithy |
+| `TERMINA_FIELD` | 0x2D (45) | Termina Field |
+| `POST_OFFICE` | 0x2E (46) | Post Office |
+| `MARINE_RESEARCH_LAB` | 0x2F (47) | Marine Research Lab |
+| `DAMPES_HOUSE` | 0x30 (48) | Beneath Graveyard and Dampe's House |
+| `GORON_SHRINE` | 0x32 (50) | Goron Shrine |
+| `ZORA_HALL` | 0x33 (51) | Zora Hall |
+| `TRADING_POST` | 0x34 (52) | Trading Post |
+| `ROMANI_RANCH` | 0x35 (53) | Romani Ranch |
+| `TWINMOLDS_LAIR` | 0x36 (54) | Twinmold's Lair |
+| `GREAT_BAY_COAST` | 0x37 (55) | Great Bay Coast |
+| `ZORA_CAPE` | 0x38 (56) | Zora Cape |
+| `LOTTERY_SHOP` | 0x39 (57) | Lottery Shop |
+| `PIRATES_FORTRESS_EXTERIOR` | 0x3B (59) | Pirates' Fortress Moat |
+| `FISHERMANS_HUT` | 0x3C (60) | Fisherman's Hut |
+| `GORON_SHOP` | 0x3D (61) | Goron Shop |
+| `DEKU_KINGS_CHAMBER` | 0x3E (62) | Deku King's Chamber |
+| `MOON_GORON_TRIAL` | 0x3F (63) | Moon Goron Trial |
+| `ROAD_TO_SOUTHERN_SWAMP` | 0x40 (64) | Road to Southern Swamp |
+| `DOGGY_RACETRACK` | 0x41 (65) | Doggy Racetrack |
+| `CUCCO_SHACK` | 0x42 (66) | Cucco Shack |
+| `IKANA_GRAVEYARD` | 0x43 (67) | Ikana Graveyard |
+| `GOHTS_LAIR` | 0x44 (68) | Goht's Lair |
+| `SOUTHERN_SWAMP_POISONED` | 0x45 (69) | Southern Swamp (poison) |
+| `WOODFALL` | 0x46 (70) | Woodfall |
+| `MOON_ZORA_TRIAL` | 0x47 (71) | Moon Zora Trial |
+| `GORON_VILLAGE_SPRING` | 0x48 (72) | Goron Village (spring) |
+| `GREAT_BAY_TEMPLE` | 0x49 (73) | Great Bay Temple |
+| `WATERFALL_RAPIDS` | 0x4A (74) | Waterfall Rapids |
+| `BENEATH_THE_WELL` | 0x4B (75) | Beneath the Well |
+| `ZORA_HALL_ROOMS` | 0x4C (76) | Zora Hall Rooms |
+| `GORON_VILLAGE_WINTER` | 0x4D (77) | Goron Village (winter) |
+| `GORON_GRAVERYARD` | 0x4E (78) | Goron Graveyard |
+| `SAKONS_HIDEOUT` | 0x4F (79) | Sakon's Hideout |
+| `MOUNTAIN_VILLAGE_WINTER` | 0x50 (80) | Mountain Village (winter) |
+| `GHOST_HUT` | 0x51 (81) | Ghost Hut |
+| `DEKU_SHRINE` | 0x52 (82) | Deku Shrine |
+| `ROAD_TO_IKANA` | 0x53 (83) | Road to Ikana |
+| `SWORDMANS_SCHOOL` | 0x54 (84) | Swordsman's School |
+| `MUSIC_BOX_HOUSE` | 0x55 (85) | Music Box House |
+| `IGOS_DU_IKANAS_LAIR` | 0x56 (86) | Igos du Ikana's Lair |
+| `TOURIST_INFORMATION` | 0x57 (87) | Tourist Information |
+| `STONE_TOWER` | 0x58 (88) | Stone Tower |
+| `STONE_TOWER_INVERTED` | 0x59 (89) | Inverted Stone Tower |
+| `MOUNTAIN_VILLAGE_SPRING` | 0x5A (90) | Mountain Village (spring) |
+| `PATH_TO_SNOWHEAD` | 0x5B (91) | Path to Snowhead |
+| `SNOWHEAD` | 0x5C (92) | Snowhead |
+| `PATH_TO_GORON_VILLAGE_WINTER` | 0x5D (93) | Path to Goron Village (winter) |
+| `PATH_TO_GORON_VILLAGE_SPRING` | 0x5E (94) | Path to Goron Village (spring) |
+| `GYORGS_LAIR` | 0x5F (95) | Gyorg's Lair |
+| `SECRET_SHRINE` | 0x60 (96) | Secret Shrine |
+| `STOCK_POT_INN` | 0x61 (97) | Stock Pot Inn |
+| `GREAT_BAY_CUTSCENE` | 0x62 (98) | Great Bay Cutscene |
+| `CLOCK_TOWER_INTERIOR` | 0x63 (99) | Clock Tower Interior |
+| `WOODS_OF_MYSTERY` | 0x64 (100) | Woods of Mystery |
+| `LOST_WOODS` | 0x65 (101) | Lost Woods (Intro) |
+| `MOON_LINK_TRIAL` | 0x66 (102) | Moon Link Trial |
+| `THE_MOON` | 0x67 (103) | The Moon |
+| `BOMB_SHOP` | 0x68 (104) | Bomb Shop |
+| `GIANTS_CHAMBER` | 0x69 (105) | Giants' Chamber |
+| `GORMAN_TRACK` | 0x6A (106) | Gorman Track |
+| `GORON_RACETRACK` | 0x6B (107) | Goron Racetrack |
+| `EAST_CLOCK_TOWN` | 0x6C (108) | East Clock Town |
+| `WEST_CLOCK_TOWN` | 0x6D (109) | West Clock Town |
+| `NORTH_CLOCK_TOWN` | 0x6E (110) | North Clock Town |
+| `SOUTH_CLOCK_TOWN` | 0x6F (111) | South Clock Town |
+| `LAUNDRY_POOL` | 0x70 (112) | Laundry Pool |
+

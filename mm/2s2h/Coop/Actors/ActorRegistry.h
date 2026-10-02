@@ -76,6 +76,8 @@ struct TrackedActor {
     std::vector<uint16_t> oneShotSfx;    // played during this frame's update
     Actor* target = nullptr;             // the Link it chased last frame
     std::vector<PendingHit> pendingHits; // hits other players made on it, applied before its next update
+    uint8_t lastHitFrom = 0;             // the remote player whose hit we applied last (HitSync_InjectPending)...
+    int64_t lastHitMs = 0;               // ...and when: a kill is theirs if it came soon after (Mods/GameEvents.cpp)
 
     // Receiver (a copy)
     std::vector<SlotSpan> pendingSpans; // received, written before its next (skipped) update
@@ -102,7 +104,8 @@ bool ActorRegistry_IsCinemaSpawn(uint32_t parentKey, const SpawnInfo& s);
 // ActorSync.cpp creates the copy of a runtime actor another game announced: its Init registers it under this key.
 void ActorRegistry_ExpectReplica(uint32_t key, uint32_t parentKey, uint32_t rootKey, int8_t room, const SpawnInfo& s);
 void ActorRegistry_EndExpect(); // after that Actor_Spawn (it may have failed before creating anything)
-// A local actor nobody else gets (never tracked, never echoed): the stand-ins of HitSync.cpp's contacts.
-Actor* ActorRegistry_SpawnUntracked(int16_t id, const Vec3f& pos, s16 params);
+// A local actor nobody else gets (never tracked, never echoed): the stand-ins of HitSync.cpp's contacts, the actors of
+// the server's mods (Mods/GameOps.cpp).
+Actor* ActorRegistry_SpawnUntracked(int16_t id, const Vec3f& pos, s16 params, s16 rotY = 0);
 
 } // namespace coop::client

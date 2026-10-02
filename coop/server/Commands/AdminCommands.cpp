@@ -57,7 +57,7 @@ void FreezeTime(CommandContext& ctx, const std::vector<std::string>& args) {
         ctx.Reply(Tr(Msg::NoWorldYet), level::kError);
         return;
     }
-    bool stopped = args.empty() ? !world.ClockStopped() : (args[0] == "on" || args[0] == "si");
+    bool stopped = args.empty() ? !world.Frozen() : (args[0] == "on" || args[0] == "si");
     std::string err;
     if (!world.SetClockStopped(stopped, ctx.SenderName(), &err)) {
         ctx.Reply(err, level::kError);

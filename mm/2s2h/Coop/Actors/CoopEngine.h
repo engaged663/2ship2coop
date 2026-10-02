@@ -98,6 +98,10 @@ void Coop_AddActorRegion(Actor* actor, void* table, u32 bytes);
 // The values a mirrored text shows (Features/MessageVars.cpp): begin = 1 before Message_Decode, 0 after it.
 void Coop_OnMessageDecode(PlayState* play, s32 begin);
 
+// Mods of the server (Mods/GameEvents.cpp): Enemy_StartFinishingBlow, a killing blow landed on this enemy here (only
+// the game that simulates it runs that code). The mods hear who gave it.
+void Coop_OnEnemyDefeated(PlayState* play, Actor* actor);
+
 // Effects echo (Features/EffectEcho.cpp). Coop_OnEffectSpawn: every EffectSs_Spawn, before it runs.
 // Coop_CollisionPass: begin = 1 before this frame's collision checks (z_play.c), 0 after them: the hit marks made in
 // between come from our Link's and our actors' attacks.

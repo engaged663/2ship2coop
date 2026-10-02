@@ -140,6 +140,13 @@ void DrawOptions() {
             "jugadores. Link no recibe los botones del menú, pero puede caer o recibir daño. El menú se cierra solo "
             "si el juego necesita a Link (un diálogo, una cinemática, cambiar de escena, morir). Desactivado: el "
             "menú sobre una imagen fija y Link esperando, como antes. Se aplica la próxima vez que abras el menú."));
+    UIWidgets::CVarCheckbox(
+        "Permitir los mods del servidor (partida del servidor)", "gCoop.Mods",
+        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
+            "Los scripts del servidor pueden darte objetos, curarte o hacerte daño, mostrarte avisos y mensajes, crear "
+            "enemigos, llevarte a otra escena y cambiar opciones de juego de 2 Ship (dificultad, trucos) mientras "
+            "juegas en su partida; al salir recuperas tus opciones. Nunca tocan tus archivos de guardado. "
+            "Desactivado: el juego ignora sus órdenes y opciones y no les cuenta lo que pasa en tu partida."));
     UIWidgets::CVarSliderFloat(
         "Tamaño del chat", "gCoop.Chat.Scale",
         UIWidgets::FloatSliderOptions().Color(THEME_COLOR).Min(0.8f).Max(3.0f).DefaultValue(1.4f).Format("%.1f"));

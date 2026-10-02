@@ -81,3 +81,29 @@ TEST_CASE(ByteStreamIsLittleEndian) {
     CHECK_EQ(w.Data()[0], (uint8_t)0x34);
     CHECK_EQ(w.Data()[1], (uint8_t)0x12);
 }
+
+TEST_CASE(GameFontTextIsPlainAscii) {
+    // The game's text boxes have no UTF-8 (a mod's "message"): accents go, the opening marks go, the rest is '?'.
+    CHECK_EQ(coop::ToGameFontText("\xC2\xA1Hola, Ni\xC3\xB1o! \xC2\xBFQu\xC3\xA9 tal?"),
+             std::string("Hola, Nino! Que tal?"));
+    CHECK_EQ(coop::ToGameFontText("\xC3\x81\xC3\x89\xC3\x8D\xC3\x93\xC3\x9A\xC3\x9C\xC3\x91 \xC3\xA7\xC3\xA0\xC3\xBC"),
+             std::string("AEIOUUN cau"));
+    CHECK_EQ(coop::ToGameFontText("\xE2\x80\x9C" "fin\xE2\x80\x9D \xE2\x80\x94 ya\xE2\x80\xA6"),
+             std::string("\"fin\" - ya...")); // typographic quotes, dash and ellipsis
+    CHECK_EQ(coop::ToGameFontText("\xE4\xB8\xAD \xE2\x82\xAC"), std::string("? ?")); // a Chinese character, the euro
+    CHECK_EQ(coop::ToGameFontText("l\xC3\xADnea 1\nl\xC3\xADnea 2"), std::string("linea 1\nlinea 2"));
+    // Bytes below 0x20 are the font's own codes (colours, pauses, the end of the text): never through. A tab is a
+    // space; a byte that is not UTF-8 is '?' (0xBF would end the text).
+    CHECK_EQ(coop::ToGameFontText(std::string("a\x01" "b\x10" "c\tc\x7F" "d\xBF" "\0e", 12)),
+             std::string("abc cd?e"));
+}
+
+TEST_CASE(TextBoxLinesSplitIntoBoxes) {
+    // A line break that would start the 5th line of a text box becomes a box break; a box break starts a new count.
+    std::string text = "1\x11" "2\x11" "3\x11" "4\x11" "5\x11" "6";
+    coop::SplitTextBoxes(text, '\x11', '\x10', 4);
+    CHECK_EQ(text, std::string("1\x11" "2\x11" "3\x11" "4\x10" "5\x11" "6"));
+    std::string boxed = "1\x10" "2\x11" "3\x11" "4\x11" "5\x10" "6";
+    coop::SplitTextBoxes(boxed, '\x11', '\x10', 4);
+    CHECK_EQ(boxed, std::string("1\x10" "2\x11" "3\x11" "4\x11" "5\x10" "6"));
+}

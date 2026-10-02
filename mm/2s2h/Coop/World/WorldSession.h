@@ -23,6 +23,9 @@ void WorldSession_RequestLeave();
 // The ending (Features/EndingMode.cpp): true lifts the forced cutscene skips and gives the settings that change the
 // pace of its texts and screens their default, so it plays whole and at the same pace everywhere; false undoes it.
 void WorldSession_SetEndingCVars(bool ending);
+// One of the settings the co-op forces in the server's world or during the ending: the co-op needs its value, so the
+// server's mods may not force it (Mods/ModSettings.cpp).
+bool WorldSession_IsForcedCVar(const char* name);
 
 // CoopInit.cpp calls these every frame: FrameStart after the network, FrameEnd at the end of the frame.
 void WorldSession_FrameStart();

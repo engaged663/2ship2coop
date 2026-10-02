@@ -26,8 +26,9 @@ static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
         ctx.Reply(Tr(Msg::GiftAmountInt), level::kError);
         return;
     }
-    if (amount < 1 || amount > kGiftMaxAmount) {
-        ctx.Reply(Tr(Msg::GiftAmountRange, { std::to_string(kGiftMaxAmount) }), level::kError);
+    int giftMax = ctx.server.Config().giftMax; // server.json "giftMax"
+    if (amount < 1 || amount > giftMax) {
+        ctx.Reply(Tr(Msg::GiftAmountRange, { std::to_string(giftMax) }), level::kError);
         return;
     }
     PendingGift& gift = ctx.server.Gifts().Create(ctx.sender->peer, target->peer, ctx.sender->nick, target->nick, amount,

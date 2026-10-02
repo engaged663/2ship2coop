@@ -2,6 +2,7 @@
 
 #include "JsonFile.h"
 
+#include "server/Mods/ModHost.h"
 #include "server/Server.h"
 
 #include "common/Clock.h"
@@ -13,6 +14,16 @@
 namespace coop::server {
 
 namespace {
+
+// 2 -> "2", 0.5 -> "0.5", 1.25 -> "1.25"
+std::string ShortNumber(double value) {
+    std::string text = std::to_string(value);
+    text.erase(text.find_last_not_of('0') + 1);
+    if (!text.empty() && text.back() == '.') {
+        text.pop_back();
+    }
+    return text;
+}
 
 // More than `levels` objects/arrays inside each other (the value itself counts). Stops at that depth, so a hostile
 // inventory never makes it recurse further: saved with indentation, deep nesting would take megabytes.
@@ -35,6 +46,7 @@ bool NestedDeeperThan(const json& value, int levels) {
 
 SharedWorld::SharedWorld(Server& server, std::string worldPath, std::string playersDir)
     : mServer(server), mWorldPath(std::move(worldPath)), mPlayers(std::move(playersDir)) {
+    mClock.SetScale(server.Config().timeSpeed, 0);
 }
 
 int64_t SharedWorld::Now() const {
@@ -175,6 +187,15 @@ void SharedWorld::Enter(RemoteClient& c) {
     mServer.SendEvent(c, FullEvent(c, ""));
     Announce(Tr(Msg::PlayerEntered, { c.nick }), level::kInfo, &c);
     UpdateClock();
+    Entered(c);
+}
+
+void SharedWorld::Entered(RemoteClient& c) {
+    mServer.Mods().SyncSettings(c, false); // the game settings the server forces, if any
+    if (mServer.Mods().Wants(ModEvent::WorldEnter)) {
+        json e = { { "player", c.id }, { "nick", c.nick } };
+        mServer.Mods().Fire(ModEvent::WorldEnter, e);
+    }
 }
 
 void SharedWorld::AssignCreator(RemoteClient& c) {
@@ -240,6 +261,11 @@ void SharedWorld::Create(RemoteClient& c, const json& ev) {
     c.inWorld = true;
     mServer.Log().Info(Tr(Msg::WorldCreated, { c.nick }));
     Flush();
+    if (mServer.Mods().Wants(ModEvent::WorldCreated)) {
+        json e = { { "player", c.id }, { "nick", c.nick } };
+        mServer.Mods().Fire(ModEvent::WorldCreated, e);
+    }
+    Entered(c);
     EnterWaiting();
     UpdateClock();
 }
@@ -270,6 +296,10 @@ void SharedWorld::Leave(RemoteClient& c, bool disconnected) {
     }
     UpdateClock();
     mDirty = true;
+    if (mServer.Mods().Wants(ModEvent::WorldLeave)) {
+        json e = { { "player", c.id }, { "nick", c.nick } };
+        mServer.Mods().Fire(ModEvent::WorldLeave, e);
+    }
 }
 
 void SharedWorld::ApplyOps(RemoteClient& c, const json& ev) {
@@ -326,7 +356,64 @@ void SharedWorld::ApplyOps(RemoteClient& c, const json& ev) {
                 mServer.SendEvent(*p, back);
             }
         }
+        TellModsOfChange(c.id, relay);
     }
+}
+
+void SharedWorld::TellModsOfChange(uint8_t by, const world::Ops& changed) {
+    if (!mServer.Mods().Wants(ModEvent::WorldChange)) {
+        return;
+    }
+    json lists = world::ToJson(changed); // only the lists that have something
+    json e = { { "player", by } };
+    for (const char* list : { "bits", "bytes", "adds" }) {
+        e[list] = lists.contains(list) ? lists[list] : json::array();
+    }
+    mServer.Mods().Fire(ModEvent::WorldChange, e);
+}
+
+bool SharedWorld::ApplyServerOps(const world::Ops& ops, world::Ops* applied, std::string* err) {
+    if (!mStore.Exists()) {
+        *err = Tr(Msg::NoWorldYet);
+        return false;
+    }
+    if (mResetting) {
+        *err = Tr(Msg::ResetWait);
+        return false;
+    }
+    world::Ops relay;
+    world::Ops corrections; // of interest to a game that counted on its own delta: nobody here
+    int invalid = 0;
+    mStore.Apply(ops, relay, corrections, &invalid);
+    if (!relay.Empty()) {
+        mDirty = true;
+        json out = world::ToJson(relay);
+        out["t"] = ev::kWops;
+        out["from"] = 0;
+        for (RemoteClient* p : Receivers()) {
+            mServer.SendEvent(*p, out);
+        }
+        TellModsOfChange(0, relay);
+    }
+    if (applied != nullptr) {
+        *applied = relay;
+    }
+    if (invalid > 0) {
+        *err = Tr(Msg::WorldOpsOutside);
+        return false;
+    }
+    return true;
+}
+
+void SharedWorld::SetSpeed(double scale, const std::string& by) {
+    double before = mClock.Scale();
+    mClock.SetScale(scale, Now());
+    if (mClock.Scale() == before || !mStore.Exists()) {
+        return;
+    }
+    mDirty = true;
+    Announce(Tr(Msg::TimeSpeedChanged, { ShortNumber(mClock.Scale()), by }), level::kInfo, nullptr);
+    SendClock(nullptr, false);
 }
 
 void SharedWorld::Upload(RemoteClient& c, const json& ev) {
@@ -357,7 +444,7 @@ void SharedWorld::UpdateClock() {
         someone = true;
         stopped = stopped || p->timeStopped;
     }
-    bool run = mStore.Exists() && someone && !stopped && !mResetting;
+    bool run = mStore.Exists() && someone && !stopped && !mResetting && !mFrozen;
     if (run == mClock.Running()) {
         return;
     }
@@ -366,7 +453,12 @@ void SharedWorld::UpdateClock() {
 }
 
 json SharedWorld::ClockJson() {
-    return json{ { "abs", mClock.Abs(Now()) }, { "inv", mClock.Inverted() }, { "stopped", !mClock.Running() } };
+    // "ups": how fast it really runs (the speed of the world and the Inverted Song of Time together), so a game
+    // follows it between two of these.
+    return json{ { "abs", mClock.Abs(Now()) },
+                 { "inv", mClock.Inverted() },
+                 { "stopped", !mClock.Running() },
+                 { "ups", mClock.UnitsPerSecond() } };
 }
 
 void SharedWorld::SendClock(RemoteClient* to, bool jump) {
@@ -411,6 +503,9 @@ std::string SharedWorld::StopReason() {
     if (mResetting) {
         return Tr(Msg::StopReset);
     }
+    if (mFrozen) {
+        return Tr(Msg::StopFrozen);
+    }
     for (RemoteClient* p : InWorld()) {
         if (p->timeStopped) {
             return Tr(Msg::StopPlayerPlace, { p->nick });
@@ -425,6 +520,9 @@ std::string SharedWorld::TimeText() {
     }
     std::string text = Tr(Msg::TimeLine, { clock::Format(ClockAbs()), Tr(mClock.Inverted() ? Msg::TimeSlow : Msg::TimeNormal),
                                           std::to_string(mStore.Cycle()) });
+    if (mClock.Scale() != 1.0) {
+        text += Tr(Msg::TimeSpeedSuffix, { ShortNumber(mClock.Scale()) });
+    }
     std::string why = StopReason();
     if (!why.empty()) {
         text += Tr(Msg::TimeStoppedSuffix, { why });

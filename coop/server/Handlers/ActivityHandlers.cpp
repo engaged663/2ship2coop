@@ -8,6 +8,7 @@
 //                ("scope": "group", the default) or to everyone in the scene ("scope": "scene": bosses; off with
 //                server.json "bossCutscenes": false)
 #include "server/Groups.h"
+#include "server/Mods/ModHost.h"
 #include "server/Registry.h"
 #include "server/Server.h"
 
@@ -125,6 +126,16 @@ bool ValidVars(const json& ev) {
     return true;
 }
 
+// The mods' "activity" event: a minigame started, ended or told its result.
+void TellMods(Server& server, const RemoteClient& client, const char* state, const std::string& key,
+              const std::string& name, int64_t score, int64_t cs, bool won) {
+    if (server.Mods().Wants(ModEvent::Activity)) {
+        json e = { { "player", client.id }, { "nick", client.nick }, { "state", state }, { "key", key },
+                   { "name", name },        { "score", score },      { "cs", cs },       { "won", won } };
+        server.Mods().Fire(ModEvent::Activity, e);
+    }
+}
+
 void OnAct(Server& server, RemoteClient& client, const json& ev) {
     if (!Groups_InWorld(client) || !client.activityBudget.Take(server.NowMs())) {
         return;
@@ -155,6 +166,7 @@ void OnAct(Server& server, RemoteClient& client, const json& ev) {
         out["won"] = won;
         out["cs"] = GetInt(ev, "cs");
         Relay(server, client, out, Groups_Mates(server, client));
+        TellMods(server, client, "result", key, name, 0, GetInt(ev, "cs"), won);
         return;
     }
     std::string oldKey = client.activityKey;
@@ -191,6 +203,8 @@ void OnAct(Server& server, RemoteClient& client, const json& ev) {
             out["cs"] = GetInt(ev, "cs");
         }
         Relay(server, client, out, Groups_Mates(server, client));
+        TellMods(server, client, started ? "start" : "end", whatKey, whatName, started ? 0 : GetInt(ev, "score"),
+                 started ? 0 : GetInt(ev, "cs"), false);
     }
     // The leader's activity names its group (menus): the members hear it.
     const Group* g = server.Groups().GroupOf(client.id);

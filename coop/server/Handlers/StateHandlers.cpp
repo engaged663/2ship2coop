@@ -1,5 +1,7 @@
 // Pose stream relay (only to players in the same scene) and "loc" (scene changes, shown in /list).
 // Both are rate limited per player (Protocol.h) and poses the game could not draw are dropped.
+#include "server/Mods/GameIds.h"
+#include "server/Mods/ModHost.h"
 #include "server/Registry.h"
 #include "server/Server.h"
 
@@ -34,6 +36,8 @@ void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t s
     client.pos[1] = state.pos[1];
     client.pos[2] = state.pos[2];
     client.rotY = state.rot.y;
+    client.form = state.form;
+    client.mask = state.mask;
     client.hasState = true;
     client.streamsIn++;
 
@@ -83,6 +87,24 @@ void OnLoc(Server& server, RemoteClient& client, const json& ev) {
     }
     client.locDirty = client.locDirty || changed;
     FlushLoc(server, client);
+    if (!client.host && (client.scene != client.modScene || client.room != client.modRoom)) {
+        int16_t prevScene = client.modScene;
+        int8_t prevRoom = client.modRoom;
+        client.modScene = client.scene;
+        client.modRoom = client.room;
+        if (server.Mods().Wants(ModEvent::PlayerScene)) {
+            json e = { { "player", client.id },
+                       { "nick", client.nick },
+                       { "scene", client.scene },
+                       { "sceneKey", ids::NameOf(ids::Kind::Scene, client.scene) },
+                       { "sceneName", client.sceneName },
+                       { "room", client.room },
+                       { "entrance", client.entrance },
+                       { "prevScene", prevScene },
+                       { "prevRoom", prevRoom } };
+            server.Mods().Fire(ModEvent::PlayerScene, e);
+        }
+    }
 }
 
 // Location changes that exceeded the budget go out as soon as it refills (only the latest one).

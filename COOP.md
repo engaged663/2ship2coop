@@ -4,8 +4,8 @@ An online co-op mod for [2 Ship 2 Harkinian](README.md): up to 4 players share o
 three-day clock, the same unique items and quest flags, the same enemies, props and NPCs — through a small
 dedicated server.
 
-> **Status:** work in progress. The server and protocol (v12) are covered by an automated test suite
-> (238 tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
+> **Status:** work in progress. The server and protocol (v13) are covered by an automated test suite
+> (345 tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
 > Bug reports are welcome.
 
 You need your own legally obtained copy of the game, exactly as for 2 Ship itself. This repository contains no
@@ -21,6 +21,9 @@ copyrighted assets.
   by turns), quests and boss cutscenes.
 - **Chat and commands:** `/tp`, `/gift`, `/pm`, groups, moderation (`op`, `ban`, `kick`), world tools.
   Server texts in English, Spanish, Chinese and Russian (`"language"` in `server.json`, or `/lang`).
+- **Server mods:** Lua scripts and DLL plugins on the server can change the whole experience — give items, heal or
+  hurt, spawn enemies, warp players, add commands, bend the clock, force 2 Ship difficulty options — while players
+  keep using the same `2ship.exe`. See [Mods](#mods).
 
 ## Quick start
 
@@ -32,9 +35,36 @@ copyrighted assets.
 4. Press **Enter** to chat.
 
 `server.json` options: `port`, `maxPlayers`, `password`, `motd`, `language`, `sharedEnemies`, `sharedProps`,
-`groups`, `inviteSeconds`, `bossCutscenes`, `effects`, `endingForAll`.
+`groups`, `inviteSeconds`, `bossCutscenes`, `effects`, `endingForAll`, `timeSpeed` (how fast the three days pass),
+`voteSeconds`, `saveSeconds`, `giftMax`, `commandPermissions` (who may use each command), `gameSettings` (2 Ship
+options forced on everyone in the server's world) and `mods` (below).
 
 To try it alone: `2ship-coop-bot.exe --target YourNick --mode mirror` makes a fake player.
+
+## Mods
+
+The server loads **Lua 5.4 scripts** from `mods/` and **plugins** (`.dll` / `.so`) from `plugins/`. Both use one API:
+named functions (`coop.chat.tell(player, text)`, `coop.game.spawn("*", "EN_DODONGO")`, `coop.world.setTime(3, 22)`...)
+and events (`player_join`, `chat`, `enemy_killed`, `world_hour`...), with commands, timers, per-mod storage and
+settings. Orders to the games (items, health, messages, actors, warps, forced options) only reach players inside the
+server's world, never their own saves, and each player can refuse them (F1 → Co-op → *Permitir los mods del
+servidor*).
+
+```lua
+-- mods/hello.lua
+coop.on("player_join", function(e) coop.chat.broadcast(e.nick .. " is here!") end)
+coop.commands.register("heal", { help = "heals you" }, function(ctx)
+    coop.game.heal(ctx.player)
+    return "Healed.", "ok"
+end)
+```
+
+`/mods` lists them; `/mod reload [name]` reloads (admins), `/mod load` / `/mod unload` (console). Command line:
+`--mods-dir`, `--plugins-dir`, `--script F`, `--plugin F`, `--no-mods`, `--mod-docs DIR` (writes the reference).
+Documentation (in Spanish): [`coop/docs/mods/README.md`](coop/docs/mods/README.md) (guide),
+[`API.md`](coop/docs/mods/API.md) (every function and event, generated from the code),
+[`IDS.md`](coop/docs/mods/IDS.md) (item, actor and scene names), [`PLUGINS.md`](coop/docs/mods/PLUGINS.md) (C/C++ SDK);
+example script [`coop/mods/ejemplo.lua`](coop/mods/ejemplo.lua).
 
 ## Building
 
@@ -60,6 +90,7 @@ Game and server must be the same build (the handshake checks it).
 ## Developer docs
 
 - [`coop/README.md`](coop/README.md) — code map, recipes, CVars, security notes (in Spanish).
+- [`coop/docs/mods/`](coop/docs/mods) — the mod API: guide, generated reference, game ids, plugin SDK (in Spanish).
 - [`docs/superpowers/specs/`](docs/superpowers/specs) and [`docs/superpowers/plans/`](docs/superpowers/plans) — design
   documents and implementation plans for each part (in Spanish).
 

@@ -437,6 +437,18 @@ X(ConfigWarn, "{0}: '{1}' debe ser {2}; se usa el valor por defecto", "{0}: '{1}
 X(ExpectInt, "un número entero", "a whole number", "一个整数", "целым числом")
 X(ExpectString, "un texto entre comillas", "a text in quotes", "一个带引号的文本", "текстом в кавычках")
 X(ExpectBool, "true o false", "true or false", "true 或 false", "true или false")
+X(ExpectNumber, "un número dentro de su rango", "a number within its range", "一个范围内的数字", "числом в допустимом диапазоне")
+X(ExpectObject, "un objeto { }", "an object { }", "一个对象 { }", "объектом { }")
+X(ExpectList, "una lista de textos [ ]", "a list of texts [ ]", "一个文本列表 [ ]", "списком строк [ ]")
+X(BadCommandPerm, "{0}: permiso '{2}' desconocido para /{1} (usa player, op o console); se ignora",
+  "{0}: unknown permission '{2}' for /{1} (use player, op or console); ignored",
+  "{0}:/{1} 的权限“{2}”未知(请使用 player、op 或 console);已忽略",
+  "{0}: неизвестное право «{2}» для /{1} (используйте player, op или console); игнорируется")
+X(BadGameSetting, "{0}: la opción de juego '{1}' no se puede forzar o su valor no es un número; se ignora",
+  "{0}: the game setting '{1}' cannot be forced or its value is not a number; ignored",
+  "{0}:游戏选项“{1}”无法强制设置,或其值不是数字;已忽略",
+  "{0}: игровую настройку «{1}» нельзя навязать, либо её значение не число; игнорируется")
+X(ArgNeedsValue, "{0} necesita un valor", "{0} needs a value", "{0} 需要一个值", "{0} требует значения")
 X(BansNotList, "{0} no es una lista JSON; se ignora", "{0} is not a JSON list; ignored", "{0} 不是 JSON 列表;已忽略",
   "{0} — не JSON-список; игнорируется")
 X(BansBadEntry, "{0}: se ignora una entrada inválida", "{0}: an invalid entry is ignored", "{0}:已忽略一个无效条目",
@@ -576,3 +588,156 @@ X(InvEffects, "paquete de efectos inválido", "invalid effects packet", "无效�
 
 // ---- Clock ----
 X(ClockFormat, "Día {0}, {1}", "Day {0}, {1}", "第 {0} 天 {1}", "День {0}, {1}")
+
+// ---- Mods (server/Mods): scripts, plugins and the functions they call ----
+X(ModLogLine, "[{0}] {1}", "[{0}] {1}", "[{0}] {1}", "[{0}] {1}")
+X(ModHandlerError, "[{0}] error en {1}: {2}", "[{0}] error in {1}: {2}", "[{0}] {1} 出错:{2}", "[{0}] ошибка в {1}: {2}")
+X(ModErrorsSilenced, "[{0}] no se registrarán más errores de {1}", "[{0}] further errors of {1} will not be logged",
+  "[{0}] {1} 的后续错误将不再记录", "[{0}] дальнейшие ошибки {1} в журнал не попадут")
+X(ModDepthLimit, "Demasiados eventos de mods encadenados: '{0}' no se ha repartido",
+  "Too many chained mod events: '{0}' was not delivered", "模组事件嵌套过多:“{0}”未被分发",
+  "Слишком много вложенных событий модов: «{0}» не доставлено")
+X(ModUnknownEvent, "evento desconocido: '{0}' (los eventos propios de los mods llevan ':' en el nombre)",
+  "unknown event: '{0}' (the mods' own events have a ':' in their name)",
+  "未知事件:“{0}”(模组自定义事件的名称中带有“:”)",
+  "неизвестное событие: «{0}» (собственные события модов содержат «:» в имени)")
+X(ModNotFound, "No hay ningún mod cargado llamado '{0}'.", "No mod named '{0}' is loaded.", "没有名为“{0}”的已加载模组。",
+  "Мод с именем «{0}» не загружен.")
+X(ModUnknownKind, "{0}: no es un script (.lua) ni un plugin (.dll, .so)", "{0}: not a script (.lua) or a plugin (.dll, .so)",
+  "{0}:既不是脚本(.lua)也不是插件(.dll、.so)", "{0}: не скрипт (.lua) и не плагин (.dll, .so)")
+X(ModLoaded, "Mod cargado: {0} ({1})", "Mod loaded: {0} ({1})", "模组已加载:{0}({1})", "Мод загружен: {0} ({1})")
+X(ModUnloaded, "Mod descargado: {0}", "Mod unloaded: {0}", "模组已卸载:{0}", "Мод выгружен: {0}")
+X(ModLoadFailed, "No se pudo cargar el mod {0}: {1}", "Could not load the mod {0}: {1}", "无法加载模组 {0}:{1}",
+  "Не удалось загрузить мод {0}: {1}")
+X(ModNameTaken, "ya hay un mod cargado con el nombre '{0}'", "a mod named '{0}' is already loaded",
+  "已经加载了名为“{0}”的模组", "мод с именем «{0}» уже загружен")
+X(ModFileMissing, "no se encuentra el archivo {0}", "the file {0} was not found", "找不到文件 {0}", "файл {0} не найден")
+X(ModBadCommandName, "nombre de comando inválido: '{0}' (de 1 a 24 letras minúsculas, números o _)",
+  "invalid command name: '{0}' (1 to 24 lowercase letters, numbers or _)",
+  "命令名称无效:“{0}”(1 到 24 个小写字母、数字或下划线)",
+  "недопустимое имя команды: «{0}» (от 1 до 24 строчных букв, цифр или _)")
+X(ModCommandExists, "el comando /{0} ya existe", "the command /{0} already exists", "命令 /{0} 已存在",
+  "команда /{0} уже существует")
+X(ModCommandFailed, "El comando ha fallado (el registro del servidor dice por qué).",
+  "The command failed (the server's log says why).", "命令执行失败(原因见服务器日志)。",
+  "Команда завершилась с ошибкой (причина — в журнале сервера).")
+X(PluginOpenFailed, "{0}: no se pudo abrir la librería ({1})", "{0}: the library could not be opened ({1})",
+  "{0}:无法打开该库({1})", "{0}: не удалось открыть библиотеку ({1})")
+X(PluginNoEntry, "{0}: no es un plugin (no exporta CoopPlugin_Abi y CoopPlugin_Load)",
+  "{0}: not a plugin (it does not export CoopPlugin_Abi and CoopPlugin_Load)",
+  "{0}:不是插件(未导出 CoopPlugin_Abi 和 CoopPlugin_Load)",
+  "{0}: не плагин (не экспортирует CoopPlugin_Abi и CoopPlugin_Load)")
+X(PluginAbiMismatch, "{0}: el plugin es de la ABI {1} y este servidor usa la ABI {2}; compílalo con el SDK de este servidor",
+  "{0}: the plugin was made for ABI {1} and this server uses ABI {2}; build it with this server's SDK",
+  "{0}:该插件针对 ABI {1} 编译,而此服务器使用 ABI {2};请使用此服务器的 SDK 重新编译",
+  "{0}: плагин собран для ABI {1}, а этот сервер использует ABI {2}; пересоберите его с SDK этого сервера")
+X(PluginLoadRefused, "{0}: el plugin no quiso arrancar (CoopPlugin_Load devolvió 0)",
+  "{0}: the plugin refused to start (CoopPlugin_Load returned 0)", "{0}:插件拒绝启动(CoopPlugin_Load 返回 0)",
+  "{0}: плагин отказался запускаться (CoopPlugin_Load вернул 0)")
+X(PluginBadAnswer, "la respuesta del plugin no es un objeto JSON", "the plugin's answer is not a JSON object",
+  "插件的返回值不是 JSON 对象", "ответ плагина не является JSON-объектом")
+X(ModsUsage, "/mods", "/mods", "/mods", "/mods")
+X(ModsHelp, "mods que tiene cargados el servidor", "mods the server has loaded", "服务器已加载的模组", "моды, загруженные сервером")
+X(ModUsage, "/mod reload [nombre] | /mod load <archivo> | /mod unload <nombre>",
+  "/mod reload [name] | /mod load <file> | /mod unload <name>", "/mod reload [名称] | /mod load <文件> | /mod unload <名称>",
+  "/mod reload [имя] | /mod load <файл> | /mod unload <имя>")
+X(ModHelp, "recargar un mod (o todos); cargar y descargar, solo desde la consola",
+  "reload a mod (or all of them); load and unload, from the console only", "重新加载某个(或全部)模组;加载和卸载仅限控制台",
+  "перезагрузить мод (или все); загрузка и выгрузка — только из консоли")
+X(ModsNone, "No hay ningún mod cargado.", "No mod is loaded.", "没有加载任何模组。", "Нет загруженных модов.")
+X(ModsTitle, "Mods cargados ({0}):", "Loaded mods ({0}):", "已加载的模组({0}):", "Загруженные моды ({0}):")
+X(ModReloaded, "Mod recargado: {0}", "Mod reloaded: {0}", "模组已重新加载:{0}", "Мод перезагружен: {0}")
+X(ModReloadedAll, "Mods recargados: {0}", "Mods reloaded: {0}", "已重新加载的模组:{0}", "Перезагружено модов: {0}")
+X(ModOnlyConsole, "Solo la consola del servidor puede cargar o descargar mods.",
+  "Only the server's console can load or unload mods.", "只有服务器控制台可以加载或卸载模组。",
+  "Загружать и выгружать моды может только консоль сервера.")
+X(ModsDisabledLog, "Mods desactivados (\"mods.enabled\" es false o se arrancó con --no-mods).",
+  "Mods are disabled (\"mods.enabled\" is false or the server was started with --no-mods).",
+  "模组已禁用(\"mods.enabled\" 为 false,或启动时使用了 --no-mods)。",
+  "Моды отключены («mods.enabled» равно false или сервер запущен с --no-mods).")
+X(ModStorageBad, "{0}: los datos guardados no se pueden leer; el mod empieza sin datos",
+  "{0}: the stored data cannot be read; the mod starts without data", "{0}:无法读取已保存的数据;模组将从空数据开始",
+  "{0}: сохранённые данные не читаются; мод начинает без данных")
+X(ModStorageSaveFail, "No se pudieron guardar los datos del mod {0}: {1}", "Could not save the data of the mod {0}: {1}",
+  "无法保存模组 {0} 的数据:{1}", "Не удалось сохранить данные мода {0}: {1}")
+X(ModDocsWritten, "Referencia de los mods escrita en {0} (API.md, IDS.md).",
+  "Mod reference written to {0} (API.md, IDS.md).", "模组参考已写入 {0}(API.md、IDS.md)。",
+  "Справочник по модам записан в {0} (API.md, IDS.md).")
+X(ModDocsFailed, "No se pudo escribir la referencia de los mods en {0}: {1}",
+  "Could not write the mod reference to {0}: {1}", "无法将模组参考写入 {0}:{1}",
+  "Не удалось записать справочник по модам в {0}: {1}")
+X(RejectByMod, "El servidor no te ha dejado entrar.", "The server did not let you in.", "服务器没有让你进入。",
+  "Сервер не пустил вас.")
+// Errors of the API's functions (they follow "<function>: ")
+X(ApiUnknownFunction, "función desconocida: {0}", "unknown function: {0}", "未知函数:{0}", "неизвестная функция: {0}")
+X(ApiArgsNotList, "los argumentos deben ser una lista", "the arguments must be a list", "参数必须是一个列表",
+  "аргументы должны быть списком")
+X(ApiArgMissing, "falta el argumento {0} ({1})", "argument {0} ({1}) is missing", "缺少第 {0} 个参数({1})",
+  "отсутствует аргумент {0} ({1})")
+X(ApiArgType, "el argumento {0} ({1}) debe ser {2}", "argument {0} ({1}) must be {2}", "第 {0} 个参数({1})必须是{2}",
+  "аргумент {0} ({1}) должен быть {2}")
+X(ApiArgRange, "el argumento {0} ({1}) debe estar entre {2} y {3}", "argument {0} ({1}) must be between {2} and {3}",
+  "第 {0} 个参数({1})必须在 {2} 到 {3} 之间", "аргумент {0} ({1}) должен быть от {2} до {3}")
+X(ApiArgTooLong, "el argumento {0} ({1}) es demasiado largo (máximo {2} bytes)",
+  "argument {0} ({1}) is too long ({2} bytes at most)", "第 {0} 个参数({1})过长(最多 {2} 字节)",
+  "аргумент {0} ({1}) слишком длинный (не более {2} байт)")
+X(ApiArgValue, "{0} debe ser uno de: {1}", "{0} must be one of: {1}", "{0} 必须是以下之一:{1}", "{0} должен быть одним из: {1}")
+X(ApiArgEmpty, "el argumento {0} ({1}) está vacío", "argument {0} ({1}) is empty", "第 {0} 个参数({1})为空",
+  "аргумент {0} ({1}) пуст")
+X(ApiFieldMissing, "falta el campo '{0}'", "the field '{0}' is missing", "缺少字段“{0}”", "отсутствует поле «{0}»")
+X(ApiFieldRange, "el campo '{0}' debe ser un número entre {1} y {2}", "the field '{0}' must be a number between {1} and {2}",
+  "字段“{0}”必须是 {1} 到 {2} 之间的数字", "поле «{0}» должно быть числом от {1} до {2}")
+X(ApiNoPlayer, "no hay ningún jugador conectado '{0}'", "no player '{0}' is connected", "没有在线玩家“{0}”",
+  "игрок «{0}» не подключён")
+X(ApiUnknownKey, "clave desconocida: '{0}'", "unknown key: '{0}'", "未知的键:“{0}”", "неизвестный ключ: «{0}»")
+X(ApiSecretKey, "'{0}' no se puede leer desde un mod", "'{0}' cannot be read from a mod", "模组无法读取“{0}”",
+  "«{0}» нельзя прочитать из мода")
+X(ApiReadOnlyKey, "'{0}' no se puede cambiar con el servidor en marcha", "'{0}' cannot be changed while the server runs",
+  "服务器运行时无法更改“{0}”", "«{0}» нельзя изменить при работающем сервере")
+X(ApiTypeInt, "un número entero", "a whole number", "一个整数", "целым числом")
+X(ApiTypeNumber, "un número", "a number", "一个数字", "числом")
+X(ApiTypeText, "un texto", "a text", "一段文本", "строкой")
+X(ApiTypeBool, "true o false", "true or false", "true 或 false", "true или false")
+X(ApiTypeTable, "una tabla", "a table", "一个表", "таблицей")
+X(ApiTypeList, "una lista", "a list", "一个列表", "списком")
+X(ApiTypePlayer, "el id o el nick de un jugador", "a player's id or nick", "玩家的 id 或昵称", "id или ником игрока")
+X(StopByMod, "detenido por el mod {0}", "stopped by the mod {0}", "由模组 {0} 关闭", "остановлен модом {0}")
+X(ApiBadField, "campo del mundo desconocido: '{0}'", "unknown world field: '{0}'", "未知的世界字段:“{0}”",
+  "неизвестное поле мира: «{0}»")
+X(ApiFieldKind, "esta función no sirve para el campo '{0}', que es de tipo {1}",
+  "this function does not work on the field '{0}', which is of kind {1}", "此函数不适用于类型为 {1} 的字段“{0}”",
+  "эта функция не работает с полем «{0}» типа {1}")
+X(ApiFieldAlign, "un contador de dos bytes empieza en un byte par", "a two-byte counter starts at an even byte",
+  "双字节计数器从偶数字节开始", "двухбайтовый счётчик начинается с чётного байта")
+// The world's speed and changes made by the server itself
+X(TimeSpeedSuffix, " · velocidad x{0}", " · speed x{0}", " · 速度 x{0}", " · скорость x{0}")
+X(TimeSpeedChanged, "La velocidad del tiempo es ahora x{0} ({1}).", "The speed of time is now x{0} ({1}).",
+  "时间流速现在是 x{0}({1})。", "Скорость времени теперь x{0} ({1}).")
+X(StopFrozen, "detenido a propósito", "stopped on purpose", "已被手动暂停", "остановлено намеренно")
+X(WorldOpsOutside, "ese cambio no cabe en el mundo (campo, byte o tipo equivocado)",
+  "that change does not fit the world (wrong field, byte or kind)", "该更改不符合世界结构(字段、字节或类型错误)",
+  "это изменение не подходит к миру (неверное поле, байт или тип)")
+// The games: what the mods order, the settings they force and what the games report
+X(InvGameEvent, "aviso del juego inválido", "invalid game report", "无效的游戏报告", "недопустимое сообщение игры")
+X(InvStat, "estado del jugador inválido", "invalid player status", "无效的玩家状态", "недопустимое состояние игрока")
+X(ApiBadItem, "objeto desconocido: {0}", "unknown item: {0}", "未知的物品:{0}", "неизвестный предмет: {0}")
+X(ApiBadActor, "actor desconocido: {0}", "unknown actor: {0}", "未知的角色:{0}", "неизвестный актёр: {0}")
+X(ApiBadScene, "escena desconocida: {0}", "unknown scene: {0}", "未知的场景:{0}", "неизвестная сцена: {0}")
+X(ApiNotGivable, "{0} no es un objeto que se pueda dar o quitar", "{0} is not an item that can be given or taken",
+  "{0} 不是可以给予或收回的物品", "{0} — не предмет, который можно выдать или забрать")
+X(ApiNoSpawn, "el actor {0} no se puede crear", "the actor {0} cannot be created", "无法创建角色 {0}",
+  "актёра {0} создать нельзя")
+X(ApiArgNotZero, "el argumento {0} ({1}) no puede ser 0", "argument {0} ({1}) cannot be 0", "第 {0} 个参数({1})不能为 0",
+  "аргумент {0} ({1}) не может быть 0")
+X(ApiBadSetting, "la opción '{0}' no se puede forzar (solo opciones de juego: gEnhancements., gCheats., gModes., gFixes.)",
+  "the setting '{0}' cannot be forced (gameplay settings only: gEnhancements., gCheats., gModes., gFixes.)",
+  "无法强制设置“{0}”(仅限游戏性选项:gEnhancements.、gCheats.、gModes.、gFixes.)",
+  "настройку «{0}» нельзя навязать (только игровые: gEnhancements., gCheats., gModes., gFixes.)")
+X(ApiBadSettingValue, "el valor de '{0}' debe ser un número entre -1000000 y 1000000, o true/false",
+  "the value of '{0}' must be a number between -1000000 and 1000000, or true/false",
+  "“{0}”的值必须是 -1000000 到 1000000 之间的数字,或 true/false",
+  "значение «{0}» должно быть числом от -1000000 до 1000000 либо true/false")
+X(ApiTooManySettings, "demasiadas opciones forzadas (máximo {0} por jugador)", "too many forced settings ({0} per player at most)",
+  "强制设置过多(每位玩家最多 {0} 项)", "слишком много навязанных настроек (не более {0} на игрока)")
+X(GameSettingRefused, "server.json, gameSettings: {0}", "server.json, gameSettings: {0}", "server.json,gameSettings:{0}",
+  "server.json, gameSettings: {0}")

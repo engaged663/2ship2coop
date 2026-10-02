@@ -7,8 +7,8 @@ namespace coop::server {
 static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
     std::string text = Tr(Msg::HelpTitle);
     for (const CommandDef* def : AllCommands()) {
-        if (HasPermission(ctx.server, ctx.sender, def->perm)) {
-            text += "\n" + Tr(def->usage) + " - " + Tr(def->help);
+        if (HasPermission(ctx.server, ctx.sender, *def)) {
+            text += "\n" + UsageOf(*def) + " - " + HelpOf(*def);
         }
     }
     ctx.Reply(text);

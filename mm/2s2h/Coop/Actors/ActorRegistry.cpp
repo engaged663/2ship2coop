@@ -291,12 +291,12 @@ void ActorRegistry_EndExpect() {
     sExpecting = false;
 }
 
-Actor* ActorRegistry_SpawnUntracked(int16_t id, const Vec3f& pos, s16 params) {
+Actor* ActorRegistry_SpawnUntracked(int16_t id, const Vec3f& pos, s16 params, s16 rotY) {
     if (gPlayState == nullptr) {
         return nullptr;
     }
     sEchoing = true;
-    Actor* a = Actor_Spawn(&gPlayState->actorCtx, gPlayState, id, pos.x, pos.y, pos.z, 0, 0, 0, params);
+    Actor* a = Actor_Spawn(&gPlayState->actorCtx, gPlayState, id, pos.x, pos.y, pos.z, 0, rotY, 0, params);
     sEchoing = false;
     return a;
 }

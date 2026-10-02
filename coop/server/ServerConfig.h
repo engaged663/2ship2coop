@@ -1,11 +1,28 @@
 #pragma once
 // server.json: created with defaults on first run, edited by hand by the server owner.
+#include "common/Events.h"
 #include "common/I18n.h"
 #include "common/Protocol.h"
 
+#include <map>
 #include <string>
+#include <vector>
 
 namespace coop::server {
+
+// server.json "mods": which scripts and plugins the server loads and their limits (Mods/ModHost.h).
+struct ModsConfig {
+    bool enabled = true;
+    std::string scriptsDir;           // "" = no scripts (tests); server.json default "mods"
+    std::vector<std::string> scripts; // "*" = every .lua of the folder; names or paths; "!name" leaves one out
+    std::string pluginsDir;           // "" = no plugins; server.json default "plugins"
+    std::vector<std::string> plugins;
+    std::string dataDir;              // "" = memory only (tests); server.json default "mods/data"
+    bool unsafeLua = false;           // true: scripts get the whole Lua (io, os, package)
+    int scriptTimeoutMs = 2000;       // a handler that runs longer is aborted (100..60000)
+    int scriptMemoryMb = 64;          // memory of one script (8..1024)
+    json settings = json::object();   // per mod: {"name": {...}} (coop.mod.setting)
+};
 
 struct ServerConfig {
     uint16_t port = kDefaultPort;
@@ -23,6 +40,12 @@ struct ServerConfig {
     bool bossCutscenes = true; // bosses' cutscenes, title cards and dialogues go to everyone in their scene
     int inviteMs = kInviteMs;  // server.json "inviteSeconds" (10..600)
     bool effects = true;       // the effects echo (stream kStreamEffects): false = never relayed
+    // Mods and what the owner tunes (docs/superpowers/specs/2026-10-02-coop-mods-api-design.md §4)
+    double timeSpeed = 1.0;    // how fast the three days pass (kMinTimeSpeed..kMaxTimeSpeed); 1 = the original game
+    int giftMax = kGiftMaxAmount; // rupees of one /gift (1..kGiftMaxAmount)
+    std::map<std::string, std::string> commandPermissions; // command -> "player" | "op" | "console"
+    json gameSettings = json::object(); // 2 Ship options forced on every game in the world: {"gCheats.X": 1}
+    ModsConfig mods;
     // Sub-project D: the secret a headless host game shows to be accepted as the server's own. Empty = no hosts.
     // The server generates one for the hosts it starts; server.json may fix one for testing.
     std::string hostToken;
@@ -35,20 +58,30 @@ struct ServerConfig {
     std::string worldPath;
     std::string playersDir;
     std::string configPath; // server.json, where /lang saves the language ("" = not saved, tests)
+    int voteTimeoutMs = kSotVoteMs;           // server.json "voteSeconds" (10..300)
+    int worldSaveMs = kWorldSaveMs;           // server.json "saveSeconds" (2..600)
     // Not stored in server.json (tests only)
-    int voteTimeoutMs = kSotVoteMs;
     int cycleComputeTimeoutMs = kCycleComputeMs;
     int worldCreateTimeoutMs = kWorldCreateMs;
-    int worldSaveMs = kWorldSaveMs;
     int clockBroadcastMs = kClockBroadcastMs;
 };
 
 // Reads path; if it does not exist it is created with the defaults. False (with err) on invalid JSON.
 // A valid "language" also becomes the process language (SetLang) so the warnings below already use it.
 // Fields with a wrong type keep their default and are reported in err while still returning true.
+// A file from an older server gains the keys it lacks, with their defaults (written back once).
 bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string* err);
 
 // Writes "language" into the existing file (other keys are kept). False if it cannot be read or written.
 bool SaveConfigLanguage(const std::string& path, Lang language);
+
+// What the command line asked for besides the config.
+struct CommandLine {
+    std::string modDocsDir; // --mod-docs <dir>: write the mod reference there and exit
+};
+// 2ship-coop-server [--port N] [--lang es|en|zh|ru] [--mods-dir D] [--plugins-dir D] [--script F]... [--plugin F]...
+//                   [--no-mods] [--mod-docs D]
+// --script and --plugin add to the lists of server.json. Returns the warnings ("" = none).
+std::string ApplyCommandLine(ServerConfig& config, int argc, char** argv, CommandLine* out);
 
 } // namespace coop::server

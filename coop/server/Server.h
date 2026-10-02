@@ -13,9 +13,12 @@
 #include "common/Transport.h"
 
 #include <chrono>
+#include <memory>
 #include <string>
 
 namespace coop::server {
+
+class ModHost; // Mods/ModHost.h: the scripts and plugins loaded into this server
 
 class Server {
   public:
@@ -56,7 +59,13 @@ class Server {
     SharedWorld& World() {
         return mWorld;
     }
+    ModHost& Mods() {
+        return *mMods;
+    }
     const ServerConfig& Config() const {
+        return mConfig;
+    }
+    ServerConfig& EditConfig() { // what may change while running (mods: server.setConfig)
         return mConfig;
     }
     Logger& Log() {
@@ -82,6 +91,7 @@ class Server {
     bool mStopping = false;
     int64_t mStopDeadlineMs = 0;
     std::chrono::steady_clock::time_point mStartTime;
+    std::unique_ptr<ModHost> mMods; // the last member: the mods go first, while everything else still exists
 };
 
 } // namespace coop::server

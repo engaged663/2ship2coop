@@ -1,4 +1,5 @@
 // Handshake ("hello" -> "welcome"/"reject") and the "leave" broadcast.
+#include "server/Mods/ModHost.h"
 #include "server/Registry.h"
 #include "server/Server.h"
 
@@ -97,6 +98,13 @@ void OnHello(Server& server, RemoteClient& client, const json& ev) {
     if (!server.Config().password.empty() && pass != server.Config().password) {
         return server.Reject(client, Tr(Msg::RejectPassword));
     }
+    if (server.Mods().Wants(ModEvent::PlayerConnect)) { // a mod may still refuse it (a whitelist, its own bans)
+        json e = { { "nick", nick }, { "ip", client.ip }, { "reason", Tr(Msg::RejectByMod) } };
+        if (!server.Mods().Fire(ModEvent::PlayerConnect, e)) {
+            std::string reason = SanitizeChat(GetString(e, "reason"), kChatMaxChars);
+            return server.Reject(client, reason.empty() ? Tr(Msg::RejectByMod) : reason);
+        }
+    }
 
     client.id = server.Players().AllocateId();
     client.nick = nick;
@@ -120,6 +128,10 @@ void OnHello(Server& server, RemoteClient& client, const json& ev) {
     join["nick"] = client.nick;
     server.Broadcast(join, &client);
     server.Log().Info(Tr(Msg::PlayerJoined, { client.nick, client.ip, std::to_string(client.id) }));
+    if (server.Mods().Wants(ModEvent::PlayerJoin)) {
+        json e = { { "player", client.id }, { "nick", client.nick }, { "ip", client.ip } };
+        server.Mods().Fire(ModEvent::PlayerJoin, e);
+    }
 }
 
 void OnDisconnect(Server& server, RemoteClient& client) {
@@ -131,6 +143,10 @@ void OnDisconnect(Server& server, RemoteClient& client) {
         return;
     }
     std::string reason = client.leaveReason.empty() ? Tr(Msg::LeaveDisconnected) : client.leaveReason;
+    if (server.Mods().Wants(ModEvent::PlayerLeave)) { // the player is still in the registry: its id still works
+        json e = { { "player", client.id }, { "nick", client.nick }, { "reason", reason } };
+        server.Mods().Fire(ModEvent::PlayerLeave, e);
+    }
     json leave = MakeEvent(ev::kLeave);
     leave["id"] = client.id;
     leave["nick"] = client.nick;

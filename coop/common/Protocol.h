@@ -6,7 +6,8 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 12; // v12: effects echo, results, talk values; v11: groups; v10: the ending
+constexpr uint32_t kProtocolVersion = 13; // v13: mods (orders, forced settings, game reports), the clock's speed;
+                                          // v12: effects echo, results, talk values; v11: groups; v10: the ending
 constexpr uint16_t kDefaultPort = 7780; // UDP
 
 constexpr int kMaxPlayers = 4;
@@ -89,6 +90,21 @@ constexpr int kCinemaActorsMs = 1000;        // a game's actor frames pass this 
                                              // cutscene actors, for who watches (whoever owns the room)
 constexpr size_t kMaxTalkVarsHex = 512;      // "vars" of a talk event: the talker's text values, in hex
 constexpr int64_t kMaxActivityCs = 36000000; // centiseconds of a minigame's time (100 hours)
+// Mods (docs/superpowers/specs/2026-10-02-coop-mods-api-design.md)
+constexpr double kMinTimeSpeed = 0.1;        // server.json timeSpeed: how fast the three days pass...
+constexpr double kMaxTimeSpeed = 10.0;       // ...1 is the original game
+constexpr int kMaxModSettingName = 96;       // characters of the name of a game setting a server forces
+constexpr int kMaxModSettings = 64;          // game settings forced on one player
+constexpr int kModEventBurst = 60;           // gev events per player: burst...
+constexpr int kModEventPerSecond = 30;       // ...and sustained rate (a spin attack through a field of rupees)
+constexpr int kStatBurst = 10;               // stat events per player: burst...
+constexpr int kStatPerSecond = 4;            // ...and sustained rate (a game sends at most 4 a second)
+constexpr int kMaxModText = 400;             // characters of the text of a notify/message order
+constexpr int kMaxModOpsPerEvent = 16;       // orders in one "mod" event
+constexpr int kMaxModHealth = 2000;          // health and damage of an order or a report (20 hearts are 320)
+constexpr int kMaxModRupees = 9999;          // rupees of an order (the biggest wallet holds 500; the rest is lost)
+constexpr int kMaxModSpawnDistance = 2000;   // how far in front of Link an order may create an actor
+constexpr int kLastModItem = 0xA3;           // the last id of the game's item table that is something to give
 
 enum Channel : uint8_t {
     kChannelEvents = 0, // reliable + ordered, JSON events
@@ -174,6 +190,14 @@ inline constexpr const char* kFollow = "follow";        // C->S entrance, cs, tr
 inline constexpr const char* kTalk = "talk";            // C->S op (open, id, page, choice, close), id, page, choice,
                                                         // scope, vars; S->C + from
 inline constexpr const char* kTitle = "title";          // C->S tex, x, y, w, h, scope: a boss's title card; S->C + from
+// Mods (server: Mods/Api/ApiGame.cpp, Handlers/ModHandlers.cpp; game: Mods/)
+inline constexpr const char* kMod = "mod";        // S->C ops [{op, ...}]: orders of the server's mods for this game
+                                                  // (notify, message, sfx, item, take, rupees, heal, damage, kill,
+                                                  // magic, spawn, warp: coop/README.md "Mods")
+inline constexpr const char* kModCfg = "mod_cfg"; // S->C settings {name: number}: every game setting forced on it
+inline constexpr const char* kGameEvent = "gev";  // C->S k (item: id | death | boss: actor |
+                                                  // kill: actor, params, by, room, pos[3]): it happened in this game
+inline constexpr const char* kStat = "stat";      // C->S hp, hpMax, mp, rupees (when they change, 4 a second at most)
 // Epona
 inline constexpr const char* kEponaCall = "epona_call"; // C->S (+from stamped): one owner horse call
 inline constexpr const char* kEponaPassenger = "epona_passenger"; // C->S owner, horse, mounted; S->owner +from

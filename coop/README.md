@@ -11,7 +11,8 @@ juego para todos, el tiempo nunca se detiene (ni con el inventario abierto: «me
 entre escenas y **grupos** (invitaciones, minijuegos,
 misiones, diálogos y cinemáticas compartidos; jefes para toda la escena: ver «Grupos, minijuegos y misiones»), con sus
 límites arreglados (actores de cinemática y efectos para quien mira, minijuegos Juntos / Cada uno / Por turnos,
-contactos, resultados y textos con los valores de quien habla). Pendiente: D2 (spec D).
+contactos, resultados y textos con los valores de quien habla) y la **API de mods** (scripts Lua y plugins DLL en el
+servidor: ver «Mods»). Pendiente: D2 (spec D).
 
 ## Piezas
 
@@ -34,7 +35,9 @@ contactos, resultados y textos con los valores de quien habla). Pendiente: D2 (s
 | `EponaState.h/.cpp` | stream binario de Eponas independientes: propietario, secuencia, estado, posición y montaje |
 | `LiveMenu.h/.cpp` | reglas puras del menú en vivo: cuándo se cierra solo (`LiveMenuWatch`) y cuántas veces se actualiza por fotograma (`LiveMenu_Steps`) |
 | `ByteStream.h` | `Writer`/`Reader` little-endian |
-| `Text.h/.cpp` | reglas de nick, saneado de chat, troceado de comandos con comillas |
+| `Text.h/.cpp` | reglas de nick, saneado de chat y de textos, troceado de comandos con comillas, UTF-8, texto para la letra del juego (`ToGameFontText`, `SplitTextBoxes`) |
+| `ModRules.h/.cpp` | mods: qué opciones del juego puede forzar un servidor y qué objetos puede dar (servidor y juego) |
+| `GameIds.inc` | nombres ↔ ids de objetos, actores y escenas del juego (generado por `tools/gen_game_ids.py`; el juego lo comprueba con `static_assert`) |
 | `I18n.h/.cpp` + `I18nMessages.inc` | idiomas (es/en/zh/ru): `Tr(Msg::X, {args})`; todos los textos del servidor, una línea por texto |
 | `Transport.h/.cpp` | ENet: canal 0 fiable (JSON), canal 1 no fiable (poses) |
 | `Hex.*` | bytes ↔ hex |
@@ -83,6 +86,18 @@ contactos, resultados y textos con los valores de quien habla). Pendiente: D2 (s
 | `Commands/GroupCommands.cpp` | `/invitar /aceptar /rechazar /grupo /dejargrupo` (y sus nombres en inglés); `tp` al invitador al aceptar |
 | `Handlers/ActivityHandlers.cpp` | `act` (también `result` y el resultado de una ronda), `act_hud`, `act_reward`, `follow`, `talk` (con `vars`), `cinema` (con `blur`), `title`: validados y al grupo en la escena o a toda la escena (`scope`) |
 | `Handlers/EffectHandlers.cpp` | eco de efectos: valida el paquete, sella al remitente y lo reenvía a su escena (`effects` en `server.json`) |
+| `Mods/ModHost.*` | **núcleo de los mods**: carga y descarga, eventos (`Fire`), temporizadores, comandos, datos, opciones forzadas, órdenes al juego (`SendOp`) |
+| `Mods/ModEvents.inc` | **una línea por evento** de los mods (nombre, se cancela, descripción, campos) |
+| `Mods/ModApi.*` + `Mods/Api/Api*.cpp` | **una línea `COOP_MOD_API` por función** (`server`, `players`, `chat`, `world`, `game`, `storage`, `mod`) y los lectores de argumentos (`ApiCall`) |
+| `Mods/LuaMod.*`, `LuaJson.*` | scripts: entorno seguro, límites de tiempo y memoria, `coop.*`, JSON ↔ Lua |
+| `Mods/PluginMod.*` | plugins: carga de la DLL, la ABI de `sdk/coop_plugin.h` |
+| `Mods/ModLoader.cpp`, `ModStorage.*`, `GameSettings.*`, `GameIds.*` | qué archivos cargar, datos de cada mod, opciones forzadas por jugador, nombres del juego |
+| `Mods/ModDocs.*` | genera `docs/mods/API.md` e `IDS.md` (`--mod-docs`) |
+| `Commands/ModCommands.cpp` | `/mods`, `/mod reload/load/unload` |
+| `Handlers/ModHandlers.cpp` | `gev` y `stat` del juego (validados) → eventos de los mods; el tick de los mods |
+
+Fuera de `server/`: `sdk/` (lo que necesita quien escribe un plugin: `coop_plugin.h`, `coop_plugin.hpp`, `example/`),
+`mods/ejemplo.lua` (script de ejemplo), `docs/mods/` (guía, referencia, ids, plugins), `tools/gen_game_ids.py`.
 
 ### `mm/2s2h/Coop/` (juego)
 | Archivo | Responsabilidad |
@@ -132,6 +147,7 @@ contactos, resultados y textos con los valores de quien habla). Pendiente: D2 (s
 | `World/WorldSession.*` | entrar/salir, reinicios, CVars forzadas, subida del inventario, cálculo del ciclo |
 | `World/ClockSync.*` | reloj del servidor, canciones, luna |
 | `Menu/CoopMenu.*` | pestaña "Co-op" del menú (F1) |
+| `Mods/Mods.h` | **mapa de los mods en el juego**; `GameOps.cpp` (**una línea por orden** en `kOps`: cuándo puede ejecutarse y qué hace), `ModSettings.cpp` (opciones forzadas y su restauración), `GameEvents.cpp` (`gev`, `stat`), `GameIdsCheck.cpp` (`static_assert` de `GameIds.inc`). Interruptor `gCoop.Mods` |
 
 ### Cambios fuera de estas carpetas (buscar `[COOP]`)
 - `mm/include/tables/actor_table.h`: actor `En_CoopPuppet` (0x2B2).
@@ -164,11 +180,14 @@ contactos, resultados y textos con los valores de quien habla). Pendiente: D2 (s
   `mm/src/code/z_play.c` (`Coop_CollisionPass` alrededor de las colisiones del fotograma), `mm/src/code/z_message.c`
   (`Message_Decode`: `Coop_OnMessageDecode` al empezar y al acabar), y `Coop_AddActorRegion` en el `Init` de
   `ovl_Boss_01/02/03/07`, `ovl_En_Knight` (sus tablas de efectos) y `ovl_Obj_Takaraya_Wall` (el laberinto).
+- Mods: `mm/src/code/z_actor.c` (`Enemy_StartFinishingBlow`: `Coop_OnEnemyDefeated`, el evento `enemy_killed`).
 
 `server.json`: `language` (`es`, `en`, `zh`, `ru`; ver «Idiomas»), `sharedEnemies`, `sharedProps` (objetos del
 escenario), `endingForAll` (Luna/Majora/final para todos), `groups` (grupos), `bossCutscenes` (cinemáticas de jefes
 para toda la escena) y `effects` (eco de efectos) se pueden poner a `false`; `inviteSeconds` (10..600, 60 por defecto)
-es lo que dura una invitación.
+es lo que dura una invitación. También: `timeSpeed` (velocidad de los tres días, 0.1..10), `voteSeconds` (10..300),
+`saveSeconds` (2..600), `giftMax` (1..999), `commandPermissions` (`{"tp": "op"}`: quién usa cada comando),
+`gameSettings` (opciones de 2 Ship forzadas a todos) y `mods` (carpetas, listas y límites: `docs/mods/README.md`).
 
 ## Recetas (lo que más se modifica)
 
@@ -204,6 +223,22 @@ Añade un test en `coop/tests/`.
 
 **Dato nuevo del jugador**: una línea al final de `kPlayerFields` (`FieldTable.cpp`); el servidor lo guarda sin mirarlo.
 
+**Función nueva de la API de mods** (scripts y plugins a la vez): en el `server/Mods/Api/Api<espacio>.cpp` que toque,
+una función `json Fn(ApiCall& call)` (los argumentos con `call.Player(0)`, `call.Str(1, "text")`, `call.IntOr(...)`;
+un error con `call.Fail(Tr(...))`) y su línea
+`COOP_MOD_API(id, "espacio.nombre", "player, text?", "número", "Descripción en español.", Fn);`. Un test en
+`tests/TestMods*.cpp` y `2ship-coop-server --mod-docs coop/docs/mods` (el test `ModApiReferenceInTheRepositoryIsUpToDate`
+falla hasta que la referencia se regenere).
+
+**Evento nuevo para los mods**: una línea en `server/Mods/ModEvents.inc` (nombre, se cancela, descripción, campos con
+`*` los que se pueden cambiar) y donde ocurre
+`if (server.Mods().Wants(ModEvent::X)) { json e = {...}; server.Mods().Fire(ModEvent::X, e); }`. Regenerar la
+referencia.
+
+**Orden nueva para el juego** (`game.*`): la función en `server/Mods/Api/ApiGame.cpp` arma `{op: "nombre", ...}` y la
+manda con `Send(call, op)`; en el juego, una función y una línea en `kOps` de `mm/2s2h/Coop/Mods/GameOps.cpp` (con
+cuándo puede ejecutarse: `Needs::Gameplay`, `FreeLink`...). El juego vuelve a comprobar cada campo.
+
 **Funcionalidad nueva en el juego**: un archivo en `mm/2s2h/Coop/Features/` que se registra solo con
 `static RegisterShipInitFunc init(MiFuncion);` (patrón de las Enhancements de 2Ship). Si añades archivos, vuelve a
 ejecutar la configuración de CMake del juego (los fuentes se recogen con glob).
@@ -230,7 +265,7 @@ cmake --build build/x64 --config Release --parallel
 # Solo servidor/bot/tests (rápido, también en Linux)
 cmake -S coop -B build/coop -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build/coop --config Release --parallel
-build/coop/Release/coop-tests.exe          # 238 tests
+build/coop/Release/coop-tests.exe          # 345 tests
 ```
 
 ## Probar sin amigos
@@ -327,6 +362,26 @@ nombre a la invitación). **Efecto nuevo que debe verse en los demás**: una lí
 | `globos_romani` | tiro con Romani | Por turnos | — | se juega en una capa de escena propia (los demás no están en ella) |
 | `barca_koume` | tiro en barca de Koume | Por turnos | — | la barca es de cada juego (ver arriba) |
 
+## Mods (scripts Lua y plugins DLL)
+
+Spec `docs/superpowers/specs/2026-10-02-coop-mods-api-design.md`. Guía para quien escribe mods: `docs/mods/README.md`
+(con `API.md` generada del código, `IDS.md` y `PLUGINS.md`); ejemplo `mods/ejemplo.lua`.
+
+- **Servidor**: `Server` posee un `ModHost` (`server/Mods/`) que carga los scripts (`LuaMod`, Lua 5.4 compilado como
+  C++, solo en el servidor) y los plugins (`PluginMod`), les reparte los eventos de `ModEvents.inc` y les sirve las
+  funciones `COOP_MOD_API`. Todo en el hilo del servidor; un mod se descarga sin dejar nada (eventos, temporizadores,
+  comandos) y lo que se pide desde dentro de un manejador se aplaza al tick siguiente.
+- **Juego** (`mm/2s2h/Coop/Mods/`): ejecuta las órdenes (`mod`) solo en la partida del servidor y con `gCoop.Mods`;
+  cada una espera (10 s como mucho) a poder ejecutarse; las opciones forzadas (`mod_cfg`) guardan las del jugador y se
+  devuelven al salir (también si el juego se cerró dentro: `gCoop.World.ModRestoreCVars`); avisa al servidor de
+  objetos, muertes, jefes, enemigos derrotados y de su vida, magia y rupias.
+- **Protocolo v13**: `mod` (S→C, `ops: [{op, ...}]`: órdenes de los mods para ese juego — `notify`, `message`, `sfx`,
+  `item`, `take`, `rupees`, `heal`, `damage`, `kill`, `magic`, `spawn`, `warp`), `mod_cfg` (S→C, `settings`: todas las
+  opciones de 2 Ship que el servidor fuerza a ese juego), `gev` (C→S, `k`: `item` + `id`, `death`, `boss` + `actor`,
+  `kill` + `actor, params, by, room, pos`: lo que pasa en un juego, para los mods), `stat` (C→S, `hp, hpMax, mp,
+  rupees`, al cambiar y como mucho 4 por segundo); `clock` gana `ups` (unidades de reloj por segundo: `timeSpeed`).
+  Límites en `common/Protocol.h`; solo valen para quien juega en la partida del servidor.
+
 ## CVars del cliente (`2ship2harkinian.json` → `CVars.gCoop`)
 `Nick`, `Host`, `Port`, `Password`, `AutoConnect`, `AutoEnter` (entrar en el mundo del servidor al conectar),
 `ShowOwnNameTag`, `Chat.Scale`, `Chat.Opacity`, `Debug.BootToClockTown`, `Debug.BootEntrance` (entrada; 55296 =
@@ -335,6 +390,8 @@ Ciudad Reloj Sur, 54784 = Norte), `Debug.GrantHeartOnEnter` (prueba: +1 contened
 `Group.Dialogues`, `Group.Cutscenes`, `Group.Minigames`, `Group.Rewards`, `Group.CinemaActors` (seguir los actores de
 cinemática de quien miras), `Group.Turns` (aviso "Te toca") y `Effects` (eco de efectos: mandar y recibir).
 `LiveMenu` (1 por defecto): el menú de pausa no pausa nada; 0 = como antes (imagen fija, Link esperando).
+`Mods` (1 por defecto): el juego acepta las órdenes y opciones de los mods del servidor y les cuenta lo que pasa; 0 =
+los ignora. `World.ModRestoreCVars` (interno): las opciones del jugador que un servidor ha forzado, para devolverlas.
 
 ## Seguridad del servidor
 - Los paquetes malformados o desconocidos se registran (limpios, solo los 3 primeros) y a los 50 se expulsa al cliente.

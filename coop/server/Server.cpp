@@ -1,6 +1,7 @@
 #include "Server.h"
 
 #include "CommandRegistry.h"
+#include "Mods/ModHost.h"
 #include "Registry.h"
 
 #include "common/Text.h"
@@ -18,10 +19,12 @@ std::string Describe(const RemoteClient& c) {
 } // namespace
 
 Server::Server(const ServerConfig& config, AccessLists& access, Logger& log)
-    : mConfig(config), mAccess(access), mLog(log), mWorld(*this, config.worldPath, config.playersDir) {
+    : mConfig(config), mAccess(access), mLog(log), mWorld(*this, config.worldPath, config.playersDir),
+      mMods(std::make_unique<ModHost>(*this)) {
 }
 
 Server::~Server() {
+    mMods.reset();  // the mods unload while the players, the world and the network are still here
     mWorld.Flush(); // also saved when stopping; this covers a server destroyed without Stop
     mTransport.Close();
 }
@@ -36,6 +39,7 @@ bool Server::Start(std::string* err) {
     mRunning = true;
     mLog.Info(Tr(Msg::ServerListening, { std::to_string(mConfig.port), std::to_string(mConfig.maxPlayers),
                                          std::to_string(kProtocolVersion) }));
+    mMods->Start();
     return true;
 }
 
@@ -220,6 +224,7 @@ void Server::Stop(const std::string& reason) {
     if (!mRunning || mStopping) {
         return;
     }
+    mMods->Shutdown(reason); // while the players are still here to be told goodbye
     mWorld.Flush();
     mLog.Info(Tr(Msg::Stopping, { reason }));
     for (RemoteClient* c : mPlayers.Welcomed()) {

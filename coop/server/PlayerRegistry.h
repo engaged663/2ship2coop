@@ -82,6 +82,19 @@ struct RemoteClient {
 
     // Epona calls: monotonically increasing for one connection.
     uint32_t eponaLastCallSequence = 0;
+
+    // Mods (Mods/ModHost.h): what scripts read of a player and what they were last told
+    uint8_t form = 0;      // its Link's form and mask, from the pose
+    uint8_t mask = 0;
+    int16_t modScene = -1; // the last scene and room the mods heard of ("player_scene")
+    int8_t modRoom = -1;
+    TokenBucket modEventBudget{ kModEventBurst, kModEventPerSecond }; // "gev" (ModHandlers.cpp)
+    TokenBucket statBudget{ kStatBurst, kStatPerSecond };             // "stat"
+    bool hasStats = false; // its game told us its health, magic and rupees
+    int32_t health = 0;    // 16 = a heart
+    int32_t maxHealth = 0;
+    int32_t magic = 0;
+    int32_t rupees = 0;
 };
 
 class PlayerRegistry {
