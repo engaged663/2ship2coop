@@ -79,6 +79,7 @@ build/
 /game_compiled
 /.superpowers/sdd/coop-tools
 /.superpowers/backup
+docs/.superpowers
 server.json
 bans.json
 ops.json
