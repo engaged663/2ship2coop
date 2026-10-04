@@ -53,9 +53,9 @@ constexpr int64_t kRejoinWaitMs = 15000;
 
 // Getting off another player's horse must not make it "our Epona" (the game saves the horse you get off as yours:
 // after a restart every passenger would bring a copy of it). Saved when we get on, put back when we get off.
+// Two players' Eponas always coexist, however close they get (each has its own owner): nothing ever merges them.
 HorseData sHorseDataBeforeRide;
 bool sHorseDataSaved = false;
-constexpr float kTwinDist = 400.f; // two Eponas this close are the same one (saved by two players): one stays
 
 int64_t NowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -269,6 +269,12 @@ void ApplyProxyState(HorseProxyState& proxy) {
     if (proxy.state.action <= ENHORSE_ACTION_25 && proxy.state.action != ENHORSE_ACTION_FROZEN) {
         horse->action = (EnHorseAction)proxy.state.action;
     }
+    // Its driver got off (or left) while we sit behind: there the horse waits without a rider, an action that would
+    // only let our Link spur it ("Faster"). It stands with us on it: the game offers "Down" on a horse standing with
+    // its rider (EN_HORSE_CHECK_4), as when the driver is still on.
+    if (!proxy.state.ownerMounted && RiddenByUs(proxy)) {
+        horse->action = ENHORSE_ACTION_MOUNTED_IDLE;
+    }
     // The proxy's action funcs play their own animations locally; forcing animIndex from the stream
     // desynchronizes it from the Skin's curFrame and overruns the rider's paired animation data.
 }
@@ -383,34 +389,6 @@ void AdoptSavedHorse(PlayState* play) {
     }
 }
 
-// Two players saved the same Epona (from before this fix, or both left theirs in one spot): the player with the
-// lower id keeps it, the other one's goes (and is no longer saved), so the scene has a single Epona.
-void DropTwins() {
-    Player* player = LocalLink();
-    for (auto it = sHorses.begin(); it != sHorses.end(); ++it) {
-        HorseProxyState& own = it->second;
-        if (own.remote || own.actor == nullptr || own.actor->actor.update == nullptr ||
-            (player != nullptr && player->rideActor == &own.actor->actor) || sPassengers.contains(it->first)) {
-            continue;
-        }
-        for (auto& [key, proxy] : sHorses) {
-            if (!proxy.remote || proxy.actor == nullptr || key.ownerPlayerId >= Session_LocalId() ||
-                Actor_WorldDistXZToActor(&own.actor->actor, &proxy.actor->actor) > kTwinDist) {
-                continue;
-            }
-            SPDLOG_INFO("[Coop] Our Epona {} is the same as player {}'s: removed", it->first.callSequence,
-                        (int)key.ownerPlayerId);
-            gSaveContext.save.saveInfo.horseData.sceneId = -1; // nothing saved: the game will not bring it back
-            EnHorse* actor = own.actor;
-            own.actor = nullptr;
-            sActorKeys.erase(&actor->actor);
-            Actor_Kill(&actor->actor);
-            sHorses.erase(it);
-            return; // the map changed: the rest next frame
-        }
-    }
-}
-
 // We arrived on foot after riding behind another player: back on their horse as soon as it is here.
 void TryRejoin(PlayState* play) {
     if (sRejoin.untilMs == 0) {
@@ -510,7 +488,6 @@ void CoopEpona_FrameEnd(PlayState* play) {
     }
     AdoptRiddenHorse(play);
     AdoptSavedHorse(play);
-    DropTwins();
     TryRejoin(play);
     for (auto it = sHorses.begin(); it != sHorses.end();) {
         if (it->second.pendingDestroy && !RiddenByUs(it->second)) { // ridden: when we get off

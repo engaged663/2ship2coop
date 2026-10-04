@@ -118,6 +118,9 @@ Actor* ActorRegistry_SpawnUntracked(int16_t id, const Vec3f& pos, s16 params, s1
 // PlayerObjects.cpp: a prop of the room's list that a player carries travels as theirs meanwhile (its key: its list
 // key). False if it is tracked already. Release: it is a local actor again (nothing else happens to it).
 bool ActorRegistry_Adopt(Actor* actor, uint32_t key, uint8_t owner);
+// The same for a prop only our game has (made at run time, like the field's grass): a key of ours and how to create it,
+// so the others make a copy of it. Its key, 0 if it is tracked already.
+uint32_t ActorRegistry_AdoptAsCopy(Actor* actor, uint8_t owner);
 void ActorRegistry_ReleaseAdopted(Actor* actor);
 
 } // namespace coop::client

@@ -134,10 +134,11 @@ TrackedActor* TrackedAt(const void* p) {
     return s.kind == SlotKind::Actor ? ActorRegistry_Find((uint32_t)(s.value >> 32)) : nullptr;
 }
 
-// Whose a sound of this game is (spec §2.1). The server's own game never sends its ghost Link's.
+// Whose a sound of this game is (spec §2.1). The server's own game never sends its ghost Link's. A sound the other
+// games could not read never travels: one would make them drop our whole pose or actor packet.
 void Capture(const SoundEntry& e, const void* pos, bool world) {
     Player* link = LocalLink();
-    if (link == nullptr) {
+    if (link == nullptr || !Sfx_Valid(e.sfx)) {
         return;
     }
     bool ghost = HostMode_Enabled();

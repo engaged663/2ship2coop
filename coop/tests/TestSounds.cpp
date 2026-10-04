@@ -70,7 +70,7 @@ TEST_CASE(SoundEntryRoundTrip) {
 TEST_CASE(SoundEntryRejectsGarbage) {
     SoundEntry d;
     CHECK(!ReadBack(Bytes(MakeSound(0x7803, 1.f, 1.f, 0, 4)), d)); // bank 7: none
-    CHECK(!ReadBack(Bytes(MakeSound(0x2403, 1.f, 1.f, 0, 4)), d)); // without the 0x800 bit
+    CHECK(!ReadBack(Bytes(MakeSound(0x2403, 1.f, 1.f, 0, 4)), d)); // the 0x400 bit: no sound has it
     SoundEntry bad = MakeSound(0x2803, 1.f, 1.f, 0, 4);
     bad.flags = 0x80;
     CHECK(!ReadBack(Bytes(bad), d)); // unknown flag
@@ -88,6 +88,19 @@ TEST_CASE(SoundEntryRejectsGarbage) {
     auto cut = Bytes(MakeSound(0x2803, 2.f, 1.f, 0, 4));
     cut.pop_back();
     CHECK(!ReadBack(cut, d));
+}
+
+// A sound that must keep going while it is asked for every frame (instead of starting again) is played without its
+// 0x800 bit ("NA_SE_... - SFX_FLAG"): the spin attack's charge, a bomb's fuse, the Goron's rolling dust.
+TEST_CASE(SoundEntryCarriesContinuousSounds) {
+    CHECK(SoundIdPlausible(0x1022)); // NA_SE_IT_SWORD_CHARGE - SFX_FLAG
+    CHECK(SoundIdPlausible(0x00EB)); // NA_SE_PL_GORON_BALL_CHARGE - SFX_FLAG
+    CHECK(SoundIdPlausible(0x1822)); // the same sound, restarted
+    CHECK(!SoundIdPlausible(0x1422) && !SoundIdPlausible(0x1C22)); // 0x400: never
+    SoundEntry d;
+    CHECK(ReadBack(Bytes(MakeSound(0x1022, 1.25f, 1.f, 0, 4)), d));
+    CHECK_EQ(d.sfx, (uint16_t)0x1022);
+    CHECK_EQ(SoundFreq(d), 1.25f);
 }
 
 TEST_CASE(SoundListsAreBounded) {

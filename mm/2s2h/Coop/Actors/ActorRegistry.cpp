@@ -309,9 +309,10 @@ Actor* ActorRegistry_SpawnUntracked(int16_t id, const Vec3f& pos, s16 params, s1
     return a;
 }
 
-bool ActorRegistry_Adopt(Actor* actor, uint32_t key, uint8_t owner) {
+// A carried prop becomes a player's object (owner, room kPlayerRoom) until released.
+static TrackedActor* AdoptAs(Actor* actor, uint32_t key, uint8_t owner) {
     if (actor == nullptr || sTracked.count(actor) != 0 || sByKey.count(key) != 0 || InstanceSize(actor) == 0) {
-        return false;
+        return nullptr;
     }
     auto t = std::make_unique<TrackedActor>();
     t->actor = actor;
@@ -325,7 +326,32 @@ bool ActorRegistry_Adopt(Actor* actor, uint32_t key, uint8_t owner) {
     sTracked[actor] = std::move(t);
     sVersion++;
     BuildRegions(*raw); // its instance (its skeletons and colliders were set up long ago: they stay its own)
-    return true;
+    return raw;
+}
+
+bool ActorRegistry_Adopt(Actor* actor, uint32_t key, uint8_t owner) {
+    return AdoptAs(actor, key, owner) != nullptr;
+}
+
+uint32_t ActorRegistry_AdoptAsCopy(Actor* actor, uint8_t owner) {
+    if (actor == nullptr || sTracked.count(actor) != 0) {
+        return 0;
+    }
+    uint32_t key = kRuntimeKeyBit | ((uint32_t)(owner & 0x3F) << 24) | (++sRuntimeSeq & 0xFFFFFF);
+    TrackedActor* t = AdoptAs(actor, key, owner);
+    if (t == nullptr) {
+        return 0;
+    }
+    t->runtime = true; // its records say how to create it (ActorSync.cpp): the others have no such actor
+    t->spawn.actorId = (uint16_t)actor->id;
+    t->spawn.params = actor->params;
+    t->spawn.pos[0] = actor->world.pos.x;
+    t->spawn.pos[1] = actor->world.pos.y;
+    t->spawn.pos[2] = actor->world.pos.z;
+    t->spawn.rot[0] = actor->shape.rot.x;
+    t->spawn.rot[1] = actor->shape.rot.y;
+    t->spawn.rot[2] = actor->shape.rot.z;
+    return key;
 }
 
 void ActorRegistry_ReleaseAdopted(Actor* actor) {

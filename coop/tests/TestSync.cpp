@@ -381,6 +381,70 @@ TEST_CASE(AmbientOffRelaysNothing) {
     CHECK(!t.b->WaitFor("ambient", t.s, 150).has_value());
 }
 
+// The bug: rolling as a Goron or charging a spin attack for a while got the player kicked ("too many invalid
+// packets") and its puppet stuttered: every pose of those frames carried a continuous sound (without its 0x800 bit)
+// and was thrown away. 55 poses are more than the 50 invalid ones that kick.
+TEST_CASE(PosesWithContinuousSoundsAreRelayed) {
+    Stages t;
+    int got = 0;
+    for (int i = 0; i < 55; i++) {
+        PlayerState st;
+        st.sceneId = kScene;
+        st.seq = (uint16_t)(1000 + i);
+        st.sounds.push_back(MakeSound(0x08C1 - 0x800, 1.f, 1.f, 0, 4)); // NA_SE_PL_ROLL_DUST - SFX_FLAG
+        st.sounds.push_back(MakeSound(0x1822 - 0x800, 1.5f, 1.f, 0, 4)); // NA_SE_IT_SWORD_CHARGE - SFX_FLAG
+        t.a->SendStream(EncodePlayerState(st));
+        t.s.PumpFor(40); // 25 a second: under the server's pose budget
+        while (auto pose = (t.b->streams.empty() ? std::optional<PlayerState>() : t.b->streams.front())) {
+            t.b->streams.pop_front();
+            got += (pose->sounds.size() == 2 && pose->sounds[1].sfx == 0x1022) ? 1 : 0;
+        }
+    }
+    t.s.PumpFor(100);
+    got += (int)t.b->streams.size();
+    CHECK(got >= 50);           // Bob saw (nearly) every one of them
+    CHECK(!t.a->disconnected);  // and Alice is still here
+    CHECK(!t.a->TakeEvent("kicked").has_value());
+}
+
+// Every game sends its Eponas' state every frame (an empty list too: it removes the others' copies of ours) besides
+// its pose. Both shared one budget of 30 a second, so a quarter of the poses were dropped: every puppet stuttered.
+TEST_CASE(EponaStreamNeverCostsPoses) {
+    Stages t;
+    EponaPacket none;
+    none.sceneId = kScene;
+    for (int i = 0; i < 45; i++) { // a moment with lots of horse packets
+        t.a->SendEpona(none);
+    }
+    t.s.PumpFor(20);
+    t.b->streams.clear();
+    for (int i = 0; i < 40; i++) { // then 20 frames a second, each with its horse packet and its pose
+        PlayerState st;
+        st.sceneId = kScene;
+        st.seq = (uint16_t)(2000 + i);
+        t.a->SendEpona(none);
+        t.a->SendStream(EncodePlayerState(st));
+        t.s.PumpFor(50);
+    }
+    t.s.PumpFor(100);
+    CHECK(t.b->streams.size() >= 38); // (nearly) every pose
+}
+
+// A horse packet of the scene a game is entering can arrive before the pose that tells the server about it: that is
+// changing scene, never an invalid packet (they added up to a kick).
+TEST_CASE(EponaFromAnotherSceneIsNotInvalid) {
+    Stages t;
+    EponaPacket elsewhere;
+    elsewhere.sceneId = kOther;
+    for (int i = 0; i < 60; i++) {
+        t.a->SendEpona(elsewhere);
+        t.s.PumpFor(20);
+    }
+    t.s.PumpFor(100);
+    CHECK(!t.a->disconnected);
+    CHECK(!t.a->TakeEvent("kicked").has_value());
+}
+
 TEST_CASE(PoseSoundsAndOcarinaFollowTheServer) {
     auto relayed = [](bool allow) {
         server::ServerConfig cfg;
@@ -404,4 +468,61 @@ TEST_CASE(PoseSoundsAndOcarinaFollowTheServer) {
     CHECK(off.sounds.empty());
     CHECK_EQ(off.ocarinaInstrument, (uint8_t)0);
     CHECK_EQ(off.ocarinaPitch, (uint8_t)0xFF);
+}
+
+// ---- A song played right ("song") ----
+
+namespace {
+
+json Song(int16_t scene, int song, int form = 4) {
+    return { { "t", "song" }, { "scene", scene }, { "song", song }, { "form", form } };
+}
+
+} // namespace
+
+// Everyone else in that scene hears it, whatever its layer (it is music, not actors).
+TEST_CASE(SongGoesToTheScene) {
+    Stages t;
+    t.a->Send(Song(kScene, 8, 1)); // Epona's Song, as a Goron
+    auto toB = t.b->WaitFor("song", t.s);
+    auto toC = t.c->WaitFor("song", t.s);
+    CHECK(toB.has_value() && toC.has_value());
+    CHECK_EQ(GetInt(*toB, "from"), (int64_t)t.a->id);
+    CHECK_EQ(GetInt(*toB, "scene"), (int64_t)kScene);
+    CHECK_EQ(GetInt(*toB, "song"), (int64_t)8);
+    CHECK_EQ(GetInt(*toB, "form"), (int64_t)1);
+    CHECK(!t.a->WaitFor("song", t.s, 100).has_value()); // not back to who played it
+    CHECK(!t.d->WaitFor("song", t.s, 100).has_value()); // another scene
+    t.a->Send(Song(kOther, 6));                         // not its scene
+    CHECK(!t.b->WaitFor("song", t.s, 150).has_value());
+}
+
+TEST_CASE(SongInvalidOrOff) {
+    {
+        Stages t;
+        t.a->Send(Song(kScene, kMaxSong + 1));               // no music of its own (the Ballad of the Wind Fish...)
+        t.a->Send(Song(kScene, 6, pose_limits::kFormCount)); // no such form
+        t.a->Send({ { "t", "song" }, { "scene", kScene } }); // nothing to play
+        CHECK(!t.b->WaitFor("song", t.s, 150).has_value());
+    }
+    {
+        server::ServerConfig cfg;
+        cfg.ocarina = false;
+        Stages t(cfg);
+        t.a->Send(Song(kScene, 6));
+        CHECK(!t.b->WaitFor("song", t.s, 150).has_value());
+    }
+}
+
+TEST_CASE(SongsAreRateLimited) {
+    Stages t;
+    for (int i = 0; i < 10; i++) {
+        t.a->Send(Song(kScene, 6));
+    }
+    t.s.PumpFor(200);
+    int n = 0;
+    while (t.b->TakeEvent("song").has_value()) {
+        n++;
+    }
+    CHECK(n >= 1 && n <= kSongBurst);
 }

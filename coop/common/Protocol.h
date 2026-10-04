@@ -6,7 +6,8 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 15; // v15: total sync (sounds in poses and actor records, scene + layer, live
+constexpr uint32_t kProtocolVersion = 16; // v16: continuous sounds (without the 0x800 bit) travel, "song";
+                                          // v15: total sync (sounds in poses and actor records, scene + layer, live
                                           // scene flags, ambient music and quakes, the players' objects);
                                           // v14: the server's game mods (.o2r): list, download, world_enter check;
                                           // v13: mods (orders, forced settings, game reports), the clock's speed;
@@ -123,6 +124,9 @@ constexpr int kSceneFlagBurst = 40;     // sflag + sflags per player: burst...
 constexpr int kSceneFlagPerSecond = 20; // ...and sustained rate (a game sends at most one sflag a frame)
 constexpr int kAmbientBurst = 40;       // ambient events per player: burst...
 constexpr int kAmbientPerSecond = 20;   // ...and sustained rate (one per room a frame)
+constexpr int kSongBurst = 4;           // song events per player: burst...
+constexpr double kSongPerSecond = 0.5;  // ...and sustained rate (a song lasts several seconds)
+constexpr int kMaxSong = 13;            // OCARINA_SONG_DOUBLE_TIME: the last song with music of its own
 
 enum Channel : uint8_t {
     kChannelEvents = 0, // reliable + ordered, JSON events
@@ -231,6 +235,9 @@ inline constexpr const char* kSceneFlags = "sflags"; // C->S scene, words [11] (
                                                      // (the temporary ones the server keeps for that scene + layer)
 inline constexpr const char* kAmbient = "ambient";   // C->S scene, room, music [[kind, value]...], quake [[type, speed,
                                                      // y, x, fov, roll, duration]...] (Ambient.h); S->C + from
+inline constexpr const char* kSong = "song";         // C->S scene, song (0..kMaxSong), form: our Link played that song
+                                                     // right; S->C + from, to everyone else in that scene (they hear
+                                                     // it and see its effect near its puppet: Sync/OcarinaEcho.cpp)
 // Epona
 inline constexpr const char* kEponaCall = "epona_call"; // C->S (+from stamped): one owner horse call
 inline constexpr const char* kEponaPassenger = "epona_passenger"; // C->S owner, horse, mounted; S->owner +from

@@ -476,10 +476,10 @@ a game CVar (`gCoop.Sync.*`, 1 by default) and a `server.json` option (`true` by
 |---|---|---|
 | S1 sounds | `Sounds` / `sounds` | every `AudioSfx_PlaySfx` and `SoundSource_Add` of our Link (in the pose, ≤ 8 a frame) and of the actors we simulate (in their record, ≤ 8); a copy's own `Init`/`Draw`/`Destroy` is silent; the flagged sounds (`sfxId`/`audioFlags`) travel with the memory every frame. `gCoop.Sync.RemoteVolume` (0-100) |
 | S2 ambient | `Ambient` / `ambient` | music orders (`SEQCMD_*` of the BGM/fanfare/sub/ambience players, `Audio_PlayBgm_StorePrevBgm`...) and quakes of the actors we simulate (`ambient`, to the same stage, played if you are in that room) |
-| S3 players' objects | `PlayerObjects` / `playerObjects` | arrows, bombs, bombchus, hookshot, Zora fins, spin attack, Elegy statues and their flash (`kPlayerObjects`; never the songs' waves: they are drawn at the viewer's camera) as room `kPlayerRoom` (63) of the actor stream: visual copies (no AC/OC, never lent, never hit); the room-list props our Link carries (adopted while carried); the puppets' sword trail |
+| S3 players' objects | `PlayerObjects` / `playerObjects` | arrows, bombs, bombchus, hookshot, Zora fins, spin attack, Elegy statues and their flash (`kPlayerObjects`; never the songs' waves: they are drawn at the viewer's camera) as room `kPlayerRoom` (63) of the actor stream: visual copies (no AC/OC, never lent, never hit); the room-list props our Link carries (adopted while carried) and the run-time ones only our game has (`kCarriedCopies`: the field's grass, `ActorRegistry_AdoptAsCopy`: the others create a copy); the puppets' sword trail |
 | S4 scene flags | `SceneFlags` / `sceneFlags` | the 11 words of `actorCtx.sceneFlags` (`sflag` changes to the whole stage, sender included; `sflags` on arrival: the server keeps the temporary ones per stage); `gCoop.Sync.FlagReload`: what read a flag only in its `Init` is created again when another player changes it |
 | S5 machinery | `SceneObjects` / `sceneObjects` | `kSceneObjects` (+ `gCoop.Sync.Shared`, − `gCoop.Sync.Local`) replicated like the enemies; who touches it holds its lease; copies get their owner's dynamic collision flags (`kRecDyna`) |
-| S6 ocarina | `Ocarina` / `ocarina` | the note our controller plays (in the pose); the nearest puppet playing (< 1500) sounds on our ocarina channel while ours is quiet |
+| S6 ocarina | `Ocarina` / `ocarina` | the note our controller plays (in the pose); the nearest puppet playing (< 1500) sounds on our ocarina channel while ours is quiet. A song played right (`song`, sent from `z_message.c`): within 1500 of its puppet, with our ocarina, texts, cutscenes and pause free, its fanfare with the instrument of its form (`Coop_SongEcho`); within 800 and with `gCoop.Sync.SongEffects`, its wipe or the Song of Storms' rain |
 
 - **Scene = scene + layer** (`gSaveContext.sceneLayer`, in the pose, `loc` and `props`): two players in the same scene
   with different layers (a minigame's special entrance) see each other but share no actors, leases, props, effects,
@@ -494,11 +494,16 @@ a game CVar (`gCoop.Sync.*`, 1 by default) and a `server.json` option (`true` by
   bend, vibrato) and a sound queue; the actor records carry `SoundEntry` lists (`kRecSfx`) and `kRecDyna`; room 63 =
   `kPlayerRoom` (forwarded from anyone in the stage); `loc` gains `layer`; new events `sflag`, `sflags`, `ambient`;
   `welcome` gains `sync`. Limits in `common/Protocol.h` (`kSceneFlagBurst/PerSecond`, `kAmbientBurst/PerSecond`).
-- Test list (in Spanish): `coop_pruebas/LEEME_SYNC.md`.
+- **Protocol v16** (fixes, spec `docs/superpowers/specs/2026-10-04-coop-arreglos-v16-design.md`): a sound id travels
+  with or without its 0x800 bit (the engine plays continuous sounds as `NA_SE_... - SFX_FLAG`: a Goron's roll, a spin
+  attack's charge, a bomb's fuse; never 0x400); new event `song` (`kSongBurst`, `kSongPerSecond`, `kMaxSong`); a game
+  checks its own pose with the server's decoder before sending it.
+- Test lists (in Spanish): `coop_pruebas/LEEME_SYNC.md`, `coop_pruebas/LEEME_ARREGLOS_V16.md`.
 
 ## Server security
 - Malformed or unknown packets are logged (cleaned, only the first 3) and at 50 the client is kicked.
-- Poses: ≤30/s per player (burst 40); `loc`: ≤5/s (burst 10; the last change always arrives). ENet does not reassemble
+- Poses: ≤30/s per player (burst 40); the Eponas' stream has a budget of its own of the same size (it goes every frame
+  too, an empty list included); `loc`: ≤5/s (burst 10; the last change always arrives). ENet does not reassemble
   packets over 16 KB. Limits in `common/Protocol.h`.
 - Poses with values the game cannot draw are discarded on the server and again on the client
   (`SanitizePlayerState`, limits checked against the engine with `static_assert` in `PoseCapture.cpp`).

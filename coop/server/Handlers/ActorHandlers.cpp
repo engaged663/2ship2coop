@@ -508,13 +508,16 @@ void OnEponaPassenger(Server& server, RemoteClient& client, const json& ev) {
 }
 
 void OnEponaState(Server& server, RemoteClient& client, uint8_t* data, size_t size) {
-    if (!TakesEpona(client) || !client.streamBudget.Take(server.NowMs())) {
+    if (!TakesEpona(client) || !client.eponaBudget.Take(server.NowMs())) {
         return;
     }
     EponaPacket packet;
-    if (!DecodeEponaState(data, size, packet) || packet.sceneId != client.scene) {
+    if (!DecodeEponaState(data, size, packet)) {
         server.NoteInvalid(client, Tr(Msg::InvEponaState));
         return;
+    }
+    if (packet.sceneId != client.scene) {
+        return; // changing scene: it arrived before the pose that tells us
     }
     packet.ownerPlayerId = client.id;
     auto stamped = EncodeEponaState(packet);

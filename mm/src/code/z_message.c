@@ -22,6 +22,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 extern void Coop_EponaSongPlayed(PlayState* play);
+extern void Coop_OnSongPlayed(PlayState* play, u8 song, u8 form); // [COOP] Coop/Sync/OcarinaEcho.cpp
 
 const char* gBombersNotebookPhotos[] = {
     gBombersNotebookPhotoAnjuTex,
@@ -4397,6 +4398,26 @@ u8 sPlayerFormOcarinaInstruments[] = {
     OCARINA_INSTRUMENT_DEKU_PIPES,
 };
 
+// [COOP] A song another player played right near us (Coop/Sync/OcarinaEcho.cpp): its music, with the instrument of the
+// form that played it (form: CUR_FORM there), and, with `effect`, what it shows: the song's wipe (drawn at our own
+// camera, as for who plays it) or the Song of Storms' rain.
+void Coop_SongEcho(PlayState* play, u8 song, u8 form, Vec3f* pos, s32 effect) {
+    if ((song > OCARINA_SONG_DOUBLE_TIME) || (song == OCARINA_SONG_SARIAS) || (song == OCARINA_SONG_SUNS) ||
+        (form >= PLAYER_FORM_MAX)) {
+        return; // no music of its own
+    }
+    Audio_PlayFanfareWithPlayerIOPort7((u16)sOcarinaSongFanfares[song], (u8)sOcarinaSongFanfareIoData[form]);
+    if (!effect) {
+        return;
+    }
+    if (song == OCARINA_SONG_STORMS) {
+        Actor_Spawn(&play->actorCtx, play, ACTOR_EN_OKARINA_EFFECT, pos->x, pos->y - 30.0f, pos->z, 0, 0, 0, 1);
+    } else {
+        Actor_Spawn(&play->actorCtx, play, sOcarinaEffectActorIds[song], pos->x, pos->y, pos->z, 0, 0, 0,
+                    sOcarinaEffectActorParams[song]);
+    }
+}
+
 s16 D_801D03A8[TEXTBOX_TYPE_MAX] = {
     0x3B, // TEXTBOX_TYPE_0
     0x3B, // TEXTBOX_TYPE_1
@@ -4840,6 +4861,7 @@ void Message_DrawMain(PlayState* play, Gfx** gfxP) {
                         Audio_PlayFanfareWithPlayerIOPort7((u16)sOcarinaSongFanfares[msgCtx->songPlayed],
                                                            (u8)sOcarinaSongFanfareIoData[CUR_FORM]);
                         AudioSfx_MuteBanks(0x20);
+                        Coop_OnSongPlayed(play, msgCtx->songPlayed, CUR_FORM); // [COOP] the others near us hear it
                     }
                 }
                 play->msgCtx.ocarinaMode = OCARINA_MODE_ACTIVE;

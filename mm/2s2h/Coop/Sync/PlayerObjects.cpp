@@ -1,7 +1,8 @@
 // [COOP] Sincronización total S3 (spec §4): what our Link throws, shoots or makes (kPlayerObjects) is a copy in the
 // other games: it travels in the actor stream as room kPlayerRoom, with keys of ours; the copies only show it (no
 // attacks, nothing to hit). A prop of the room's list our Link lifts is "adopted" the same way while carried (and until
-// it rests or breaks), and the others adopt theirs. gCoop.Sync.PlayerObjects; server.json "playerObjects".
+// it rests or breaks), and the others adopt theirs; one only our game has (kCarriedCopies: the field's grass) travels
+// with how to create it, and the others make a copy. gCoop.Sync.PlayerObjects; server.json "playerObjects".
 #include "Sync.h"
 
 #include "2s2h/Coop/Actors/ActorRegistry.h"
@@ -39,6 +40,12 @@ const int16_t kPlayerObjects[] = {
     // Never the songs' waves (OCEFF_*): they are drawn at the camera of who sees them, a copy would fill our screen
 };
 
+// Props a Link carries that only its game has (made at run time: no key of the room's list): the others get a copy
+// while it is carried. ADD A LINE (its Init runs in the other games: read it before adding one).
+const int16_t kCarriedCopies[] = {
+    ACTOR_OBJ_GRASS_CARRY, // the field's grass (Obj_Grass_Unit makes two of them for its whole field)
+};
+
 constexpr int kRestFrames = 20; // a put-down prop stays ours this long once still
 
 struct Carried {
@@ -57,6 +64,11 @@ uint32_t ListKeyOf(const Actor* a) {
 bool Adoptable(const Actor* a) {
     return a != nullptr && a->update != nullptr && a->category == ACTORCAT_PROP && ActorRegistry_Get(a) == nullptr &&
            ListKeyOf(a) != 0;
+}
+
+bool Copyable(const Actor* a) {
+    return a != nullptr && a->update != nullptr && ActorRegistry_Get(a) == nullptr &&
+           std::find(std::begin(kCarriedCopies), std::end(kCarriedCopies), a->id) != std::end(kCarriedCopies);
 }
 
 void ReleaseAll() {
@@ -80,6 +92,10 @@ void Tick(Actor*) {
     Actor* held = link->heldActor;
     if (Adoptable(held) && ActorRegistry_Adopt(held, ListKeyOf(held), Session_LocalId())) {
         sCarried.push_back({ held, ListKeyOf(held), 0 });
+    } else if (Copyable(held)) {
+        if (uint32_t key = ActorRegistry_AdoptAsCopy(held, Session_LocalId())) {
+            sCarried.push_back({ held, key, 0 });
+        }
     }
     for (auto it = sCarried.begin(); it != sCarried.end();) {
         TrackedActor* t = ActorRegistry_Find(it->key);
@@ -91,7 +107,8 @@ void Tick(Actor*) {
         bool still = a != link->heldActor && std::fabs(a->speed) < 0.5f && std::fabs(a->velocity.y) < 0.5f &&
                      (a->bgCheckFlags & BGCHECKFLAG_GROUND);
         it->still = still ? it->still + 1 : 0;
-        if (it->still > kRestFrames) {
+        // Broken without dying (the field's grass hides until it is used again): the others' copy goes now
+        if (it->still > kRestFrames || (a->draw == nullptr && a != link->heldActor)) {
             ActorRegistry_ReleaseAdopted(a);
             it = sCarried.erase(it);
             continue;

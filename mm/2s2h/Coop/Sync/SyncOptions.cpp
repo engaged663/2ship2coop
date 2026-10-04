@@ -25,7 +25,7 @@ constexpr std::array<const char*, kParts> kNames = {
     "Objetos de los jugadores (flechas, bombas, gancho...) y lo que llevan en la mano",
     "Banderas de la escena en vivo (interruptores, cofres, salas)",
     "Maquinaria de la escena (plataformas, ascensores, interruptores, bloques)",
-    "Ocarina de los demás",
+    "Ocarina de los demás (sus notas y sus canciones)",
 };
 std::array<bool, kParts> sServer = { true, true, true, true, true, true };
 

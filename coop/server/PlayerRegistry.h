@@ -83,10 +83,13 @@ struct RemoteClient {
     // Total sync (SceneHandlers.cpp, AmbientHandlers.cpp)
     TokenBucket sceneFlagBudget{ kSceneFlagBurst, kSceneFlagPerSecond };
     TokenBucket ambientBudget{ kAmbientBurst, kAmbientPerSecond };
+    TokenBucket songBudget{ kSongBurst, kSongPerSecond }; // "song" (AmbientHandlers.cpp)
     int64_t cinemaMs = -1; // when its last "cinema" was accepted (-1: never): its actor frames pass meanwhile
 
     // Epona calls: monotonically increasing for one connection.
     uint32_t eponaLastCallSequence = 0;
+    // The Eponas' stream goes every frame too (an empty list included): a budget of its own, never the poses'
+    TokenBucket eponaBudget{ kStreamBurst, kStreamPerSecond };
 
     // Mods (Mods/ModHost.h): what scripts read of a player and what they were last told
     uint8_t form = 0;      // its Link's form and mask, from the pose

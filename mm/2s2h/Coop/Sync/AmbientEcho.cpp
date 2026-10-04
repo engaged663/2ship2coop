@@ -18,6 +18,7 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
 
+#include <algorithm>
 #include <map>
 
 extern "C" {
@@ -69,8 +70,10 @@ void FrameEnd() {
         std::vector<ambient::Quake> quakes;
         for (s16 index : o.quakes) {
             s16 v[7];
-            if (Coop_QuakeRead(index, v)) {
-                quakes.push_back({ v[0], v[1], v[2], v[3], v[4], v[5], v[6] });
+            // Only what the server accepts (it counts the rest towards a kick): a longer quake is cut
+            if (Coop_QuakeRead(index, v) && v[0] >= 1 && v[0] < ambient::kQuakeTypes && v[6] >= 1) {
+                s16 duration = (s16)std::min<int>(v[6], ambient::kMaxQuakeDuration);
+                quakes.push_back({ v[0], v[1], v[2], v[3], v[4], v[5], duration });
             }
         }
         if (o.music.empty() && quakes.empty()) {

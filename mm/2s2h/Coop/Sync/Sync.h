@@ -10,7 +10,7 @@
 //   SceneFlags.cpp    S4: the loaded scene's flags, live ("sflag", "sflags")
 //   FlagReload.cpp    S4: what read a flag only when it was created is created again when another player changes it
 //   SceneObjects.cpp  S5: the machinery that is the same for everyone (kSceneObjects: ADD A LINE); who touches it runs it
-//   OcarinaEcho.cpp   S6: the notes of the others' ocarina
+//   OcarinaEcho.cpp   S6: the notes of the others' ocarina, and the songs they play right ("song")
 //   SyncMenu.cpp      the menu section and the list of what is synced nearby
 // The puppets' sword trail lives in Puppet/PuppetActor.cpp.
 #include "common/SoundEntry.h"

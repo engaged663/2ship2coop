@@ -37,9 +37,11 @@ static_assert(std::size(kSfxCount) == (size_t)sound_limits::kBanks, "SoundEntry.
 
 } // namespace
 
+// With or without SFX_FLAG: without it the engine keeps a sound going instead of starting it again ("- SFX_FLAG").
 bool Sfx_Valid(uint16_t sfxId) {
     uint32_t bank = SFX_BANK(sfxId);
-    return bank < std::size(kSfxCount) && (sfxId & 0xC00) == SFX_FLAG && (int)SFX_INDEX(sfxId) < kSfxCount[bank];
+    return bank < std::size(kSfxCount) && (sfxId & sound_limits::kNeverBit) == 0 &&
+           (int)SFX_INDEX(sfxId) < kSfxCount[bank];
 }
 
 } // namespace coop::client

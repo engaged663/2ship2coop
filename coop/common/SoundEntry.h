@@ -16,8 +16,10 @@ class Reader;
 namespace sound_limits {
 constexpr int kPerPose = 8;          // sounds of one Link in one pose
 constexpr int kPerRecord = 8;        // sounds of one actor in one record
-constexpr int kBanks = 7;            // player, item, environment, enemy, system, ocarina, voice
-constexpr uint16_t kFlagBit = 0x800; // every sound id has it (SFX_FLAG); 0x400 never
+constexpr int kBanks = 7;             // player, item, environment, enemy, system, ocarina, voice
+constexpr uint16_t kNeverBit = 0x400; // no sound id has it. 0x800 (SFX_FLAG) is optional: without it ("NA_SE_... -
+                                      // SFX_FLAG") the engine keeps a sound going while it is asked for every frame
+                                      // instead of starting it again (a spin attack's charge, a bomb's fuse)
 constexpr float kWorldLimit = 32767.f;
 } // namespace sound_limits
 
@@ -42,8 +44,8 @@ struct SoundEntry {
     uint8_t token = 4;
 };
 
-// A sound id this protocol accepts: bank below kBanks, with the 0x800 bit and without 0x400. (The game checks the
-// size of each bank again.)
+// A sound id this protocol accepts: bank below kBanks, with or without the 0x800 bit, never 0x400. (The game checks
+// the size of each bank again.)
 bool SoundIdPlausible(uint16_t sfx);
 // The engine's values; a value equal to the default is left out of the wire.
 SoundEntry MakeSound(uint16_t sfx, float freq, float vol, int8_t reverb, uint8_t token);

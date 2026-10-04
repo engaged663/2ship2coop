@@ -19,7 +19,7 @@ bool PointerKind(SlotKind k) {
 } // namespace
 
 bool SoundIdPlausible(uint16_t sfx) {
-    return ((sfx >> 12) & 0xF) < sound_limits::kBanks && (sfx & 0xC00) == sound_limits::kFlagBit;
+    return ((sfx >> 12) & 0xF) < sound_limits::kBanks && (sfx & sound_limits::kNeverBit) == 0;
 }
 
 SoundEntry MakeSound(uint16_t sfx, float freq, float vol, int8_t reverb, uint8_t token) {

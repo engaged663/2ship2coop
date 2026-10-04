@@ -9,11 +9,14 @@
 
 #include "2s2h/GameInteractor/GameInteractor.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 #include "2s2h/ShipInit.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <string>
+#include <vector>
 
 extern "C" {
 #include "functions.h"
@@ -51,9 +54,42 @@ constexpr u32 kSyncedStateFlags3 = PLAYER_STATE3_1000 /* goron ball */ | PLAYER_
 
 uint16_t sSeq = 0;
 int16_t sLoggedScene = -2; // diagnostics: log when we start sending from a new scene
+bool sLoggedBadPose = false;
 
 coop::Vec3s16 ToVec(const Vec3s& v) {
     return { v.x, v.y, v.z };
+}
+
+bool Readable(const std::vector<uint8_t>& bytes) {
+    coop::PlayerState check;
+    return coop::DecodePlayerState(bytes.data(), bytes.size(), check) && coop::SanitizePlayerState(check);
+}
+
+// The server drops a pose it cannot read or draw and counts it towards a kick ("too many invalid packets"), while our
+// puppet stands still in the other games: such a pose never leaves. Without its sounds if they were the problem;
+// what was wrong is logged once.
+bool Encode(coop::PlayerState& s, std::vector<uint8_t>& bytes) {
+    bytes = coop::EncodePlayerState(s);
+    if (Readable(bytes)) {
+        return true;
+    }
+    if (!sLoggedBadPose) {
+        sLoggedBadPose = true;
+        std::string sfx;
+        for (const coop::SoundEntry& e : s.sounds) {
+            sfx += fmt::format(" {:#06x}/{:#x}", e.sfx, e.flags);
+        }
+        SPDLOG_WARN("[Coop] A pose the server would reject (form {} mask {} shield {} group {} face {} item {}/{} "
+                    "entrance {:#x} layer {} sword {}/{} ocarina {}/{} sounds{})",
+                    s.form, s.mask, s.shield, s.modelGroup, s.face, s.itemAction, s.heldItemAction, s.entrance,
+                    s.layer, s.meleeWeaponState, s.meleeWeaponAnimation, s.ocarinaInstrument, s.ocarinaPitch, sfx);
+    }
+    if (s.sounds.empty()) {
+        return false;
+    }
+    s.sounds.clear();
+    bytes = coop::EncodePlayerState(s);
+    return Readable(bytes);
 }
 
 } // namespace
@@ -131,7 +167,10 @@ void PoseCapture_Tick() {
         sLoggedScene = s.sceneId;
         SPDLOG_INFO("[Coop] Sending our pose from scene {} room {}", (int)s.sceneId, (int)s.roomNum);
     }
-    coop::client::NetClient::Get().SendStream(coop::EncodePlayerState(s));
+    std::vector<uint8_t> bytes;
+    if (Encode(s, bytes)) {
+        coop::client::NetClient::Get().SendStream(std::move(bytes));
+    }
 }
 
 static void RegisterPoseCapture() {

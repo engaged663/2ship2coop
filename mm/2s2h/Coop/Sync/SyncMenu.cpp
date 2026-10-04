@@ -106,6 +106,11 @@ void SyncMenu_Draw() {
         "Recrear objetos que otro jugador cambia (paredes, rocas, bloques)", "gCoop.Sync.FlagReload",
         UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
             "Un objeto que solo mira su bandera al crearse se crea de nuevo cuando otro jugador la cambia."));
+    UIWidgets::CVarCheckbox(
+        "Ver el efecto de las canciones de los demás (destello, lluvia)", "gCoop.Sync.SongEffects",
+        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
+            "Cuando otro jugador toca bien una canción a tu lado la oyes siempre; esto añade su destello en tu "
+            "pantalla (o la lluvia de la Canción de la Tormenta)."));
     UIWidgets::CVarSliderInt("Volumen de los demás (%)", "gCoop.Sync.RemoteVolume",
                              UIWidgets::IntSliderOptions().Color(THEME_COLOR).Min(0).Max(100).DefaultValue(100));
     UIWidgets::CVarInputString("Compartir también (ids o nombres)", "gCoop.Sync.Shared",

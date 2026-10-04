@@ -301,6 +301,22 @@ TEST_CASE(ActorImagePlayerRoomPasses) {
     CHECK_EQ(DecodeAll(packets)[0].room, (int8_t)63);
 }
 
+// A lit bomb sounds its fuse every frame as a continuous sound (NA_SE_IT_BOMB_IGNIT - SFX_FLAG): the packet with it
+// must still be read, or no game ever creates the copy of that bomb.
+TEST_CASE(ActorImageCarriesContinuousSounds) {
+    ActorImagePacket f = Frame();
+    f.room = image_limits::kPlayerRoom;
+    ActorImageRecord bomb = Rec(0x82000001u, { Span(0, 0, Raws(1)) });
+    bomb.sfx = { MakeSound(0x180D - 0x800, 1.f, 1.f, 0, 4) };
+    f.records = { bomb };
+    auto packets = EncodeActorImage(f);
+    ActorImagePacket d;
+    CHECK(DecodeActorImage(packets[0].data(), packets[0].size(), d));
+    CHECK_EQ(d.records.size(), (size_t)1);
+    CHECK_EQ(d.records[0].sfx.size(), (size_t)1);
+    CHECK_EQ(d.records[0].sfx[0].sfx, (uint16_t)0x100D);
+}
+
 TEST_CASE(ActorImagePeekAndStamp) {
     auto p = EncodeActorImage(Frame())[0];
     int16_t scene = 0;
