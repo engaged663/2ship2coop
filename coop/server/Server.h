@@ -5,6 +5,7 @@
 #include "GiftManager.h"
 #include "GroupBook.h"
 #include "Logger.h"
+#include "O2rStore.h"
 #include "PlayerRegistry.h"
 #include "ServerConfig.h"
 #include "World/SharedWorld.h"
@@ -37,6 +38,7 @@ class Server {
     // to == nullptr means the console (the text is logged instead).
     void SendSystem(RemoteClient* to, const std::string& text, const char* level = level::kInfo);
     void SendStream(RemoteClient& to, const uint8_t* data, size_t size);
+    void SendFile(RemoteClient& to, const uint8_t* data, size_t size); // kChannelFiles: an .o2r chunk
     void Reject(RemoteClient& client, const std::string& reason); // handshake refused
     void Kick(RemoteClient& client, const std::string& reason);
     bool AllowMessage(RemoteClient& client); // chat/cmd rate limit
@@ -62,6 +64,9 @@ class Server {
     ModHost& Mods() {
         return *mMods;
     }
+    O2rStore& O2r() { // the game mods (.o2r) the players download first
+        return mO2r;
+    }
     const ServerConfig& Config() const {
         return mConfig;
     }
@@ -78,6 +83,7 @@ class Server {
     void HandleDisconnect(uint32_t peer);
     void CheckHandshakeTimeouts();
     void TickStopping(std::vector<NetEvent>& events);
+    void LoadO2r();
 
     ServerConfig mConfig;
     AccessLists& mAccess;
@@ -87,6 +93,7 @@ class Server {
     GiftManager mGifts;
     GroupBook mGroups;
     SharedWorld mWorld; // after mPlayers: it reads the registry
+    O2rStore mO2r;
     bool mRunning = false;
     bool mStopping = false;
     int64_t mStopDeadlineMs = 0;

@@ -24,6 +24,13 @@ struct ModsConfig {
     json settings = json::object();   // per mod: {"name": {...}} (coop.mod.setting)
 };
 
+// server.json "o2r": the game mods (.o2r) the players download from this server before playing (O2rStore.h).
+struct O2rConfig {
+    std::string dir;                        // "" = none (tests); server.json default "o2r"
+    std::vector<std::string> files = { "*" }; // "*" = every .o2r of the folder by name; names (in that order of
+                                              // loading: the last one wins); "!name" leaves one out
+};
+
 struct ServerConfig {
     uint16_t port = kDefaultPort;
     int maxPlayers = kMaxPlayers; // clamped to 1..kMaxPlayers
@@ -46,6 +53,7 @@ struct ServerConfig {
     std::map<std::string, std::string> commandPermissions; // command -> "player" | "op" | "console"
     json gameSettings = json::object(); // 2 Ship options forced on every game in the world: {"gCheats.X": 1}
     ModsConfig mods;
+    O2rConfig o2r; // docs/superpowers/specs/2026-10-03-coop-mods-o2r-design.md
     // Sub-project D: the secret a headless host game shows to be accepted as the server's own. Empty = no hosts.
     // The server generates one for the hosts it starts; server.json may fix one for testing.
     std::string hostToken;
@@ -80,7 +88,7 @@ struct CommandLine {
     std::string modDocsDir; // --mod-docs <dir>: write the mod reference there and exit
 };
 // 2ship-coop-server [--port N] [--lang es|en|zh|ru] [--mods-dir D] [--plugins-dir D] [--script F]... [--plugin F]...
-//                   [--no-mods] [--mod-docs D]
+//                   [--no-mods] [--mod-docs D] [--o2r-dir D] [--no-o2r]
 // --script and --plugin add to the lists of server.json. Returns the warnings ("" = none).
 std::string ApplyCommandLine(ServerConfig& config, int argc, char** argv, CommandLine* out);
 

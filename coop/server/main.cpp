@@ -1,9 +1,10 @@
 // 2ship-coop-server: dedicated co-op server for 2 Ship 2 Harkinian.
 // Files live in the working directory: server.json (settings), bans.json, ops.json, world.json + players/
-// (the shared world, see World/SharedWorld.h), logs/server.log and the mods' folders (mods/, plugins/: see
-// coop/docs/mods/README.md).
+// (the shared world, see World/SharedWorld.h), logs/server.log, the mods' folders (mods/, plugins/: see
+// coop/docs/mods/README.md) and o2r/ (the game mods the players download: O2rStore.h).
 // Usage: 2ship-coop-server [--port N] [--lang es|en|zh|ru] [--mods-dir D] [--plugins-dir D] [--script F]...
-//                          [--plugin F]... [--no-mods] [--mod-docs D]   (ServerConfig.h: ApplyCommandLine)
+//                          [--plugin F]... [--no-mods] [--mod-docs D] [--o2r-dir D] [--no-o2r]
+//                          (ServerConfig.h: ApplyCommandLine)
 #include "server/AccessLists.h"
 #include "server/Logger.h"
 #include "server/Mods/ModDocs.h"

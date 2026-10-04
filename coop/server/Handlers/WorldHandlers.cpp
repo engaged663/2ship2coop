@@ -17,10 +17,16 @@ bool TakeEntry(Server& server, RemoteClient& client) {
     return false;
 }
 
-void OnEnter(Server& server, RemoteClient& client, const json&) {
-    if (TakeEntry(server, client)) {
-        server.World().Enter(client);
+void OnEnter(Server& server, RemoteClient& client, const json& ev) {
+    if (!TakeEntry(server, client)) {
+        return;
     }
+    if (!server.O2r().Accepts(ev)) { // its game must have loaded the server's game mods (.o2r) first
+        server.SendSystem(&client, Tr(Msg::O2rEnterMissing), level::kError);
+        server.Log().Warn(Tr(Msg::O2rEnterMissingLog, { client.nick }));
+        return;
+    }
+    server.World().Enter(client);
 }
 
 void OnLeave(Server& server, RemoteClient& client, const json&) {

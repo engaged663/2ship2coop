@@ -132,3 +132,10 @@ void PlayerCustomFlipbooks_Patch(void) {
         ApplyMouthTextureSet(PLAYER_FORM_GORON, sResolvedGoronMouthTextures);
     }
 }
+
+// [COOP] The faces are resolved again even if "Enable Mods" did not change: the co-op loads a server's .o2r while the
+// game runs (Coop/O2r/O2rLoader.cpp).
+void PlayerCustomFlipbooks_Refresh(void) {
+    sFacePatchAltState = -1;
+    PlayerCustomFlipbooks_Patch();
+}

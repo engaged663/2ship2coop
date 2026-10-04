@@ -31,7 +31,7 @@ class NetClient {
     void Connect(const std::string& host, uint16_t port, const std::string& nick, const std::string& password);
     // Sub-project D: this game is one of the server's headless hosts (the token proves it).
     void ConnectHost(const std::string& host, uint16_t port, const std::string& token);
-    void Disconnect();
+    void Disconnect(const std::string& reason = ""); // reason: what the menu shows ("" = "Te has desconectado...")
     void SendEvent(const json& ev);
     void SendStream(std::vector<uint8_t> bytes);
     void Drain(std::vector<Inbound>& out); // game thread
@@ -66,6 +66,7 @@ class NetClient {
     std::deque<Outbound> mOutbound;
     std::string mLastError;
     std::string mServerLabel;
+    std::string mDisconnectReason; // why this game ends the connection itself (Disconnect)
 };
 
 } // namespace coop::client

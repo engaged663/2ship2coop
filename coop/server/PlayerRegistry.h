@@ -6,6 +6,7 @@
 #include <deque>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace coop::server {
@@ -95,6 +96,10 @@ struct RemoteClient {
     int32_t maxHealth = 0;
     int32_t magic = 0;
     int32_t rupees = 0;
+
+    // Game mods (.o2r) download (O2rHandlers.cpp): chunks asked for and not sent yet [file, offset], and their pace
+    std::deque<std::pair<uint8_t, uint32_t>> o2rQueue;
+    TokenBucket o2rBudget{ kO2rBurst, kO2rPerSecond };
 };
 
 class PlayerRegistry {

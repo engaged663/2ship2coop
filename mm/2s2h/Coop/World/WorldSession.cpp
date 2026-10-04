@@ -12,6 +12,7 @@
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/Features/Warp.h"
+#include "2s2h/Coop/O2r/O2r.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 
 #include "common/Protocol.h"
@@ -478,6 +479,7 @@ void OnWelcome(const json&) {
 }
 
 void OnLost(const std::string&) {
+    sAutoEnterPending = false; // the next welcome decides again
     if (sState != WorldState::Outside) {
         LeaveWorld("Sin conexión con el servidor: vuelves a la selección de archivo.", true);
     }
@@ -528,8 +530,14 @@ void WorldSession_RequestEnter() {
     if (sState != WorldState::Outside) {
         return;
     }
+    if (!O2r_Ready()) { // the server's game mods (.o2r) first (O2r/O2rSync.cpp)
+        Chat_Add(ChatKind::Warn, "Espera: tu juego aún está preparando los mods del servidor (.o2r).");
+        return;
+    }
     sState = WorldState::Requested;
-    NetClient::Get().SendEvent(MakeEvent(ev::kWorldEnter));
+    json enter = MakeEvent(ev::kWorldEnter);
+    enter["o2r"] = O2r_LoadedHashes(); // the server checks them
+    NetClient::Get().SendEvent(enter);
     Chat_Add(ChatKind::Info, "Entrando en la partida del servidor...");
 }
 
@@ -586,7 +594,7 @@ void WorldSession_FrameStart() {
         sRestoreCVars = false;
         RestoreCVars();
     }
-    if (sAutoEnterPending) {
+    if (sAutoEnterPending && O2r_Ready()) { // after downloading and loading the server's .o2r mods
         sAutoEnterPending = false;
         if (sState == WorldState::Outside && !PoseCapture_InGameplay()) { // never abandons a game being played
             WorldSession_RequestEnter();

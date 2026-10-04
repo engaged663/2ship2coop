@@ -32,6 +32,7 @@ Server::~Server() {
 bool Server::Start(std::string* err) {
     mStartTime = std::chrono::steady_clock::now();
     mWorld.Load();
+    LoadO2r(); // before the port opens: no welcome goes out without the list
     // Extra slots let a client connect just to be told why it cannot join (full, banned...).
     if (!mTransport.Listen(mConfig.port, (size_t)mConfig.maxPlayers + 4, err)) {
         return false;
@@ -45,6 +46,21 @@ bool Server::Start(std::string* err) {
 
 bool Server::IsRunning() const {
     return mRunning;
+}
+
+void Server::LoadO2r() {
+    std::string warnings;
+    mO2r.Load(mConfig.o2r, &warnings);
+    if (!warnings.empty()) {
+        mLog.Warn(warnings);
+    }
+    for (const o2r::Entry& e : mO2r.Entries()) {
+        mLog.Info(Tr(Msg::O2rShared, { e.name, o2r::FormatBytes(e.size) }));
+    }
+    if (O2rStore::HasO2rFiles(mConfig.mods.scriptsDir)) { // probably meant for the players
+        mLog.Warn(Tr(Msg::O2rInScriptsDir,
+                     { mConfig.mods.scriptsDir, mConfig.o2r.dir.empty() ? std::string("o2r") : mConfig.o2r.dir }));
+    }
 }
 
 int64_t Server::NowMs() const {
@@ -91,6 +107,10 @@ void Server::HandleReceive(NetEvent& ev) {
         } else {
             NoteInvalid(*c, Tr(Msg::InvStreamUnknown));
         }
+        return;
+    }
+    if (ev.channel != kChannelEvents) { // kChannelFiles only goes from the server to the games
+        NoteInvalid(*c, Tr(Msg::InvChannel));
         return;
     }
 
@@ -163,6 +183,10 @@ void Server::SendSystem(RemoteClient* to, const std::string& text, const char* l
 
 void Server::SendStream(RemoteClient& to, const uint8_t* data, size_t size) {
     mTransport.Send(to.peer, kChannelStream, data, size);
+}
+
+void Server::SendFile(RemoteClient& to, const uint8_t* data, size_t size) {
+    mTransport.Send(to.peer, kChannelFiles, data, size);
 }
 
 void Server::Reject(RemoteClient& client, const std::string& reason) {

@@ -50,6 +50,7 @@ void NetClient::Start(const std::string& host, uint16_t port, const json& hello)
         std::lock_guard<std::mutex> lock(mMutex);
         mOutbound.clear();
         mLastError.clear();
+        mDisconnectReason.clear();
         mServerLabel = host + ":" + std::to_string(port);
     }
     mUserDisconnect = false;
@@ -58,9 +59,13 @@ void NetClient::Start(const std::string& host, uint16_t port, const json& hello)
     mThread = std::thread(&NetClient::ThreadMain, this, host, port, SerializeEvent(hello));
 }
 
-void NetClient::Disconnect() {
+void NetClient::Disconnect(const std::string& reason) {
     if (!mThread.joinable()) {
         return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mDisconnectReason = reason;
     }
     mUserDisconnect = true;
     StopThread();
@@ -230,7 +235,8 @@ void NetClient::ThreadMain(std::string host, uint16_t port, std::string helloTex
                 }
             }
         }
-        lostReason = "Te has desconectado del servidor.";
+        std::lock_guard<std::mutex> lock(mMutex); // released before Finish, which takes it again
+        lostReason = mDisconnectReason.empty() ? "Te has desconectado del servidor." : mDisconnectReason;
     }
     transport.Close();
     Finish(lostReason);

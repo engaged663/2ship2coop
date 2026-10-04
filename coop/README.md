@@ -12,8 +12,9 @@ game for everyone, time that never stops (not even with the inventory open: "liv
 between scenes and **groups** (invitations, shared minigames,
 quests, dialogues and cutscenes; bosses for the whole scene: see "Groups, minigames and quests"), with their
 limits fixed (cutscene actors and effects for whoever is watching, Together / Each / Turn-based minigames,
-contacts, results and texts with the speaker's values) and the **mod API** (Lua scripts and DLL plugins on the
-server: see "Mods"). Pending: D2 (spec D).
+contacts, results and texts with the speaker's values), the **mod API** (Lua scripts and DLL plugins on the
+server: see "Mods") and the **game mods (.o2r)** the server shares and the games download and load before entering
+(see "Game mods (.o2r)"). Pending: D2 (spec D).
 
 ## Pieces
 
@@ -49,6 +50,8 @@ server: see "Mods"). Pending: D2 (spec D).
 | `ActorImage.*` | D3: binary stream of the memory of a room's replicated actors: records, parts, limits |
 | `SlotCodec.h` | one `ActorImage` slot on the wire (type + value), for other streams |
 | `EffectImage.*` | effect echo: binary stream `kStreamEffects` (particles with their start data as slots) |
+| `Sha256.*` | SHA-256 (incremental and of a file): which exact `.o2r` a server shares and a game has |
+| `O2r.*` | game mods (.o2r): the `welcome` list (names, sizes, hashes, all checked), the chunk on `kChannelFiles`, the cache name and the game's download plan (`Download`, tested without the game) |
 
 ### `coop/server/`
 | File | Responsibility |
@@ -96,6 +99,8 @@ server: see "Mods"). Pending: D2 (spec D).
 | `Mods/ModDocs.*` | generates `docs/mods/API.md` and `IDS.md` (`--mod-docs`) |
 | `Commands/ModCommands.cpp` | `/mods`, `/mod reload/load/unload` |
 | `Handlers/ModHandlers.cpp` | the game's `gev` and `stat` (validated) → mod events; the mods' tick |
+| `O2rStore.*` | game mods (.o2r): reads `o2r/` at start (size, SHA-256, safe name), reads chunks, checks the `o2r` of `world_enter` |
+| `Handlers/O2rHandlers.cpp` | `o2r_get` → chunk on `kChannelFiles` (queue of 32 and 256 chunks/s per player) |
 
 Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, `coop_plugin.hpp`, `example/`),
 `mods/ejemplo.lua` (example script), `docs/mods/` (guide, reference, ids, plugins), `tools/gen_game_ids.py`.
@@ -149,6 +154,7 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `World/ClockSync.*` | server clock, songs, moon |
 | `Menu/CoopMenu.*` | "Co-op" tab of the menu (F1) |
 | `Mods/Mods.h` | **map of mods in the game**; `GameOps.cpp` (**one line per command** in `kOps`: when it can run and what it does), `ModSettings.cpp` (forced options and their restoration), `GameEvents.cpp` (`gev`, `stat`), `GameIdsCheck.cpp` (`static_assert` of `GameIds.inc`). Switch `gCoop.Mods` |
+| `O2r/O2r.h` | **map of the server's game mods (.o2r)**; `O2rSync.cpp` (on `welcome`: what is missing, the question, the download to `coop_mods/`, ready), `O2rLoader.cpp` (adds the archives at the frame's safe point and clears the caches; "Enable Mods" while in the world), `O2rWindow.cpp` (window at the top and the menu section) |
 
 ### Changes outside these folders (search for `[COOP]`)
 - `mm/include/tables/actor_table.h`: actor `En_CoopPuppet` (0x2B2).
@@ -182,13 +188,18 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
   (`Message_Decode`: `Coop_OnMessageDecode` at the start and at the end), and `Coop_AddActorRegion` in the `Init` of
   `ovl_Boss_01/02/03/07`, `ovl_En_Knight` (their effect tables) and `ovl_Obj_Takaraya_Wall` (the maze).
 - Mods: `mm/src/code/z_actor.c` (`Enemy_StartFinishingBlow`: `Coop_OnEnemyDefeated`, the `enemy_killed` event).
+- Game mods (.o2r): `mm/2s2h/BenPort.cpp` (`Graph_ProcessGfxCommands`, after the alternate assets switch:
+  `O2r_FrameSafePoint`, where the server's archives are added) and
+  `mm/2s2h/Enhancements/GfxPatcher/PlayerCustomFlipbooks.*` (`PlayerCustomFlipbooks_Refresh`: Link's faces resolved
+  again after an archive was added).
 
 `server.json`: `language` (`es`, `en`, `zh`, `ru`; see "Languages"), `sharedEnemies`, `sharedProps` (scenery
 objects), `endingForAll` (Moon/Majora/ending for everyone), `groups` (groups), `bossCutscenes` (boss cutscenes
 for the whole scene) and `effects` (effect echo) can be set to `false`; `inviteSeconds` (10..600, 60 by default)
 is how long an invitation lasts. Also: `timeSpeed` (speed of the three days, 0.1..10), `voteSeconds` (10..300),
 `saveSeconds` (2..600), `giftMax` (1..999), `commandPermissions` (`{"tp": "op"}`: who uses each command),
-`gameSettings` (2 Ship options forced on everyone) and `mods` (folders, lists and limits: `docs/mods/README.md`).
+`gameSettings` (2 Ship options forced on everyone), `mods` (folders, lists and limits: `docs/mods/README.md`) and
+`o2r` (the game mods the players download: see "Game mods (.o2r)").
 
 ## Recipes (what gets modified most)
 
@@ -266,7 +277,7 @@ cmake --build build/x64 --config Release --parallel
 # Server/bot/tests only (fast, also on Linux)
 cmake -S coop -B build/coop -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build/coop --config Release --parallel
-build/coop/Release/coop-tests.exe          # 345 tests
+build/coop/Release/coop-tests.exe          # 361 tests
 ```
 
 ## Testing without friends
@@ -393,6 +404,33 @@ actors of whoever you watch), `Group.Turns` ("Your turn" notice) and `Effects` (
 `LiveMenu` (1 by default): the pause menu pauses nothing; 0 = as before (still image, Link waiting).
 `Mods` (1 by default): the game accepts the server mods' commands and options and tells them what happens; 0 =
 ignores them. `World.ModRestoreCVars` (internal): the player's options that a server has forced, to give them back.
+Game mods (.o2r): `O2r.AutoDownload` (0 by default: ask before downloading a server's `.o2r`; 1 = never ask),
+`O2r.AltAssets` (1 by default: "Enable Mods" on while in the server's world if its mods have `alt/` files; 0 = never
+touch it), `World.AltAssetsRestore` (internal: "Enable Mods" before that, given back on leaving or at the next start).
+
+## Game mods (.o2r)
+
+Spec `docs/superpowers/specs/2026-10-03-coop-mods-o2r-design.md`, plan `docs/superpowers/plans/2026-10-03-coop-mods-o2r.md`.
+The 2 Ship mods (`.o2r` archives) of the server's `o2r/` folder are downloaded by every game before it plays in the
+server's world, and loaded while it runs.
+
+- **Server** (`O2rStore`): at start it reads the files of `server.json` `"o2r"` (`dir`, `files`: `"*"`, names in
+  order of loading, `"!name"`; `--o2r-dir`, `--no-o2r`), their size and SHA-256, and the name it shows (characters
+  that are not safe become `_`). The `welcome` lists them (also to the hosts); `o2r_get` serves chunks; `world_enter`
+  without every hash gets a `sys` error and does not enter. `/mods` lists them.
+- **Game** (`mm/2s2h/Coop/O2r/`): on `welcome` each mod is *loaded* (this run), *in the cache* (`coop_mods/<name>.<16
+  hex of the hash>.o2r` with its size) or *missing*. Missing ones: the window asks (hosts and `O2r.AutoDownload`
+  do not), then they arrive as `.part` files renamed once their SHA-256 matches. At the next frame's safe point
+  (`BenPort.cpp`) `O2rLoader` adds them to the `ArchiveManager`, keeps alive and removes from the resource cache
+  whatever their paths had (also the "not found" of earlier `alt/` lookups), preloads the `alt/X` whose `X` is in use,
+  and refreshes 2 Ship's name cache (`OTRExtScanner`), the GPU textures, the skeletons and Link's faces. Then auto-enter
+  (or the menu button) sends `world_enter` with the loaded hashes. A refusal, a bad chunk, a wrong hash or 20 s
+  without chunks disconnect with the reason. They stay loaded until the game closes; music and sounds do not change
+  (2 Ship loads the audio at start).
+- **Protocol v14**: `welcome` gains `o2r` `[{name, size, sha256}]`; `world_enter` gains `o2r` `[sha256...]`;
+  `o2r_get` (C→S `i`, `off`); channel 2 `kChannelFiles` (reliable, server → game only): `[kStreamO2r=5][u8 i][u32
+  off][≤16000 bytes]`. Limits in `common/Protocol.h` (`kMaxO2rFiles` 32, `kO2rWindow` 16, `kO2rQueueMax` 32,
+  `kO2rPerSecond` 256, `kO2rStallMs` 20000).
 
 ## Server security
 - Malformed or unknown packets are logged (cleaned, only the first 3) and at 50 the client is kicked.
@@ -400,6 +438,10 @@ ignores them. `World.ModRestoreCVars` (internal): the player's options that a se
   packets over 16 KB. Limits in `common/Protocol.h`.
 - Poses with values the game cannot draw are discarded on the server and again on the client
   (`SanitizePlayerState`, limits checked against the engine with `static_assert` in `PoseCapture.cpp`).
+- `.o2r` downloads: only for welcomed clients, valid file and offset, at most 32 requests waiting and 256 chunks a
+  second per player (a game that stops reading is dropped by ENet within 10 s: ~40 MB queued at most). The game checks
+  the list, every chunk and the final SHA-256 again, and only writes inside `coop_mods/` with safe names. The
+  libultraship of this build has no `ENABLE_SCRIPTING`: an `.o2r` carries data, never code; the game still asks first.
 
 ## Diagnostics
 - Game: `[Coop]` lines in `logs/2 Ship 2 Harkinian.log` (pose sending, puppets created/removed and why).

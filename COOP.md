@@ -4,8 +4,8 @@ An online co-op mod for [2 Ship 2 Harkinian](README.md): up to 4 players share o
 three-day clock, the same unique items and quest flags, the same enemies, props and NPCs — through a small
 dedicated server.
 
-> **Status:** work in progress. The server and protocol (v13) are covered by an automated test suite
-> (345 tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
+> **Status:** work in progress. The server and protocol (v14) are covered by an automated test suite
+> (361 tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
 > Bug reports are welcome.
 
 You need your own legally obtained copy of the game, exactly as for 2 Ship itself. This repository contains no
@@ -24,6 +24,9 @@ copyrighted assets.
 - **Server mods:** Lua scripts and DLL plugins on the server can change the whole experience — give items, heal or
   hurt, spawn enemies, warp players, add commands, bend the clock, force 2 Ship difficulty options — while players
   keep using the same `2ship.exe`. See [Mods](#mods).
+- **Game mods (.o2r):** the server can share 2 Ship mods (models, textures...). On connecting, each game downloads the
+  ones it lacks, loads them without restarting and only then enters the server's world. See
+  [Game mods (.o2r)](#game-mods-o2r).
 
 ## Quick start
 
@@ -37,7 +40,7 @@ copyrighted assets.
 `server.json` options: `port`, `maxPlayers`, `password`, `motd`, `language`, `sharedEnemies`, `sharedProps`,
 `groups`, `inviteSeconds`, `bossCutscenes`, `effects`, `endingForAll`, `timeSpeed` (how fast the three days pass),
 `voteSeconds`, `saveSeconds`, `giftMax`, `commandPermissions` (who may use each command), `gameSettings` (2 Ship
-options forced on everyone in the server's world) and `mods` (below).
+options forced on everyone in the server's world), `mods` (below) and `o2r` (the game mods the players download).
 
 To try it alone: `2ship-coop-bot.exe --target YourNick --mode mirror` makes a fake player.
 
@@ -65,6 +68,20 @@ Documentation (in Spanish): [`coop/docs/mods/README.md`](coop/docs/mods/README.m
 [`API.md`](coop/docs/mods/API.md) (every function and event, generated from the code),
 [`IDS.md`](coop/docs/mods/IDS.md) (item, actor and scene names), [`PLUGINS.md`](coop/docs/mods/PLUGINS.md) (C/C++ SDK);
 example script [`coop/mods/ejemplo.lua`](coop/mods/ejemplo.lua).
+
+## Game mods (.o2r)
+
+Put 2 Ship mods (the `.o2r` files that normally go in the game's `mods` folder) in the server's **`o2r/`** folder.
+The server announces them when a game connects (name, size and SHA-256); the game asks once whether to download what
+it lacks (F1 → Co-op can download them without asking), saves them in **`coop_mods/`** next to `2ship.exe`, checks
+their SHA-256, loads them while running and only then enters the server's world. While playing there, if the mods
+have alternate assets (`alt/`, like most model mods), 2 Ship's **Enable Mods** is switched on and given back on
+leaving. Downloaded mods stay loaded until the game is closed and are never added to your own `mods` folder.
+
+`server.json` → `"o2r": {"dir": "o2r", "files": ["*"]}` (`"*"` = every `.o2r` of the folder in name order; a list of
+names sets the order of loading, the last one wins; `"!name"` leaves one out). Command line: `--o2r-dir D`,
+`--no-o2r`. `/mods` lists them too. The files are read when the server starts: restart it after changing them.
+Music and sound changes of a mod do not apply (2 Ship loads the audio at start).
 
 ## Building
 

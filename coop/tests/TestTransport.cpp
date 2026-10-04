@@ -1,5 +1,6 @@
 #include "TestMain.h"
 
+#include "common/Protocol.h"
 #include "common/Transport.h"
 
 #include <string>
@@ -85,6 +86,44 @@ TEST_CASE(TransportDisconnectReachesServer) {
         }
     }
     CHECK(serverSawDisconnect);
+}
+
+TEST_CASE(TransportFilesChannelIsReliableAndOrdered) {
+    coop::Transport server;
+    coop::Transport client;
+    std::string err;
+    CHECK(server.Listen(47710, 4, &err));
+    uint32_t clientPeer = 0;
+    CHECK(client.Connect("127.0.0.1", 47710, &clientPeer, &err));
+    uint32_t serverPeer = 0;
+    std::vector<int> got;
+    std::vector<uint8_t> packet(16000);
+    for (int i = 0; i < 3000 && got.size() < 100; i++) {
+        std::vector<coop::NetEvent> serverEvents;
+        std::vector<coop::NetEvent> clientEvents;
+        server.Service(1, serverEvents);
+        client.Service(1, clientEvents);
+        for (auto& e : serverEvents) {
+            if (e.type == coop::NetEvent::Connect) {
+                serverPeer = e.peer;
+                for (int n = 0; n < 100; n++) { // 1.6 MB at once: none may be lost or reordered
+                    packet[0] = (uint8_t)n;
+                    server.Send(serverPeer, coop::kChannelFiles, packet.data(), packet.size());
+                }
+            }
+        }
+        for (auto& e : clientEvents) {
+            if (e.type == coop::NetEvent::Receive) {
+                CHECK_EQ(e.channel, (uint8_t)coop::kChannelFiles);
+                CHECK_EQ(e.data.size(), (size_t)16000);
+                got.push_back(e.data[0]);
+            }
+        }
+    }
+    CHECK_EQ(got.size(), (size_t)100);
+    for (int n = 0; n < (int)got.size(); n++) {
+        CHECK_EQ(got[n], n);
+    }
 }
 
 TEST_CASE(TransportListenTwiceOnSamePortFails) {

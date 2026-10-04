@@ -218,7 +218,7 @@ TEST_CASE(EventSizeLimitsDependOnDirection) {
     CHECK(GetBool(json{ { "b", true } }, "b"));
     CHECK(!GetBool(json{ { "b", 1 } }, "b"));
     CHECK(GetBool(json{ { "b", 1 } }, "c", true));
-    CHECK_EQ(kProtocolVersion, 13u); // v13: mods; v12: effects, results, talk values; v11: groups and activities
+    CHECK_EQ(kProtocolVersion, 14u); // v14: game mods (.o2r); v13: mods; v12: effects, results, talk values; v11: groups
 }
 
 TEST_CASE(StolenSwordsComeBackToTheWorld) {

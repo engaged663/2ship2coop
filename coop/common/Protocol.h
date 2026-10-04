@@ -6,7 +6,8 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 13; // v13: mods (orders, forced settings, game reports), the clock's speed;
+constexpr uint32_t kProtocolVersion = 14; // v14: the server's game mods (.o2r): list, download, world_enter check;
+                                          // v13: mods (orders, forced settings, game reports), the clock's speed;
                                           // v12: effects echo, results, talk values; v11: groups; v10: the ending
 constexpr uint16_t kDefaultPort = 7780; // UDP
 
@@ -105,17 +106,29 @@ constexpr int kMaxModHealth = 2000;          // health and damage of an order or
 constexpr int kMaxModRupees = 9999;          // rupees of an order (the biggest wallet holds 500; the rest is lost)
 constexpr int kMaxModSpawnDistance = 2000;   // how far in front of Link an order may create an actor
 constexpr int kLastModItem = 0xA3;           // the last id of the game's item table that is something to give
+// Game mods (.o2r) the server shares (docs/superpowers/specs/2026-10-03-coop-mods-o2r-design.md)
+constexpr int kMaxO2rFiles = 32;                 // .o2r files one server shares
+constexpr uint64_t kMaxO2rBytes = 0xFFFFFFFFull; // one file (chunk offsets are 32 bits)
+constexpr int kMaxO2rName = 80;                  // characters of its name
+constexpr size_t kO2rChunkBytes = 16000;         // bytes of one chunk (with its header, under kMaxPacketBytes)
+constexpr int kO2rWindow = 16;                   // chunks a game asks for before the first one arrives
+constexpr int kO2rQueueMax = 32;                 // o2r_get waiting on the server per player (more = invalid)
+constexpr int kO2rBurst = 32;                    // chunks served per player: burst...
+constexpr int kO2rPerSecond = 256;               // ...and sustained rate (about 4 MB/s)
+constexpr int kO2rStallMs = 20000;               // a game gives the download up after this long without a chunk
 
 enum Channel : uint8_t {
     kChannelEvents = 0, // reliable + ordered, JSON events
     kChannelStream = 1, // unreliable + sequenced, binary streams
-    kChannelCount = 2,
+    kChannelFiles = 2,  // reliable + ordered, binary, server -> game only: .o2r chunks (common/O2r.h)
+    kChannelCount = 3,
 };
 
 // Event names (JSON field "t"). Direction and fields are documented in coop/README.md.
 namespace ev {
 inline constexpr const char* kHello = "hello";             // C->S proto, nick, pass, build (+ host, token: the server's own game)
-inline constexpr const char* kWelcome = "welcome";         // S->C id, nick, motd, players[]
+inline constexpr const char* kWelcome = "welcome";         // S->C id, nick, motd, players[], o2r[{name, size, sha256}]
+                                                           // (the game mods to have first: only if there are some)
 inline constexpr const char* kReject = "reject";           // S->C reason
 inline constexpr const char* kKicked = "kicked";           // S->C reason
 inline constexpr const char* kJoin = "join";               // S->C id, nick
@@ -132,7 +145,8 @@ inline constexpr const char* kGiftCredit = "gift_credit";  // S->C gid, from, am
 inline constexpr const char* kGiftRecv = "gift_recv";      // C->S gid, accepted
 inline constexpr const char* kGiftRefund = "gift_refund";  // S->C gid, amount, reason
 // Shared world (sub-project B)
-inline constexpr const char* kWorldEnter = "world_enter";     // C->S (asks to play in the server's world)
+inline constexpr const char* kWorldEnter = "world_enter";     // C->S o2r[sha256...] (asks to play in the server's
+                                                              // world; o2r: the server's .o2r this game has loaded)
 inline constexpr const char* kWorldLeave = "world_leave";     // C->S
 inline constexpr const char* kWorldFull = "world_full";       // S->C create, fields{}, cycle, clock{}, you{inv, stale}, reset
 inline constexpr const char* kWorldInit = "world_init";       // C->S fields{} (the creator, once)
@@ -198,6 +212,9 @@ inline constexpr const char* kModCfg = "mod_cfg"; // S->C settings {name: number
 inline constexpr const char* kGameEvent = "gev";  // C->S k (item: id | death | boss: actor |
                                                   // kill: actor, params, by, room, pos[3]): it happened in this game
 inline constexpr const char* kStat = "stat";      // C->S hp, hpMax, mp, rupees (when they change, 4 a second at most)
+// Game mods (.o2r) (server: O2rStore.h, Handlers/O2rHandlers.cpp; game: O2r/)
+inline constexpr const char* kO2rGet = "o2r_get"; // C->S i, off: a chunk of the server's .o2r number i (welcome.o2r),
+                                                  // from byte off; it comes back on kChannelFiles
 // Epona
 inline constexpr const char* kEponaCall = "epona_call"; // C->S (+from stamped): one owner horse call
 inline constexpr const char* kEponaPassenger = "epona_passenger"; // C->S owner, horse, mounted; S->owner +from

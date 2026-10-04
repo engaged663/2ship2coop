@@ -161,7 +161,8 @@ void Transport::Send(uint32_t peer, uint8_t channel, const void* data, size_t si
     if (p == nullptr || channel >= kChannelCount) {
         return;
     }
-    enet_uint32 flags = channel == kChannelEvents ? ENET_PACKET_FLAG_RELIABLE : 0;
+    // Only the pose/actor streams may be lost; events and file chunks are reliable and ordered.
+    enet_uint32 flags = channel == kChannelStream ? 0 : ENET_PACKET_FLAG_RELIABLE;
     ENetPacket* packet = enet_packet_create(data, size, flags);
     if (packet != nullptr && enet_peer_send(p, channel, packet) < 0) {
         enet_packet_destroy(packet);

@@ -36,7 +36,8 @@ json Defaults(const ServerConfig& cfg) {
              { "giftMax", cfg.giftMax },
              { "commandPermissions", json::object() },
              { "gameSettings", json::object() },
-             { "mods", mods } };
+             { "mods", mods },
+             { "o2r", { { "dir", "o2r" }, { "files", json::array({ "*" }) } } } };
 }
 
 // Adds the keys of defaults that j lacks (also inside "mods"). True if it added any.
@@ -162,6 +163,14 @@ void ReadMods(Reader top, ModsConfig& mods) {
     }
 }
 
+void ReadO2r(Reader top, O2rConfig& o2r) {
+    static const json kEmpty = json::object();
+    const json* section = top.Object("o2r");
+    Reader r{ section != nullptr ? *section : kEmpty, "o2r.", top.path, top.warnings };
+    o2r.dir = r.String("dir", o2r.dir);
+    o2r.files = r.StringList("files", o2r.files);
+}
+
 } // namespace
 
 bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string* err) {
@@ -201,6 +210,7 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     cfg.mods.pluginsDir = "plugins";
     cfg.mods.plugins = { "*" };
     cfg.mods.dataDir = "mods/data";
+    cfg.o2r.dir = "o2r";
 
     Reader r{ j, "", path, warnings };
     cfg.port = (uint16_t)r.Int("port", cfg.port, 1, 65535);
@@ -242,6 +252,7 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
         }
     }
     ReadMods(r, cfg.mods);
+    ReadO2r(r, cfg.o2r);
     if (err != nullptr) {
         *err = warnings;
     }
@@ -258,8 +269,12 @@ std::string ApplyCommandLine(ServerConfig& config, int argc, char** argv, Comman
             config.mods.enabled = false;
             continue;
         }
+        if (arg == "--no-o2r") {
+            config.o2r.dir.clear();
+            continue;
+        }
         bool known = arg == "--port" || arg == "--lang" || arg == "--mods-dir" || arg == "--plugins-dir" ||
-                     arg == "--script" || arg == "--plugin" || arg == "--mod-docs";
+                     arg == "--script" || arg == "--plugin" || arg == "--mod-docs" || arg == "--o2r-dir";
         if (!known) {
             continue;
         }
@@ -291,6 +306,8 @@ std::string ApplyCommandLine(ServerConfig& config, int argc, char** argv, Comman
             config.mods.scripts.push_back(value);
         } else if (arg == "--plugin") {
             config.mods.plugins.push_back(value);
+        } else if (arg == "--o2r-dir") {
+            config.o2r.dir = value;
         } else if (out != nullptr) { // --mod-docs
             out->modDocsDir = value;
         }

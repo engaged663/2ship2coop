@@ -1,4 +1,5 @@
 #include "2s2h/Coop/Host/HostMode.h" // [COOP]
+#include "2s2h/Coop/O2r/O2r.h"       // [COOP] the server's .o2r mods, loaded at the frame's safe point
 #include "BenPort.h"
 #include <iostream>
 #include <algorithm>
@@ -1268,6 +1269,8 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
         SOH::SkeletonPatcher::UpdateSkeletons();
         // GameInteractor::Instance->ExecuteHooks<GameInteractor::OnAssetAltChange>();
     }
+    // [COOP] The server's .o2r mods are added here: the audio thread waits and nothing is loading (Coop/O2r/O2r.h).
+    coop::client::O2r_FrameSafePoint();
 
     // OTRTODO: FIGURE OUT END FRAME POINT
     /* if (OTRGlobals::Instance->context->GetWindow()->lastScancode != -1)

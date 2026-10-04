@@ -3,6 +3,7 @@
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Group/Group.h"
+#include "2s2h/Coop/O2r/O2r.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "common/Protocol.h"
@@ -104,7 +105,7 @@ void DrawWorld() {
     ImGui::SeparatorText("Partida del servidor");
     WorldState state = WorldSession_State();
     if (state == WorldState::Outside) {
-        ImGui::BeginDisabled(!Session_IsConnected());
+        ImGui::BeginDisabled(!Session_IsConnected() || !O2r_Ready()); // the server's .o2r mods first
         if (UIWidgets::Button("Entrar en la partida del servidor",
                               UIWidgets::ButtonOptions().Color(THEME_COLOR).Tooltip(
                                   "Deja la partida que tengas abierta (sin guardarla) y entra en el mundo compartido "
@@ -179,6 +180,7 @@ void RegisterCoopMenu() {
 void CoopMenu_Draw() {
     ImGui::SeparatorText("Conexión");
     DrawConnection();
+    O2rMenu_Draw();
     DrawPlayers();
     DrawWorld();
     GroupMenu_Draw();

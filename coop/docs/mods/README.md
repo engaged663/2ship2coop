@@ -14,6 +14,10 @@ Both use **the same API**: the same functions and the same events, described one
 [API.md](API.md) (generated from the code, always up to date). The names of items, actors and scenes are in
 [IDS.md](IDS.md). A complete, commented example: `mods/ejemplo.lua`.
 
+**2 Ship mods** (the `.o2r` files with models, textures... that normally go in the game's `mods` folder) are a
+different thing: put them in the server's **`o2r/`** folder (not in `mods/`) and every game downloads and loads them
+before entering the server's world. See "Game mods (.o2r)" in `COOP.md`.
+
 ## Index
 
 1. [Installing and loading mods](#1-installing-and-loading-mods)

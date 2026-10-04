@@ -48,6 +48,8 @@ X(IncomingConnection, "Conexión entrante desde {0}", "Incoming connection from 
 X(InvStreamBeforeHello, "stream antes del saludo", "stream before the handshake", "握手前收到数据流",
   "поток данных до рукопожатия")
 X(InvStreamUnknown, "stream desconocido", "unknown stream", "未知的数据流", "неизвестный поток данных")
+X(InvChannel, "paquete en un canal que no le toca", "packet on a channel it may not use", "数据包使用了不允许的通道",
+  "пакет в недопустимом канале")
 X(InvEvent, "evento inválido ({0})", "invalid event ({0})", "无效的事件({0})", "недопустимое событие ({0})")
 X(InvEventUnknown, "evento desconocido '{0}'", "unknown event '{0}'", "未知事件“{0}”", "неизвестное событие «{0}»")
 X(HandshakeTimeout, "{0} no completó el saludo a tiempo; desconectado", "{0} did not finish the handshake in time; disconnected",
@@ -741,3 +743,36 @@ X(ApiTooManySettings, "demasiadas opciones forzadas (máximo {0} por jugador)", 
   "强制设置过多(每位玩家最多 {0} 项)", "слишком много навязанных настроек (не более {0} на игрока)")
 X(GameSettingRefused, "server.json, gameSettings: {0}", "server.json, gameSettings: {0}", "server.json,gameSettings:{0}",
   "server.json, gameSettings: {0}")
+
+// ---- Game mods (.o2r) the players download (O2rStore.cpp, Handlers/O2rHandlers.cpp) ----
+X(O2rShared, "Mod del juego (.o2r) para los jugadores: {0} ({1})", "Game mod (.o2r) for the players: {0} ({1})",
+  "提供给玩家的游戏模组(.o2r):{0}({1})", "Мод игры (.o2r) для игроков: {0} ({1})")
+X(O2rSkipped, "{0}: no se reparte ({1})", "{0}: not shared ({1})", "{0}:不提供({1})", "{0}: не раздаётся ({1})")
+X(O2rWhyUnreadable, "no se puede leer", "it cannot be read", "无法读取", "не удаётся прочитать")
+X(O2rWhyEmpty, "está vacío", "it is empty", "文件为空", "файл пуст")
+X(O2rWhyTooBig, "pasa de 4 GB", "it is over 4 GB", "超过 4 GB", "больше 4 ГБ")
+X(O2rWhyRepeated, "es igual que otro o se llama igual", "it is the same as another one or has the same name",
+  "与另一个文件相同或同名", "совпадает с другим файлом или называется так же")
+X(O2rTooMany, "Solo se reparten los primeros {0} archivos .o2r", "Only the first {0} .o2r files are shared",
+  "只提供前 {0} 个 .o2r 文件", "Раздаются только первые {0} файлов .o2r")
+X(O2rInScriptsDir, "Hay archivos .o2r en '{0}': los mods del juego van en '{1}' (server.json \"o2r\")",
+  "There are .o2r files in '{0}': game mods go in '{1}' (server.json \"o2r\")",
+  "'{0}' 中有 .o2r 文件:游戏模组应放在 '{1}'(server.json \"o2r\")",
+  "В '{0}' есть файлы .o2r: моды игры кладутся в '{1}' (server.json \"o2r\")")
+X(O2rModsTitle, "Mods del juego (.o2r) que se descargan los jugadores ({0}):", "Game mods (.o2r) the players download ({0}):",
+  "玩家需下载的游戏模组(.o2r)({0}):", "Моды игры (.o2r), которые скачивают игроки ({0}):")
+X(O2rReadFailed, "No se pudo leer {0} para enviarlo", "Could not read {0} to send it", "无法读取 {0} 以发送",
+  "Не удалось прочитать {0} для отправки")
+X(O2rReadFailedPlayer, "El servidor no pudo leer el mod {0}. Avisa al administrador.",
+  "The server could not read the mod {0}. Tell the admin.", "服务器无法读取模组 {0}。请告诉管理员。",
+  "Сервер не смог прочитать мод {0}. Сообщите администратору.")
+X(O2rEnterMissing, "Tu juego no tiene cargados los mods del servidor (.o2r): vuelve a conectarte para descargarlos.",
+  "Your game has not loaded the server's mods (.o2r): reconnect to download them.",
+  "你的游戏没有加载服务器的模组(.o2r):请重新连接以下载。",
+  "Ваша игра не загрузила моды сервера (.o2r): переподключитесь, чтобы скачать их.")
+X(O2rEnterMissingLog, "{0} intentó entrar en la partida sin los mods del servidor (.o2r)",
+  "{0} tried to enter the world without the server's mods (.o2r)", "{0} 试图在没有服务器模组(.o2r)的情况下进入世界",
+  "{0} пытался войти в мир без модов сервера (.o2r)")
+X(InvO2rGet, "petición o2r_get inválida", "invalid o2r_get request", "无效的 o2r_get 请求", "неверный запрос o2r_get")
+X(InvO2rFlood, "demasiadas peticiones o2r_get", "too many o2r_get requests", "o2r_get 请求过多",
+  "слишком много запросов o2r_get")

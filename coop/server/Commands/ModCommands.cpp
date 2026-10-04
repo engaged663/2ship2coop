@@ -11,11 +11,7 @@ namespace {
 
 void ListMods(CommandContext& ctx, const std::vector<std::string>&) {
     std::vector<Mod*> mods = ctx.server.Mods().All();
-    if (mods.empty()) {
-        ctx.Reply(Tr(Msg::ModsNone));
-        return;
-    }
-    std::string text = Tr(Msg::ModsTitle, { std::to_string(mods.size()) });
+    std::string text = mods.empty() ? Tr(Msg::ModsNone) : Tr(Msg::ModsTitle, { std::to_string(mods.size()) });
     for (Mod* mod : mods) {
         const ModInfo& info = mod->Info();
         text += "\n" + info.name + " (" + info.kind + ")";
@@ -25,6 +21,13 @@ void ListMods(CommandContext& ctx, const std::vector<std::string>&) {
         if (!info.title.empty() || !info.description.empty()) { // "Title: description", or whichever there is
             text += " - " + info.title + (!info.title.empty() && !info.description.empty() ? ": " : "") +
                     info.description;
+        }
+    }
+    const std::vector<o2r::Entry>& archives = ctx.server.O2r().Entries(); // the game mods the players download
+    if (!archives.empty()) {
+        text += "\n" + Tr(Msg::O2rModsTitle, { std::to_string(archives.size()) });
+        for (const o2r::Entry& e : archives) {
+            text += "\n" + e.name + " (" + o2r::FormatBytes(e.size) + ")";
         }
     }
     ctx.Reply(text);

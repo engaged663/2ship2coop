@@ -61,6 +61,9 @@ void WelcomeHost(Server& server, RemoteClient& client, const std::string& token)
     welcome["host"] = true;
     welcome["motd"] = "";
     welcome["players"] = players;
+    if (!server.O2r().Empty()) { // it plays the same scenes: it loads the same game mods
+        welcome["o2r"] = server.O2r().ListJson();
+    }
     server.SendEvent(client, welcome);
     server.Log().Info(Tr(Msg::HostConnected, { std::to_string(client.id) }));
 }
@@ -121,6 +124,9 @@ void OnHello(Server& server, RemoteClient& client, const json& ev) {
     welcome["nick"] = client.nick;
     welcome["motd"] = server.Config().motd.empty() ? Tr(Msg::DefaultMotd) : server.Config().motd;
     welcome["players"] = players;
+    if (!server.O2r().Empty()) { // the game mods (.o2r) its game loads before entering the world
+        welcome["o2r"] = server.O2r().ListJson();
+    }
     server.SendEvent(client, welcome);
 
     json join = MakeEvent(ev::kJoin);

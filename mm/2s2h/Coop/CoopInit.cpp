@@ -3,6 +3,7 @@
 #include "2s2h/Coop/Actors/ActorSync.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/O2r/O2r.h"
 #include "2s2h/Coop/World/ClockSync.h"
 #include "2s2h/Coop/World/WorldSession.h"
 #include "2s2h/Coop/World/WorldSync.h"
@@ -16,6 +17,7 @@ static void RegisterCoop() {
     // Every frame starts with the network (before actors update), then the shared world acts on its messages...
     COND_HOOK(OnGameStateMainStart, true, []() {
         coop::client::ProcessNetwork();
+        coop::client::O2r_FrameStart(); // the server's .o2r mods: before the world, which waits for them
         coop::client::WorldSession_FrameStart();
         coop::client::ClockSync_FrameStart();
     });
