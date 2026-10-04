@@ -7,11 +7,14 @@
 #include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 
+#include "common/PlayerState.h"
 #include "common/Protocol.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
 #include "2s2h/ShipUtils.h"
+
+#include <algorithm>
 
 extern "C" {
 #include "variables.h"
@@ -21,6 +24,7 @@ namespace {
 
 int16_t sLastScene = -2;
 int8_t sLastRoom = -2;
+int8_t sLastLayer = -2; // gSaveContext.sceneLayer: the server shares actors and flags per scene + layer
 bool sLastTimeStopped = false;
 bool sLastBusy = false;
 
@@ -36,6 +40,7 @@ bool Busy() {
 void Reset() {
     sLastScene = -2;
     sLastRoom = -2;
+    sLastLayer = -2;
     sLastTimeStopped = false;
     sLastBusy = false;
 }
@@ -46,19 +51,23 @@ void LocationTick() {
     }
     int16_t scene = gPlayState->sceneId;
     int8_t room = gPlayState->roomCtx.curRoom.num;
+    uint8_t layer = (uint8_t)std::clamp<int>(gSaveContext.sceneLayer, 0, coop::pose_limits::kMaxLayer);
     // The original stops time in some scenes (the Moon); from Oath to Order on the giants hold the moon
     bool timeStopped = gPlayState->envCtx.sceneTimeSpeed == 0 || coop::client::Ending_StopsTime();
     bool busy = Busy();
-    if (scene == sLastScene && room == sLastRoom && timeStopped == sLastTimeStopped && busy == sLastBusy) {
+    if (scene == sLastScene && room == sLastRoom && layer == sLastLayer && timeStopped == sLastTimeStopped &&
+        busy == sLastBusy) {
         return;
     }
     sLastBusy = busy;
     sLastScene = scene;
     sLastRoom = room;
+    sLastLayer = (int8_t)layer;
     sLastTimeStopped = timeStopped;
     coop::json ev = coop::MakeEvent(coop::ev::kLoc);
     ev["scene"] = scene;
     ev["room"] = room;
+    ev["layer"] = layer;
     ev["entrance"] = gSaveContext.save.entrance;
     const char* name = Ship_GetSceneName(scene);
     ev["sceneName"] = name != nullptr ? name : "";

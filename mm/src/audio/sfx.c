@@ -1,5 +1,6 @@
 #include "global.h"
 #include "2s2h/Enhancements/Audio/AudioEditor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 typedef struct {
     /* 0x00 */ u16 sfxId;
@@ -127,6 +128,10 @@ void AudioSfx_PlaySfx(u16 sfxId, Vec3f* pos, u8 token, f32* freqScale, f32* volu
     u8 i;
     SfxRequest* reqWrite;
     SfxRequest* reqRead;
+
+    if (Coop_OnSfx(sfxId, pos, token, freqScale, volume, reverbAdd)) { // [COOP] a copy's sounds come from its owner
+        return;
+    }
 
     if (!gSfxBankMuted[SFX_BANK_SHIFT(sfxId)]) {
         reqWrite = &sSfxRequests[sSfxRequestWriteIndex];

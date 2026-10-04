@@ -3,6 +3,7 @@
 // stamps the sender and passes it to the players in its scene (server.json "effects": false turns it off).
 #include "server/Registry.h"
 #include "server/Server.h"
+#include "server/Stage.h"
 
 #include "common/EffectImage.h"
 #include "common/PlayerState.h"
@@ -27,7 +28,7 @@ void OnEffects(Server& server, RemoteClient& client, uint8_t* data, size_t size)
     }
     StampPlayerId(data, size, client.id);
     for (RemoteClient* other : server.Players().Welcomed()) {
-        if (other != &client && other->inWorld && !other->closing && other->scene == client.scene) {
+        if (other != &client && other->inWorld && !other->closing && SameStage(*other, client)) {
             server.SendStream(*other, data, size);
         }
     }

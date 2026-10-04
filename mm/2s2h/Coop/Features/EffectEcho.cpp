@@ -17,6 +17,7 @@
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Host/HostMode.h"
+#include "2s2h/Coop/Sync/Sync.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "common/EffectImage.h"
@@ -285,15 +286,18 @@ extern "C" void Coop_CollisionPass(s32 begin) {
     sCollisionPass = begin != 0;
 }
 
-extern "C" void Coop_OnEffectSpawn(PlayState* play, s32 type, s32 priority, void* initData) {
+extern "C" s32 Coop_OnEffectSpawn(PlayState* play, s32 type, s32 priority, void* initData) {
+    if (CopyCode_InCopyInit() && On()) {
+        return 1; // the Init of a copy we create: its owner already sent its particles (Sync/CopyCode.cpp)
+    }
     bool cinema = false;
     if (sApplying || initData == nullptr || play == nullptr || !On() || type < 0 || type >= EFFECT_SS_TYPE_MAX ||
         !Sendable(&cinema)) {
-        return;
+        return 0;
     }
     const InitInfo* info = InitOf(type);
     if (info == nullptr || !TakeBudget()) {
-        return;
+        return 0;
     }
     EffectRecord r;
     r.type = (uint8_t)type;
@@ -303,11 +307,12 @@ extern "C" void Coop_OnEffectSpawn(PlayState* play, s32 type, s32 priority, void
         std::memcpy(&raw, (const uint8_t*)initData + off, std::min<size_t>(8, info->bytes - off));
         Slot s = ActorMemory_Classify(raw);
         if (s.kind == SlotKind::Keep) {
-            return; // points to something only this game has
+            return 0; // points to something only this game has
         }
         r.slots.push_back(s);
     }
     (cinema ? sOutCinema : sOut).effects.push_back(std::move(r));
+    return 0;
 }
 
 COOP_ON_STREAM(effectEcho, coop::kStreamEffects, OnEffects);

@@ -7,12 +7,16 @@
 #include "ActorSync.h"
 #include "Authority.h"
 #include "CoopEngine.h"
+#include "Leases.h"
 #include "PropSync.h"
+
+#include "2s2h/Coop/Sync/Sync.h"
 
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Features/Ending.h"
+#include "2s2h/Coop/Host/HostMode.h"
 #include "2s2h/Coop/World/WorldSession.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ObjectExtension/ActorListIndex.h"
@@ -45,6 +49,7 @@ struct SpawnCtx {
     bool runtime = false;
     SpawnInfo spawn;
     bool cinema = false;
+    uint8_t owner = 0; // a player's own object (Sync/PlayerObjects.cpp)
 };
 
 std::unordered_map<const Actor*, std::unique_ptr<TrackedActor>> sTracked;
@@ -178,6 +183,7 @@ void Track(Actor* actor, const SpawnCtx& ctx) {
     t->room = ctx.room;
     t->runtime = ctx.runtime;
     t->cinema = ctx.cinema;
+    t->owner = ctx.owner;
     t->spawn = ctx.spawn;
     sInitializing.back() = t.get();
     sByKey[ctx.key] = t.get();
@@ -281,10 +287,12 @@ bool ActorRegistry_IsCinemaSpawn(uint32_t parentKey, const SpawnInfo& s) {
     return Rules_IsCutsceneActor((int16_t)s.actorId) || (parent != nullptr && parent->cinema);
 }
 
-void ActorRegistry_ExpectReplica(uint32_t key, uint32_t parentKey, uint32_t rootKey, int8_t room, const SpawnInfo& s) {
+void ActorRegistry_ExpectReplica(uint32_t key, uint32_t parentKey, uint32_t rootKey, int8_t room, const SpawnInfo& s,
+                                 uint8_t owner) {
     sExpecting = true;
     sExpected = SpawnCtx{ true, key, parentKey, rootKey, room, true, s };
     sExpected.cinema = ActorRegistry_IsCinemaSpawn(parentKey, s);
+    sExpected.owner = owner;
 }
 
 void ActorRegistry_EndExpect() {
@@ -299,6 +307,32 @@ Actor* ActorRegistry_SpawnUntracked(int16_t id, const Vec3f& pos, s16 params, s1
     Actor* a = Actor_Spawn(&gPlayState->actorCtx, gPlayState, id, pos.x, pos.y, pos.z, 0, rotY, 0, params);
     sEchoing = false;
     return a;
+}
+
+bool ActorRegistry_Adopt(Actor* actor, uint32_t key, uint8_t owner) {
+    if (actor == nullptr || sTracked.count(actor) != 0 || sByKey.count(key) != 0 || InstanceSize(actor) == 0) {
+        return false;
+    }
+    auto t = std::make_unique<TrackedActor>();
+    t->actor = actor;
+    t->key = key;
+    t->rootKey = key;
+    t->room = image_limits::kPlayerRoom;
+    t->owner = owner;
+    t->adopted = true;
+    TrackedActor* raw = t.get();
+    sByKey[key] = raw;
+    sTracked[actor] = std::move(t);
+    sVersion++;
+    BuildRegions(*raw); // its instance (its skeletons and colliders were set up long ago: they stay its own)
+    return true;
+}
+
+void ActorRegistry_ReleaseAdopted(Actor* actor) {
+    TrackedActor* t = ActorRegistry_Get(actor);
+    if (t != nullptr && t->adopted) {
+        Untrack(actor);
+    }
 }
 
 } // namespace coop::client
@@ -323,11 +357,30 @@ extern "C" void Coop_OnActorSpawned(Actor* actor) {
         SpawnCtx c{ rule == Replication::Replicated || rule == Replication::Cinema, key, parent->key, parent->rootKey,
                     parent->room, false, {} };
         c.cinema = rule == Replication::Cinema || parent->cinema;
+        c.owner = parent->owner;
         sSpawnCtx[actor] = c;
         return;
     }
     TrackedActor* updating = ActorSync_Updating();
     if (updating == nullptr) {
+        // Our Link's arrows, bombs, hookshot... (Sync/PlayerObjects.cpp): the others show a copy, wherever they fly
+        Player* link = (Player*)gPlayState->actorCtx.actorLists[ACTORCAT_PLAYER].first;
+        bool byLink = link != nullptr && (ActorSync_AnyUpdating() == &link->actor || actor->parent == &link->actor);
+        if (byLink && !HostMode_Enabled() && PlayerObjects_Listed(actor->id) && Sync_On(SyncPart::PlayerObjects)) {
+            SpawnInfo s;
+            s.actorId = (uint16_t)actor->id;
+            s.params = actor->params;
+            s.pos[0] = actor->home.pos.x;
+            s.pos[1] = actor->home.pos.y;
+            s.pos[2] = actor->home.pos.z;
+            s.rot[0] = actor->home.rot.x;
+            s.rot[1] = actor->home.rot.y;
+            s.rot[2] = actor->home.rot.z;
+            uint32_t key = kRuntimeKeyBit | ((uint32_t)(Session_LocalId() & 0x3F) << 24) | (++sRuntimeSeq & 0xFFFFFF);
+            SpawnCtx c{ true, key, 0, key, image_limits::kPlayerRoom, true, s };
+            c.owner = Session_LocalId();
+            sSpawnCtx[actor] = c;
+        }
         return; // a list actor (decided in its Init) or never replicated (Epona: Ride.cpp tracks her on mount)
     }
     Replication rule = Rules_RuntimeChild(actor->id, category);
@@ -351,10 +404,11 @@ extern "C" void Coop_OnActorSpawned(Actor* actor) {
     uint32_t key = kRuntimeKeyBit | ((uint32_t)(Session_LocalId() & 0x3F) << 24) | (++sRuntimeSeq & 0xFFFFFF);
     SpawnCtx c{ true, key, updating->key, updating->rootKey, updating->room, true, s };
     c.cinema = rule == Replication::Cinema || updating->cinema;
+    c.owner = updating->owner;
     sSpawnCtx[actor] = c;
 }
 
-extern "C" void Coop_ActorInitBegin(Actor* actor) {
+static void InitBegin(Actor* actor) {
     sInitializing.push_back(nullptr);
     if (!WorldSession_InWorld() || EndingMode_Active() || actor->overlayEntry == nullptr ||
         actor->overlayEntry->profile == nullptr) {
@@ -382,7 +436,21 @@ extern "C" void Coop_ActorInitBegin(Actor* actor) {
     Track(actor, c);
 }
 
+extern "C" void Coop_ActorInitBegin(Actor* actor) {
+    InitBegin(actor);
+    FlagReload_InitBegin(actor); // the flags it reads now are "read when created" (Sync/FlagReload.cpp)
+    CopyCode_Begin(actor, true); // after it: a copy we create is tracked already (Sync/CopyCode.cpp)
+}
+
+static void InitEnd(Actor* actor);
+
 extern "C" void Coop_ActorInitEnd(Actor* actor) {
+    CopyCode_End();
+    FlagReload_InitEnd();
+    InitEnd(actor);
+}
+
+static void InitEnd(Actor* actor) {
     if (sInitializing.empty()) {
         return;
     }
@@ -450,6 +518,9 @@ static void RegisterActorRegistry() {
     COND_HOOK(OnActorDestroy, true, [](Actor* actor) {
         sSpawnCtx.erase(actor);
         if (TrackedActor* t = ActorRegistry_Get(actor)) {
+            if (Leases_IsRemote(*t)) {
+                CopyCode_NoteDyingCopy(actor, t->owner); // its Destroy runs after this hook (Actor_Delete)
+            }
             ActorSync_OnDestroyed(*t);
         }
         ActorSync_ForgetPointersTo(actor);

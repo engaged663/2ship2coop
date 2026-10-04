@@ -3,6 +3,7 @@
 
 #include "GameInteractor/GameInteractor.h"
 #include "2s2h/Enhancements/Audio/AudioEditor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <libultraship/bridge/audiobridge.h>
 
@@ -2800,6 +2801,59 @@ void AudioOcarina_SetInstrument(u8 ocarinaInstrumentId) {
     }
 }
 
+// #region [COOP] Sincronización total S6: the others' ocarina (OcarinaEcho.cpp)
+static f32 sCoopRemoteBend = 1.0f;
+static u8 sCoopRemoteInstrument = OCARINA_INSTRUMENT_OFF;
+static u8 sCoopRemotePitch = OCARINA_PITCH_NONE;
+
+void Coop_OcarinaRead(u8* instrument, u8* pitch, f32* bend, s8* vibrato) {
+    *instrument = sIsOcarinaInputEnabled ? (u8)sOcarinaInstrumentId : OCARINA_INSTRUMENT_OFF;
+    *pitch = sIsOcarinaInputEnabled ? sCurOcarinaPitch : OCARINA_PITCH_NONE;
+    *bend = sCurOcarinaBendFreq;
+    *vibrato = sCurOcarinaVibrato;
+}
+
+s32 Coop_OcarinaLocalBusy(void) {
+    return sIsOcarinaInputEnabled || (sOcarinaInstrumentId != OCARINA_INSTRUMENT_OFF) || (sPlaybackState != 0);
+}
+
+void Coop_OcarinaRemote(u8 instrument, u8 pitch, f32 bend, s8 vibrato, Vec3f* pos) {
+    if (instrument != sCoopRemoteInstrument) {
+        SEQCMD_SET_CHANNEL_IO(SEQ_PLAYER_SFX, SFX_CHANNEL_OCARINA, 1, instrument);
+        sCoopRemoteInstrument = instrument;
+    }
+    sCoopRemoteBend = bend;
+    if (pitch == sCoopRemotePitch) {
+        return;
+    }
+    if (pitch != OCARINA_PITCH_NONE) {
+        AUDIOCMD_CHANNEL_SET_IO(SEQ_PLAYER_SFX, SFX_CHANNEL_OCARINA, 6, vibrato);
+        // the instrument as an index of seq 0 (io port 7), as AudioOcarina_PlayControllerInput does
+        AUDIOCMD_CHANNEL_SET_IO(SEQ_PLAYER_SFX, SFX_CHANNEL_OCARINA, 7, instrument - 1);
+        AUDIOCMD_CHANNEL_SET_IO(SEQ_PLAYER_SFX, SFX_CHANNEL_OCARINA, 5, pitch);
+        AudioSfx_PlaySfx(NA_SE_OC_OCARINA, pos, 4, &sCoopRemoteBend, &sDefaultOcarinaVolume, &gSfxDefaultReverb);
+    } else {
+        AudioSfx_StopById(NA_SE_OC_OCARINA);
+    }
+    sCoopRemotePitch = pitch;
+}
+
+void Coop_OcarinaRemoteStop(void) {
+    if ((sCoopRemoteInstrument == OCARINA_INSTRUMENT_OFF) && (sCoopRemotePitch == OCARINA_PITCH_NONE)) {
+        return;
+    }
+    if (sCoopRemotePitch != OCARINA_PITCH_NONE) {
+        AudioSfx_StopById(NA_SE_OC_OCARINA); // the note the other one held
+    }
+    // Our own ocarina may have just taken the channel (AudioOcarina_SetInstrument): its instrument stays
+    if (sOcarinaInstrumentId == OCARINA_INSTRUMENT_OFF) {
+        SEQCMD_SET_CHANNEL_IO(SEQ_PLAYER_SFX, SFX_CHANNEL_OCARINA, 1, OCARINA_INSTRUMENT_OFF);
+    }
+    sCoopRemoteInstrument = OCARINA_INSTRUMENT_OFF;
+    sCoopRemotePitch = OCARINA_PITCH_NONE;
+}
+// #endregion
+
 void AudioOcarina_SetPlaybackSong(s8 songIndexPlusOne, u8 playbackState) {
     u8 i = 0;
 
@@ -5568,16 +5622,20 @@ void Audio_SetSeqTempoAndFreq(u8 seqPlayerIndex, f32 freqTempoScale, u8 duration
 }
 
 void Audio_PlaySubBgm(u16 seqId) {
+    Coop_MusicBegin(3, seqId); // [COOP] an actor we simulate changes the music: the others in its room too
     AudioSeq_SetVolumeScale(SEQ_PLAYER_BGM_SUB, VOL_SCALE_INDEX_BGM_SUB, 0x7F, 0);
     SEQCMD_PLAY_SEQUENCE(SEQ_PLAYER_BGM_SUB, 0, seqId);
     AudioSeq_SetVolumeScale(SEQ_PLAYER_BGM_MAIN, VOL_SCALE_INDEX_BGM_SUB, 0, 5);
 
     SEQCMD_SETUP_RESTORE_SEQPLAYER_VOLUME_WITH_SCALE_INDEX(SEQ_PLAYER_BGM_SUB, SEQ_PLAYER_BGM_MAIN, 3, 10);
     SEQCMD_SETUP_SET_CHANNEL_DISABLE_MASK(SEQ_PLAYER_BGM_SUB, SEQ_PLAYER_BGM_MAIN, 0);
+    Coop_MusicEnd(); // [COOP]
 }
 
 void Audio_StopSubBgm(void) {
+    Coop_MusicBegin(4, 0); // [COOP] an actor we simulate changes the music: the others in its room too
     SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_SUB, 0);
+    Coop_MusicEnd(); // [COOP]
 }
 
 // Unused remnant of OoT
@@ -5638,6 +5696,7 @@ s32 Audio_IsSequencePlaying(u16 seqId) {
 }
 
 void Audio_PlayBgm_StorePrevBgm(u16 seqId) {
+    Coop_MusicBegin(1, seqId); // [COOP] an actor we simulate changes the music: the others in its room too
     u16 curSeqId = AudioSeq_GetActiveSeqId(SEQ_PLAYER_BGM_MAIN);
     u64 origSeqId = AudioEditor_GetOriginalSeq(curSeqId);
     if (curSeqId == NA_BGM_DISABLED) {
@@ -5654,12 +5713,14 @@ void Audio_PlayBgm_StorePrevBgm(u16 seqId) {
 
         SEQCMD_PLAY_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 0, seqId + SEQ_FLAG_ASYNC);
     }
+    Coop_MusicEnd(); // [COOP]
 }
 
 /**
  * To be used in conjunction with Audio_PlayBgm_StorePrevBgm
  */
 void Audio_RestorePrevBgm(void) {
+    Coop_MusicBegin(2, 0); // [COOP] an actor we simulate changes the music: the others in its room too
     if ((AudioSeq_GetActiveSeqId(SEQ_PLAYER_BGM_MAIN) != NA_BGM_DISABLED) &&
         (sSeqFlags[AudioSeq_GetActiveSeqId(SEQ_PLAYER_BGM_MAIN) & 0xFF] & SEQ_FLAG_RESTORE)) {
         if ((sPrevMainBgmSeqId == NA_BGM_DISABLED) || (sPrevMainBgmSeqId == NA_BGM_GENERAL_SFX)) {
@@ -5672,6 +5733,7 @@ void Audio_RestorePrevBgm(void) {
         }
         sPrevMainBgmSeqId = NA_BGM_DISABLED;
     }
+    Coop_MusicEnd(); // [COOP]
 }
 
 // Unused
@@ -5711,6 +5773,7 @@ void Audio_MuteBgmPlayersForFanfare(void) {
  * Sets up seqId to play on seqPlayerIndex 1
  */
 void Audio_PlayFanfare(u16 seqId) {
+    Coop_MusicBegin(5, seqId); // [COOP] an actor we simulate changes the music: the others in its room too
     u16 prevFontBuff[16];
     u16 fontBuff[16];
     u16 prevSeqId = AudioSeq_GetActiveSeqId(SEQ_PLAYER_FANFARE);
@@ -5731,6 +5794,7 @@ void Audio_PlayFanfare(u16 seqId) {
     }
 
     sFanfareSeqId = seqId;
+    Coop_MusicEnd(); // [COOP]
 }
 
 void Audio_UpdateFanfare(void) {

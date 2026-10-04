@@ -1,6 +1,7 @@
 #include "FieldTable.h"
 
 #include "2s2h/Coop/Actors/LiveFlags.h"
+#include "2s2h/Coop/Sync/Sync.h"
 
 #include "common/Hex.h"
 #include "common/WorldFields.h"
@@ -111,6 +112,7 @@ void LoadCurrentSceneFlags(PlayState* play) {
     NotifyNewBits(LiveFlagType::Switch, before.switches[0], after.switches[0], 0);
     NotifyNewBits(LiveFlagType::Switch, before.switches[1], after.switches[1], 32);
     NotifyNewBits(LiveFlagType::Collectible, before.collectible[0], after.collectible[0], 0);
+    coop::client::SceneFlags_NoteWorldWrite(before); // never sent again as this scene's; reloads (Sync/SceneFlags.cpp)
 }
 
 void ReadSceneFlags(uint8_t* out) {

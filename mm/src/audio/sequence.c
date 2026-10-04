@@ -19,6 +19,7 @@
  */
 #include "global.h"
 #include "2s2h/Enhancements/Audio/AudioEditor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 // Direct audio command (skips the queueing system)
 #define SEQCMD_SET_SEQPLAYER_VOLUME_NOW(seqPlayerIndex, duration, volume)                          \
@@ -443,6 +444,7 @@ static const uint8_t sClockTownDaySeqIds[4] = {
     NA_BGM_CLOCK_TOWN_DAY_1,
 };
 void AudioSeq_QueueSeqCmd(u32 cmd) {
+    Coop_OnSeqCmd(cmd); // [COOP] an actor we simulate changes the music: the others in its room too
     // 2S2H [Port] Allow loading custom sequences and use 16 bit seqId
     u8 op = cmd >> 28;
     // Ship had a check for op 12 but it doesn't seem like the seqId is set there

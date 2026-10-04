@@ -47,6 +47,14 @@ struct ServerConfig {
     bool bossCutscenes = true; // bosses' cutscenes, title cards and dialogues go to everyone in their scene
     int inviteMs = kInviteMs;  // server.json "inviteSeconds" (10..600)
     bool effects = true;       // the effects echo (stream kStreamEffects): false = never relayed
+    // Total sync (docs/superpowers/specs/2026-10-04-coop-sincronizacion-total-design.md): what the games may share.
+    // They are told in "welcome" ("sync") and the server drops what is off.
+    bool sounds = true;        // the sounds of each Link and of what each game simulates
+    bool ambient = true;       // music orders and quakes of what each game simulates ("ambient")
+    bool playerObjects = true; // arrows, bombs, hookshot... and what a player carries (room kPlayerRoom)
+    bool sceneFlags = true;    // the scene's flags live ("sflag", "sflags")
+    bool sceneObjects = true;  // the scene's machinery (platforms, lifts...) is the same for everyone
+    bool ocarina = true;       // the notes of the others' ocarina (in the pose)
     // Mods and what the owner tunes (docs/superpowers/specs/2026-10-02-coop-mods-api-design.md §4)
     double timeSpeed = 1.0;    // how fast the three days pass (kMinTimeSpeed..kMaxTimeSpeed); 1 = the original game
     int giftMax = kGiftMaxAmount; // rupees of one /gift (1..kGiftMaxAmount)
@@ -82,6 +90,9 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
 
 // Writes "language" into the existing file (other keys are kept). False if it cannot be read or written.
 bool SaveConfigLanguage(const std::string& path, Lang language);
+
+// "sync" of "welcome": the total sync's switches above, for the games.
+json SyncOptionsJson(const ServerConfig& config);
 
 // What the command line asked for besides the config.
 struct CommandLine {

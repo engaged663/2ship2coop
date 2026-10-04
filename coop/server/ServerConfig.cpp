@@ -30,6 +30,12 @@ json Defaults(const ServerConfig& cfg) {
              { "bossCutscenes", cfg.bossCutscenes },
              { "inviteSeconds", cfg.inviteMs / 1000 },
              { "effects", cfg.effects },
+             { "sounds", cfg.sounds },
+             { "ambient", cfg.ambient },
+             { "playerObjects", cfg.playerObjects },
+             { "sceneFlags", cfg.sceneFlags },
+             { "sceneObjects", cfg.sceneObjects },
+             { "ocarina", cfg.ocarina },
              { "timeSpeed", cfg.timeSpeed },
              { "voteSeconds", cfg.voteTimeoutMs / 1000 },
              { "saveSeconds", cfg.worldSaveMs / 1000 },
@@ -226,6 +232,12 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     cfg.bossCutscenes = r.Bool("bossCutscenes", cfg.bossCutscenes);
     cfg.inviteMs = r.Int("inviteSeconds", cfg.inviteMs / 1000, 10, 600) * 1000;
     cfg.effects = r.Bool("effects", cfg.effects);
+    cfg.sounds = r.Bool("sounds", cfg.sounds);
+    cfg.ambient = r.Bool("ambient", cfg.ambient);
+    cfg.playerObjects = r.Bool("playerObjects", cfg.playerObjects);
+    cfg.sceneFlags = r.Bool("sceneFlags", cfg.sceneFlags);
+    cfg.sceneObjects = r.Bool("sceneObjects", cfg.sceneObjects);
+    cfg.ocarina = r.Bool("ocarina", cfg.ocarina);
     cfg.timeSpeed = r.Number("timeSpeed", cfg.timeSpeed, kMinTimeSpeed, kMaxTimeSpeed);
     cfg.voteTimeoutMs = r.Int("voteSeconds", cfg.voteTimeoutMs / 1000, 10, 300) * 1000;
     cfg.worldSaveMs = r.Int("saveSeconds", cfg.worldSaveMs / 1000, 2, 600) * 1000;
@@ -329,6 +341,15 @@ bool SaveConfigLanguage(const std::string& path, Lang language) {
     }
     file << j.dump(4) << '\n';
     return file.good();
+}
+
+json SyncOptionsJson(const ServerConfig& config) {
+    return { { "sounds", config.sounds },
+             { "ambient", config.ambient },
+             { "playerObjects", config.playerObjects },
+             { "sceneFlags", config.sceneFlags },
+             { "sceneObjects", config.sceneObjects },
+             { "ocarina", config.ocarina } };
 }
 
 } // namespace coop::server

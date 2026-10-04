@@ -178,7 +178,9 @@ void EffectSs_Spawn(PlayState* play, s32 type, s32 priority, void* initData) {
     EffectSsOverlay* overlayEntry = &gEffectSsOverlayTable[type];
     EffectSsProfile* profile;
 
-    Coop_OnEffectSpawn(play, type, priority, initData); // [COOP] the other games of the scene create it too
+    if (Coop_OnEffectSpawn(play, type, priority, initData)) { // [COOP] the other games of the scene create it too
+        return; // [COOP] the Init of a copy: its owner already sent it
+    }
 
     if (EffectSs_FindSlot(priority, &index) != 0) {
         // Abort because we couldn't find a suitable slot to add this effect in

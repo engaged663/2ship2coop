@@ -5,6 +5,7 @@
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Features/Ending.h"
+#include "2s2h/Coop/Sync/Sync.h"
 
 #include "common/Protocol.h"
 
@@ -39,9 +40,20 @@ struct RemoteBody {
     uint8_t actorForm = 0xFF;
     Clock::time_point lastReceived;
     const char* lastAbsentReason = nullptr; // diagnostics
+    std::vector<coop::SoundEntry> sounds;   // of the poses taken since its puppet last played them
 };
 
 std::map<uint8_t, RemoteBody> sBodies;
+
+// A pose leaves the buffer (played or skipped): its sounds wait for the puppet (Sync/SoundEcho.cpp).
+void TakeSounds(RemoteBody& body, coop::PlayerState& state) {
+    for (const coop::SoundEntry& s : state.sounds) {
+        if (body.sounds.size() < 2 * (size_t)coop::sound_limits::kPerPose) {
+            body.sounds.push_back(s);
+        }
+    }
+    state.sounds.clear();
+}
 
 void KillActor(RemoteBody& body) {
     if (body.actor != nullptr) {
@@ -92,14 +104,17 @@ void PuppetManager_Update(PlayState* play) {
     }
     Clock::time_point now = Clock::now();
     for (auto& [id, body] : sBodies) {
+        bool hadPuppet = body.actor != nullptr;
         if (body.buffer.size() > kMaxBuffered) {
             while (body.buffer.size() > kTargetBuffered + 1) {
+                TakeSounds(body, body.buffer.front());
                 body.buffer.pop_front();
             }
         }
         if (!body.buffer.empty() && (body.buffer.size() >= kTargetBuffered || !body.hasCurrent)) {
-            body.current = body.buffer.front();
+            body.current = std::move(body.buffer.front());
             body.buffer.pop_front();
+            TakeSounds(body, body.current);
             body.hasCurrent = true;
         }
 
@@ -116,10 +131,12 @@ void PuppetManager_Update(PlayState* play) {
         }
         if (absent != nullptr) {
             KillActor(body);
+            body.sounds.clear();
             continue;
         }
         if (body.actor != nullptr && body.actorForm != body.current.form) {
             KillActor(body); // a new form needs a new skeleton: respawn below next frame
+            body.sounds.clear();
             continue;
         }
         if (body.actor == nullptr) {
@@ -130,6 +147,13 @@ void PuppetManager_Update(PlayState* play) {
             SPDLOG_INFO("[Coop] Spawned puppet of player {} (form {}) at ({:.0f}, {:.0f}, {:.0f}): {}", (int)id,
                         (int)s.form, s.pos[0], s.pos[1], s.pos[2], body.actor != nullptr ? "ok" : "FAILED");
         }
+        // Its sounds on its puppet (not on one born this frame: its place on screen is not known yet)
+        if (hadPuppet && body.actor != nullptr) {
+            for (const coop::SoundEntry& s : body.sounds) {
+                coop::client::SoundEcho_PlayOn(body.actor, s);
+            }
+        }
+        body.sounds.clear();
     }
 }
 

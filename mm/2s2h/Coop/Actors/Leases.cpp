@@ -12,6 +12,7 @@
 #include "2s2h/Coop/Features/Cinema.h"
 #include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/Host/HostMode.h"
+#include "2s2h/Coop/Sync/Sync.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include <algorithm>
@@ -75,6 +76,9 @@ uint8_t Leases_Holder(int8_t room, uint32_t rootKey) {
 }
 
 uint8_t Leases_Owner(const TrackedActor& t) {
+    if (t.owner != 0) {
+        return t.owner; // a player's own object (Sync/PlayerObjects.cpp)
+    }
     if (t.cinema) {
         return Cinema_ActorOwner(); // a cutscene actor: ours, or the game's whose cutscene we watch
     }
@@ -128,6 +132,31 @@ void Leases_Tick() {
         // asked for. Otherwise: NPC, enemy or prop in reach (a chicken is a prop, a dog an enemy).
         bool pinned = Director_PinsActorId(t->actor->id, gPlayState->sceneId);
         uint8_t cat = t->actor->category;
+        // The scene's machinery (Sync/SceneObjects.cpp): only who touches it (or comes within reach) asks for it, and
+        // keeps it while touching; then it goes back to the room's owner
+        TouchPolicy policy = SceneObjects_Policy(t->actor->id);
+        if (!pinned && policy != TouchPolicy::None) {
+            float nearDist = Actor_WorldDistXYZToActor(&link->actor, t->actor);
+            bool touched = SceneObjects_Touched(t->actor, nearDist);
+            uint8_t has = Leases_Holder(t->room, t->key);
+            bool own = has != 0 && has == Session_LocalId();
+            if (touched && (!own || renew)) {
+                json ev = MakeEvent(ev::kLeaseReq);
+                ev["scene"] = gPlayState->sceneId;
+                ev["room"] = t->room;
+                ev["key"] = t->key;
+                ev["dist"] = std::min(nearDist, 99999.f);
+                ev["talking"] = true;
+                NetClient::Get().SendEvent(ev);
+            } else if (!touched && own) {
+                json ev = MakeEvent(ev::kLeaseDrop);
+                ev["scene"] = gPlayState->sceneId;
+                ev["room"] = t->room;
+                ev["key"] = t->key;
+                NetClient::Get().SendEvent(ev);
+            }
+            continue;
+        }
         if (!pinned && cat != ACTORCAT_NPC && cat != ACTORCAT_ENEMY && cat != ACTORCAT_PROP) {
             continue;
         }

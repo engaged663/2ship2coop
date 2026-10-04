@@ -124,7 +124,10 @@ TEST_CASE(ActorImageRoundTrip) {
                                    Span(1, 0, Raws(3)) });
     a.acMask = 0x05;
     a.ocMask = 0x80;
-    a.sfx = { 0x3812, 0x2903 };
+    a.sfx = { MakeSound(0x3812, 1.f, 1.f, 0, 4), MakeSound(0x2903, 0.75f, 1.f, 0, 4) };
+    a.sfx[1].flags |= SoundEntry::kPos;
+    a.sfx[1].pos = { SlotKind::Link, LinkRefValue(2, 0xEC) };
+    a.dyna = 0x24;
     ActorImageRecord b = Rec(0x80010003u, { Span(0, 0, Raws(1)) });
     b.hasSpawn = true;
     b.spawn = { 0x0B5, -7, { 10.5f, -20.f, 3000.f }, { 1, -2, 0x4000 }, 2 };
@@ -147,7 +150,12 @@ TEST_CASE(ActorImageRoundTrip) {
     CHECK_EQ(ra.actorId, (uint16_t)0x1A2);
     CHECK_EQ(ra.acMask, (uint8_t)0x05);
     CHECK_EQ(ra.ocMask, (uint8_t)0x80);
-    CHECK(ra.sfx == a.sfx);
+    CHECK_EQ(ra.sfx.size(), (size_t)2);
+    CHECK_EQ(ra.sfx[0].sfx, (uint16_t)0x3812);
+    CHECK_EQ(SoundFreq(ra.sfx[1]), 0.75f);
+    CHECK(ra.sfx[1].pos == a.sfx[1].pos);
+    CHECK_EQ(ra.dyna, (int16_t)0x24);
+    CHECK_EQ(d.records[1].dyna, (int16_t)-1);
     CHECK(!ra.hasSpawn);
     CHECK_EQ(ra.spans.size(), (size_t)2);
     CHECK_EQ(ra.spans[0].first, (uint16_t)4);
@@ -171,7 +179,7 @@ TEST_CASE(ActorImageSplitsBigActors) {
     }
     ActorImageRecord boss = Rec(5, big);
     boss.hasSpawn = true;
-    boss.sfx = { 0x1234 };
+    boss.sfx = { MakeSound(0x1834, 1.f, 1.f, 0, 4) };
     f.records = { Rec(1, { Span(0, 0, Raws(10)) }), boss, Rec(6, { Span(0, 2, Raws(4)) }) };
     auto packets = EncodeActorImage(f);
     CHECK(packets.size() > 6);
@@ -279,6 +287,18 @@ TEST_CASE(ActorImageRejectsGarbage) {
     h.records = { s };
     auto nan = EncodeActorImage(h)[0];
     CHECK(!DecodeActorImage(nan.data(), nan.size(), d));
+}
+
+TEST_CASE(ActorImagePlayerRoomPasses) {
+    ActorImagePacket f = Frame();
+    f.room = image_limits::kPlayerRoom;
+    f.records = { Rec(0x82000001u, { Span(0, 0, Raws(1)) }) };
+    auto packets = EncodeActorImage(f);
+    int16_t scene = 0;
+    int8_t room = 0;
+    CHECK(PeekActorImageHeader(packets[0].data(), packets[0].size(), scene, room));
+    CHECK_EQ(room, (int8_t)63);
+    CHECK_EQ(DecodeAll(packets)[0].room, (int8_t)63);
 }
 
 TEST_CASE(ActorImagePeekAndStamp) {

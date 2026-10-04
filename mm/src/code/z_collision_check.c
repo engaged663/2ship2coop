@@ -1179,6 +1179,9 @@ s32 CollisionCheck_SetAT(struct PlayState* play, CollisionCheckContext* colChkCt
     }
     sATResetFuncs[col->shape](play, col);
 
+    if (Coop_BlockAT(col)) { // [COOP] another game's copies and the puppets never attack here
+        return -1;
+    }
     if ((col->actor != NULL) && (col->actor->update == NULL)) {
         return -1;
     }
@@ -1205,6 +1208,9 @@ s32 CollisionCheck_SetAT_SAC(struct PlayState* play, CollisionCheckContext* colC
     }
     sATResetFuncs[col->shape](play, col);
 
+    if (Coop_BlockAT(col)) { // [COOP] another game's copies and the puppets never attack here
+        return -1;
+    }
     if ((col->actor != NULL) && (col->actor->update == NULL)) {
         return -1;
     }

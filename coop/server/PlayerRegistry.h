@@ -38,6 +38,7 @@ struct RemoteClient {
     // Last known location (from "loc" events and pose streams).
     int16_t scene = -1;
     int8_t room = -1;
+    uint8_t layer = 0; // its scene's layer (gSaveContext.sceneLayer): another layer has other actors (Stage.h)
     uint16_t entrance = 0;
     std::string sceneName;
     float pos[3] = { 0.f, 0.f, 0.f };
@@ -79,6 +80,9 @@ struct RemoteClient {
     TokenBucket activityBudget{ kActivityBurst, kActivityPerSecond };
     TokenBucket rewardBudget{ kRewardBurst, kRewardPerSecond };
     TokenBucket effectBudget{ kEffectBurst, kEffectPerSecond }; // effects echo (EffectHandlers.cpp)
+    // Total sync (SceneHandlers.cpp, AmbientHandlers.cpp)
+    TokenBucket sceneFlagBudget{ kSceneFlagBurst, kSceneFlagPerSecond };
+    TokenBucket ambientBudget{ kAmbientBurst, kAmbientPerSecond };
     int64_t cinemaMs = -1; // when its last "cinema" was accepted (-1: never): its actor frames pass meanwhile
 
     // Epona calls: monotonically increasing for one connection.

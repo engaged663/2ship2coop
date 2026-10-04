@@ -56,6 +56,9 @@ struct TrackedActor {
     int8_t room = -1;       // the room it belongs to (its list room, or its parent's)
     bool runtime = false;   // created at run time by the game that simulates its parent
     bool cinema = false;    // Replication::Cinema: its owner is Cinema_ActorOwner() (Leases.cpp)
+    uint8_t owner = 0;      // a player's own object (Sync/PlayerObjects.cpp): that player simulates it wherever it is
+    bool adopted = false;   // a prop of the room's list a player carries (PlayerObjects.cpp): tracked only meanwhile
+    uint8_t spawnSent = 0;  // runtime ones: records sent with how to create it (the first ones always carry it)
     SpawnInfo spawn;        // runtime ones: how the other games create it
     uint16_t initChildren = 0; // children created in its Init so far (their derived keys)
     std::vector<Region> regions;      // [0] = instance
@@ -65,6 +68,9 @@ struct TrackedActor {
     std::vector<uint8_t> localMask; // region 0, one byte per byte: 1 = this game's own (never sent nor written): the
                                     // base Actor's engine fields and, for a DynaPolyActor, its bgId and interactFlags
     std::vector<std::pair<uint8_t*, uint32_t>> extraRegions; // tables its Init asked to travel (Coop_AddActorRegion)
+    int32_t bgId = -1;        // its own dynamic collision here (a DynaPolyActor): its flags travel (kRecDyna)
+    int16_t sentDyna = -1;    // sender: the collision flags last sent
+    int16_t pendingDyna = -1; // receiver: its owner's collision flags, set before its next (skipped) update
 
     // Sender (we simulate it)
     std::vector<std::vector<Slot>> sentSlots;        // per region, per slot: the last classified value
@@ -73,7 +79,7 @@ struct TrackedActor {
     uint8_t ocMask = 0;
     uint8_t sentAc = 0; // the masks last sent (a change to "none" must be sent too)
     uint8_t sentOc = 0;
-    std::vector<uint16_t> oneShotSfx;    // played during this frame's update
+    std::vector<SoundEntry> sounds;      // what it sounded this frame (Sync/SoundEcho.cpp), sent with its next record
     Actor* target = nullptr;             // the Link it chased last frame
     std::vector<PendingHit> pendingHits; // hits other players made on it, applied before its next update
     uint8_t lastHitFrom = 0;             // the remote player whose hit we applied last (HitSync_InjectPending)...
@@ -81,7 +87,7 @@ struct TrackedActor {
 
     // Receiver (a copy)
     std::vector<SlotSpan> pendingSpans; // received, written before its next (skipped) update
-    std::vector<uint16_t> pendingSfx;
+    std::vector<SoundEntry> pendingSounds; // received with its records, played on its next (skipped) update
     uint8_t remoteAc = 0;
     uint8_t remoteOc = 0;
     bool hasState = false; // the owner's state arrived at least once
@@ -101,11 +107,17 @@ uint32_t ActorRegistry_Version(); // changes whenever an actor is added or remov
 // A runtime actor another game announced is a cutscene actor (itself, or made by one): only who watches that game's
 // cutscene creates its copy.
 bool ActorRegistry_IsCinemaSpawn(uint32_t parentKey, const SpawnInfo& s);
-// ActorSync.cpp creates the copy of a runtime actor another game announced: its Init registers it under this key.
-void ActorRegistry_ExpectReplica(uint32_t key, uint32_t parentKey, uint32_t rootKey, int8_t room, const SpawnInfo& s);
+// ActorSync.cpp creates the copy of a runtime actor another game announced: its Init registers it under this key
+// (owner: the player whose own object it is, Sync/PlayerObjects.cpp; 0 for the actors of a room).
+void ActorRegistry_ExpectReplica(uint32_t key, uint32_t parentKey, uint32_t rootKey, int8_t room, const SpawnInfo& s,
+                                 uint8_t owner);
 void ActorRegistry_EndExpect(); // after that Actor_Spawn (it may have failed before creating anything)
 // A local actor nobody else gets (never tracked, never echoed): the stand-ins of HitSync.cpp's contacts, the actors of
 // the server's mods (Mods/GameOps.cpp).
 Actor* ActorRegistry_SpawnUntracked(int16_t id, const Vec3f& pos, s16 params, s16 rotY = 0);
+// PlayerObjects.cpp: a prop of the room's list that a player carries travels as theirs meanwhile (its key: its list
+// key). False if it is tracked already. Release: it is a local actor again (nothing else happens to it).
+bool ActorRegistry_Adopt(Actor* actor, uint32_t key, uint8_t owner);
+void ActorRegistry_ReleaseAdopted(Actor* actor);
 
 } // namespace coop::client

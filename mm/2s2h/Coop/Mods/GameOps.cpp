@@ -13,6 +13,7 @@
 #include "2s2h/Coop/Features/Warp.h"
 #include "2s2h/Coop/Host/HostMode.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
+#include "2s2h/Coop/Sync/Sync.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "common/ModRules.h"
@@ -48,34 +49,6 @@ namespace {
 constexpr size_t kMaxQueued = 64;     // orders waiting for their moment
 constexpr int64_t kMaxWaitMs = 10000; // an order that cannot run this long is dropped
 constexpr int kLinesPerBox = 4;       // lines of the game's text box (CustomMessage::AddLineBreaks)
-
-// How many sounds each bank of the game has (sfx_params.c, gSfxParams in bank order): a sound id past them would
-// read outside the game's tables.
-#undef DEFINE_SFX
-#define DEFINE_SFX(...) +1
-constexpr int kSfxCount[] = {
-    0
-#include "tables/sfx/playerbank_table.h"
-    ,
-    0
-#include "tables/sfx/itembank_table.h"
-    ,
-    0
-#include "tables/sfx/environmentbank_table.h"
-    ,
-    0
-#include "tables/sfx/enemybank_table.h"
-    ,
-    0
-#include "tables/sfx/systembank_table.h"
-    ,
-    0
-#include "tables/sfx/ocarinabank_table.h"
-    ,
-    0
-#include "tables/sfx/voicebank_table.h"
-};
-#undef DEFINE_SFX
 
 // When an order can run.
 enum class Needs {
@@ -180,9 +153,8 @@ void OpSfx(PlayState*, const json& op) {
     if (!Need(op, "id", 0, 0xFFFF, id)) {
         return Drop(op, "id");
     }
-    // A sound of the game: its bank, the 0x800 every id has, and one of that bank's entries.
-    uint32_t bank = SFX_BANK(id);
-    if (bank >= std::size(kSfxCount) || (id & 0xC00) != 0x800 || SFX_INDEX(id) >= kSfxCount[bank]) {
+    // A sound of the game: its bank, the 0x800 every id has, and one of that bank's entries (Sync/SfxIds.cpp).
+    if (!Sfx_Valid((uint16_t)id)) {
         return Drop(op, "no such sound");
     }
     Audio_PlaySfx((u16)id);

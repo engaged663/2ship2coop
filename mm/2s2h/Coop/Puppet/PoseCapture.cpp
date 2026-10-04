@@ -1,7 +1,9 @@
 #include "PoseCapture.h"
 
+#include "2s2h/Coop/Actors/CoopEngine.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Sync/Sync.h"
 
 #include "common/PlayerState.h"
 
@@ -9,6 +11,9 @@
 
 #include <spdlog/spdlog.h>
 #include "2s2h/ShipInit.hpp"
+
+#include <algorithm>
+#include <cmath>
 
 extern "C" {
 #include "functions.h"
@@ -30,6 +35,10 @@ static_assert(limits::kStateFlags1 ==
                   limits::kStateFlags2 == (u32)PLAYER_STATE2_20000000 &&
                   limits::kStateFlags3 == (u32)(PLAYER_STATE3_1000 | PLAYER_STATE3_8000),
               "coop::pose_limits state masks out of date");
+static_assert(limits::kMeleeAnimations == PLAYER_MWA_MAX &&
+                  limits::kOcarinaInstruments == OCARINA_INSTRUMENT_AMPLIFIED_GUITAR + 1 &&
+                  limits::kOcarinaPitches == OCARINA_PITCH_EFLAT5 + 1,
+              "coop::pose_limits (v15) out of date with the engine enums");
 
 namespace {
 
@@ -102,6 +111,21 @@ void PoseCapture_Tick() {
         s.joints[i] = ToVec(frame->frameTable[i]);
     }
     s.appearance = frame->appearanceInfo;
+    s.layer = (uint8_t)std::clamp<int>(gSaveContext.sceneLayer, 0, coop::pose_limits::kMaxLayer);
+    s.meleeWeaponState = player->meleeWeaponState; // the sword's trail on our puppet in the other games
+    s.meleeWeaponAnimation = (uint8_t)player->meleeWeaponAnimation;
+    if (coop::client::Sync_On(coop::client::SyncPart::Ocarina)) { // the note we play (Sync/OcarinaEcho.cpp)
+        u8 instrument = 0;
+        u8 pitch = 0xFF;
+        f32 bend = 1.f;
+        s8 vibrato = 0;
+        Coop_OcarinaRead(&instrument, &pitch, &bend, &vibrato);
+        s.ocarinaInstrument = instrument < coop::pose_limits::kOcarinaInstruments ? instrument : 0;
+        s.ocarinaPitch = (pitch < coop::pose_limits::kOcarinaPitches) ? pitch : 0xFF;
+        s.ocarinaBend = (uint16_t)std::clamp<long>(std::lround(bend * 4096.f), 0L, 65535L);
+        s.ocarinaVibrato = vibrato;
+    }
+    s.sounds = coop::client::SoundEcho_TakeLinkSounds(); // what our Link sounded this frame (Sync/SoundEcho.cpp)
 
     if (s.sceneId != sLoggedScene) {
         sLoggedScene = s.sceneId;

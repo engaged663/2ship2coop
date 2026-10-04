@@ -6,7 +6,9 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 14; // v14: the server's game mods (.o2r): list, download, world_enter check;
+constexpr uint32_t kProtocolVersion = 15; // v15: total sync (sounds in poses and actor records, scene + layer, live
+                                          // scene flags, ambient music and quakes, the players' objects);
+                                          // v14: the server's game mods (.o2r): list, download, world_enter check;
                                           // v13: mods (orders, forced settings, game reports), the clock's speed;
                                           // v12: effects echo, results, talk values; v11: groups; v10: the ending
 constexpr uint16_t kDefaultPort = 7780; // UDP
@@ -116,6 +118,11 @@ constexpr int kO2rQueueMax = 32;                 // o2r_get waiting on the serve
 constexpr int kO2rBurst = 32;                    // chunks served per player: burst...
 constexpr int kO2rPerSecond = 256;               // ...and sustained rate (about 4 MB/s)
 constexpr int kO2rStallMs = 20000;               // a game gives the download up after this long without a chunk
+// Total sync (docs/superpowers/specs/2026-10-04-coop-sincronizacion-total-design.md)
+constexpr int kSceneFlagBurst = 40;     // sflag + sflags per player: burst...
+constexpr int kSceneFlagPerSecond = 20; // ...and sustained rate (a game sends at most one sflag a frame)
+constexpr int kAmbientBurst = 40;       // ambient events per player: burst...
+constexpr int kAmbientPerSecond = 20;   // ...and sustained rate (one per room a frame)
 
 enum Channel : uint8_t {
     kChannelEvents = 0, // reliable + ordered, JSON events
@@ -128,12 +135,14 @@ enum Channel : uint8_t {
 namespace ev {
 inline constexpr const char* kHello = "hello";             // C->S proto, nick, pass, build (+ host, token: the server's own game)
 inline constexpr const char* kWelcome = "welcome";         // S->C id, nick, motd, players[], o2r[{name, size, sha256}]
-                                                           // (the game mods to have first: only if there are some)
+                                                           // (the game mods to have first: only if there are some),
+                                                           // sync{sounds, ambient, playerObjects, sceneFlags,
+                                                           // sceneObjects, ocarina} (what this server shares)
 inline constexpr const char* kReject = "reject";           // S->C reason
 inline constexpr const char* kKicked = "kicked";           // S->C reason
 inline constexpr const char* kJoin = "join";               // S->C id, nick
 inline constexpr const char* kLeave = "leave";             // S->C id, nick, reason
-inline constexpr const char* kLoc = "loc";                 // C->S scene, room, entrance, sceneName, timeStopped, busy; S->C id, scene, sceneName, entrance
+inline constexpr const char* kLoc = "loc";                 // C->S scene, room, layer, entrance, sceneName, timeStopped, busy; S->C id, scene, sceneName, entrance
 inline constexpr const char* kChat = "chat";               // C->S text; S->C from, text
 inline constexpr const char* kPm = "pm";                   // S->C from, to, text
 inline constexpr const char* kCmd = "cmd";                 // C->S line
@@ -215,6 +224,13 @@ inline constexpr const char* kStat = "stat";      // C->S hp, hpMax, mp, rupees 
 // Game mods (.o2r) (server: O2rStore.h, Handlers/O2rHandlers.cpp; game: O2r/)
 inline constexpr const char* kO2rGet = "o2r_get"; // C->S i, off: a chunk of the server's .o2r number i (welcome.o2r),
                                                   // from byte off; it comes back on kChannelFiles
+// Total sync (docs/superpowers/specs/2026-10-04-coop-sincronizacion-total-design.md)
+inline constexpr const char* kSceneFlag = "sflag";   // C->S scene, ops [[word, set, clear]...] (SceneFlags.h);
+                                                     // S->C + from, to everyone in that scene + layer, sender too
+inline constexpr const char* kSceneFlags = "sflags"; // C->S scene, words [11] (it just arrived); S->C scene, words
+                                                     // (the temporary ones the server keeps for that scene + layer)
+inline constexpr const char* kAmbient = "ambient";   // C->S scene, room, music [[kind, value]...], quake [[type, speed,
+                                                     // y, x, fov, roll, duration]...] (Ambient.h); S->C + from
 // Epona
 inline constexpr const char* kEponaCall = "epona_call"; // C->S (+from stamped): one owner horse call
 inline constexpr const char* kEponaPassenger = "epona_passenger"; // C->S owner, horse, mounted; S->owner +from

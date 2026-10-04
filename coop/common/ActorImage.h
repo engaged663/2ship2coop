@@ -6,6 +6,8 @@
 //
 // An actor is a list of memory regions (its instance, and tables of its skeletons/colliders kept outside it), seen as
 // 8-byte slots. Each slot travels as one of the SlotKind below; a record carries the slots that changed recently.
+#include "Slot.h"
+#include "SoundEntry.h"
 #include "StreamIds.h"
 
 #include <cstddef>
@@ -20,43 +22,14 @@ constexpr int kRegions = 16;            // instance + outside tables of one acto
 constexpr uint32_t kRegionBytes = 0x10000; // no actor instance or table is bigger
 constexpr int kSpanSlots = 255;         // slots in one run
 constexpr int kSpans = 64;              // runs in one record
-constexpr int kSfx = 8;
+constexpr int kSfx = sound_limits::kPerRecord;
 constexpr int kKeys = 255;              // alive/gone keys in one packet
 constexpr int kRecords = 96;            // records in one packet
 constexpr int kColliders = 8;
 constexpr int8_t kRoomMax = 63;
+constexpr int8_t kPlayerRoom = 63; // the stream of each player's own objects (arrows, bombs...): not a room of a scene
 constexpr float kWorldLimit = 32767.f;
 } // namespace image_limits
-
-// How one 8-byte slot travels.
-enum class SlotKind : uint8_t {
-    Raw = 0,   // plain data: copied as it is
-    Zero = 1,  // all zero (null pointers, cleared data)
-    Keep = 2,  // a pointer that only means something in the sender's process: the receiver keeps its own
-    Exe = 3,   // a pointer into the game's executable: value = offset from the image base
-    Actor = 4, // a pointer into a replicated actor: value = key << 32 | region << 16 | offset
-    Link = 5,  // a pointer into a Link (a player's own or a puppet): value = playerId << 32 | offset
-    Scene = 6, // a pointer into the loaded scene's memory (paths, cutscene data): value = offset from sceneSegment
-};
-constexpr uint8_t kSlotKinds = 7;
-
-struct Slot {
-    SlotKind kind = SlotKind::Zero;
-    uint64_t value = 0; // meaning depends on kind (Zero/Keep: 0)
-    bool operator==(const Slot& o) const {
-        return kind == o.kind && value == o.value;
-    }
-    bool operator!=(const Slot& o) const {
-        return !(*this == o);
-    }
-};
-
-inline uint64_t ActorRefValue(uint32_t key, uint8_t region, uint16_t offset) {
-    return ((uint64_t)key << 32) | ((uint64_t)region << 16) | offset;
-}
-inline uint64_t LinkRefValue(uint8_t playerId, uint32_t offset) {
-    return ((uint64_t)playerId << 32) | offset;
-}
 
 // Consecutive slots of one region, starting at slot `first`.
 struct SlotSpan {
@@ -82,7 +55,8 @@ struct ActorImageRecord {
     SpawnInfo spawn;
     uint8_t acMask = 0;   // colliders the sender registered this frame (bit i = collider i)
     uint8_t ocMask = 0;
-    std::vector<uint16_t> sfx; // sounds it started this frame
+    std::vector<SoundEntry> sfx; // what it sounded this frame
+    int16_t dyna = -1;           // its dynamic collision's flags (the BGACTOR_* that travel); -1: not in this record
     std::vector<SlotSpan> spans;
 };
 

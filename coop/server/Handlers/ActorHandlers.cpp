@@ -4,6 +4,7 @@
 // hits go only to the owner of the room of the enemy that was hit.
 #include "server/Registry.h"
 #include "server/Server.h"
+#include "server/Stage.h"
 #include "server/World/RoomAuthority.h"
 
 #include "common/ActorImage.h"
@@ -80,11 +81,11 @@ bool OwnsAnyRoomOf(const RemoteClient& c, int16_t scene) {
     return false;
 }
 
-// Everyone else taking part who is in that scene.
-std::vector<RemoteClient*> SceneMates(Server& server, const RemoteClient& from, int16_t scene) {
+// Everyone else taking part who is in the same scene and layer (Stage.h).
+std::vector<RemoteClient*> StageMates(Server& server, const RemoteClient& from) {
     std::vector<RemoteClient*> out;
     for (RemoteClient* other : server.Players().WelcomedAll()) {
-        if (other != &from && Takes(server, *other) && other->scene == scene) {
+        if (other != &from && Takes(server, *other) && SameStage(*other, from)) {
             out.push_back(other);
         }
     }
@@ -148,7 +149,7 @@ json AuthEventFor(const RemoteClient& c, bool takes) {
     json rooms = json::array();
     if (takes) {
         for (const auto& [key, id] : sOwners) {
-            if (key.first == c.scene) {
+            if (key.first == StageOf(c)) {
                 rooms.push_back({ key.second, id });
             }
         }
@@ -163,7 +164,7 @@ json LeasesEventFor(const RemoteClient& c, bool takes) {
     json list = json::array();
     if (takes) {
         for (const auto& [k, l] : sLeases) {
-            if (k.scene == c.scene) {
+            if (k.scene == StageOf(c)) {
                 list.push_back({ k.room, k.key, l.holder });
             }
         }
@@ -178,7 +179,7 @@ void TickLeases(Server& server) {
     int64_t now = server.NowMs();
     for (auto it = sLeases.begin(); it != sLeases.end();) {
         RemoteClient* holder = server.Players().ById(it->second.holder);
-        bool keep = holder != nullptr && !holder->host && Takes(server, *holder) && holder->scene == it->first.scene &&
+        bool keep = holder != nullptr && !holder->host && Takes(server, *holder) && StageOf(*holder) == it->first.scene &&
                     now - it->second.renewedMs <= server.Config().leaseExpireMs;
         it = keep ? std::next(it) : sLeases.erase(it);
     }
@@ -202,7 +203,7 @@ void TickAuthority(Server& server) {
     std::vector<AuthMember> members;
     for (RemoteClient* c : server.Players().WelcomedAll()) {
         if (Takes(server, *c)) {
-            members.push_back({ c->id, c->scene, c->room, c->busy, c->roomSinceMs, c->host });
+            members.push_back({ c->id, StageOf(*c), c->room, c->busy, c->roomSinceMs, c->host });
         }
     }
     sOwners = ComputeAuthority(members);
@@ -222,8 +223,13 @@ void TickAuthority(Server& server) {
     TickHostFollow(server);
 }
 
+// A player in the world with a pose (the actor stream's conditions, without the shared enemies' switch).
+bool InStage(const RemoteClient& c) {
+    return c.welcomed && !c.closing && c.inWorld && c.hasState;
+}
+
 void OnActors(Server& server, RemoteClient& client, uint8_t* data, size_t size) {
-    if (!Takes(server, client) || !client.actorBudget.Take(server.NowMs())) {
+    if (!InStage(client) || !client.actorBudget.Take(server.NowMs())) {
         return;
     }
     int16_t scene = -1;
@@ -232,13 +238,33 @@ void OnActors(Server& server, RemoteClient& client, uint8_t* data, size_t size) 
         server.NoteInvalid(client, Tr(Msg::InvActorPacket));
         return;
     }
+    if (scene != client.scene) {
+        return; // changing scene
+    }
+    if (room == image_limits::kPlayerRoom) {
+        // Its own arrows, bombs, hookshot and what it carries: from anyone, to the players of its scene + layer (the
+        // games only take records whose keys are the sender's)
+        if (!server.Config().playerObjects) {
+            return;
+        }
+        StampPlayerId(data, size, client.id);
+        for (RemoteClient* other : server.Players().Welcomed()) {
+            if (other != &client && InStage(*other) && SameStage(*other, client)) {
+                server.SendStream(*other, data, size);
+            }
+        }
+        return;
+    }
+    if (!Takes(server, client)) {
+        return; // the shared enemies are off
+    }
     // A game showing its cutscene to others sends its cutscene actors, whoever owns the room (the watchers take them)
     bool showsCutscene = client.cinemaMs >= 0 && server.NowMs() - client.cinemaMs <= kCinemaActorsMs;
-    if (scene != client.scene || !(ActsIn(client, scene, room) || showsCutscene)) {
+    if (!(ActsIn(client, StageOf(client), room) || showsCutscene)) {
         return; // neither the owner nor a lessee of that room (a handover in flight): the games check each record
     }
     StampPlayerId(data, size, client.id);
-    for (RemoteClient* other : SceneMates(server, client, scene)) {
+    for (RemoteClient* other : StageMates(server, client)) {
         server.SendStream(*other, data, size);
     }
 }
@@ -289,12 +315,12 @@ void OnHit(Server& server, RemoteClient& client, const json& ev) {
     int8_t room = (int8_t)GetInt(ev, "room");
     // The family of a lent NPC (its root key) is simulated by the lessee; everything else by the room's owner.
     uint32_t root = (uint32_t)GetInt(ev, "root", GetInt(ev, "key"));
-    uint8_t owner = LesseeOf(scene, room, root);
+    uint8_t owner = LesseeOf(StageOf(client), room, root);
     if (owner == 0) {
-        owner = OwnerOf(scene, room);
+        owner = OwnerOf(StageOf(client), room);
     }
     RemoteClient* target = server.Players().ById(owner);
-    if (target == nullptr || target == &client || !Takes(server, *target) || target->scene != scene) {
+    if (target == nullptr || target == &client || !Takes(server, *target) || !SameStage(*target, client)) {
         return;
     }
     json out = ev;
@@ -314,10 +340,10 @@ void OnHurt(Server& server, RemoteClient& client, const json& ev) {
     RemoteClient* victim = server.Players().ById((uint8_t)GetInt(ev, "to"));
     bool lessee = false;
     for (const auto& [k, l] : sLeases) {
-        lessee = lessee || (k.scene == client.scene && l.holder == client.id);
+        lessee = lessee || (k.scene == StageOf(client) && l.holder == client.id);
     }
     if (victim == nullptr || victim == &client || victim->host || !Takes(server, *victim) ||
-        victim->scene != client.scene || !(OwnsAnyRoomOf(client, client.scene) || lessee)) {
+        !SameStage(*victim, client) || !(OwnsAnyRoomOf(client, StageOf(client)) || lessee)) {
         return;
     }
     json out = ev;
@@ -336,12 +362,12 @@ void OnDrop(Server& server, RemoteClient& client, const json& ev) {
         return;
     }
     int16_t scene = (int16_t)GetInt(ev, "scene");
-    if (scene != client.scene || !ActsIn(client, scene, (int8_t)GetInt(ev, "room"))) {
+    if (scene != client.scene || !ActsIn(client, StageOf(client), (int8_t)GetInt(ev, "room"))) {
         return;
     }
     json out = ev;
     out["from"] = client.id;
-    for (RemoteClient* other : SceneMates(server, client, scene)) {
+    for (RemoteClient* other : StageMates(server, client)) {
         server.SendEvent(*other, out);
     }
 }
@@ -366,7 +392,7 @@ void OnLeaseReq(Server& server, RemoteClient& client, const json& ev) {
     // (the rider): they simulate it for as long as they keep asking. List actors (NPCs and props) follow the
     // "closer player" rule below.
     bool runtime = (key & kRuntimeKeyBits) != 0;
-    LeaseKey k{ scene, (int8_t)GetInt(ev, "room"), key };
+    LeaseKey k{ StageOf(client), (int8_t)GetInt(ev, "room"), key };
     double d = dist->get<double>();
     bool talking = GetBool(ev, "talking");
     auto it = sLeases.find(k);
@@ -400,7 +426,10 @@ void OnLeaseDrop(Server& server, RemoteClient& client, const json& ev) {
         server.NoteInvalid(client, Tr(Msg::InvLoan));
         return;
     }
-    auto it = sLeases.find({ (int16_t)GetInt(ev, "scene"), (int8_t)GetInt(ev, "room"), (uint32_t)GetInt(ev, "key") });
+    if ((int16_t)GetInt(ev, "scene") != client.scene) {
+        return; // changing scene: the lease ends by itself
+    }
+    auto it = sLeases.find({ StageOf(client), (int8_t)GetInt(ev, "room"), (uint32_t)GetInt(ev, "key") });
     if (it != sLeases.end() && it->second.holder == client.id) {
         sLeases.erase(it);
     }
@@ -418,12 +447,12 @@ void OnEcho(Server& server, RemoteClient& client, const json& ev) {
         return;
     }
     int16_t scene = (int16_t)GetInt(ev, "scene");
-    if (scene != client.scene || !ActsIn(client, scene, (int8_t)GetInt(ev, "room"))) {
+    if (scene != client.scene || !ActsIn(client, StageOf(client), (int8_t)GetInt(ev, "room"))) {
         return;
     }
     json out = ev;
     out["from"] = client.id;
-    for (RemoteClient* other : SceneMates(server, client, scene)) {
+    for (RemoteClient* other : StageMates(server, client)) {
         if (!other->host) {
             server.SendEvent(*other, out);
         }

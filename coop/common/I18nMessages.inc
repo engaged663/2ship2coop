@@ -303,6 +303,9 @@ X(InvEponaState, "estado de Epona inválido", "invalid Epona state", "无效的 
 X(InvPropObject, "objeto del escenario inválido", "invalid scenery object", "无效的场景物件", "недопустимый объект окружения")
 X(InvPropRequest, "petición de objetos inválida", "invalid object request", "无效的物件请求", "недопустимый запрос объектов")
 X(InvPose, "pose inválida", "invalid pose", "无效的姿态", "недопустимая поза")
+X(InvSceneFlags, "banderas de la escena inválidas", "invalid scene flags", "无效的场景标志", "недопустимые флаги сцены")
+X(InvAmbient, "ambiente inválido (música o temblor)", "invalid ambient (music or quake)", "无效的环境数据(音乐或震动)",
+  "недопустимое окружение (музыка или тряска)")
 X(InvWorldFlood, "demasiadas entradas y salidas de la partida del servidor",
   "too many entries and exits of the server's game", "进出服务器游戏过于频繁", "слишком много входов и выходов из игры сервера")
 X(InvWorldInitUnasked, "world_init sin haberlo pedido el servidor", "world_init that the server did not ask for",

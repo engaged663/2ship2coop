@@ -8,17 +8,20 @@
 #include "common/PlayerState.h"
 #include "common/Text.h"
 
+#include <algorithm>
+
 namespace coop::server {
 
 namespace {
 
 // The oldest player in a room owns its enemies (ActorHandlers.cpp): remember when each one arrived.
-void NoteRoom(Server& server, RemoteClient& client, int16_t scene, int8_t room) {
-    if (scene != client.scene || room != client.room) {
+void NoteRoom(Server& server, RemoteClient& client, int16_t scene, int8_t room, uint8_t layer) {
+    if (scene != client.scene || room != client.room || layer != client.layer) {
         client.roomSinceMs = server.NowMs();
     }
     client.scene = scene;
     client.room = room;
+    client.layer = layer;
 }
 
 void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t size) {
@@ -30,7 +33,7 @@ void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t s
         server.NoteInvalid(client, Tr(Msg::InvPose));
         return;
     }
-    NoteRoom(server, client, state.sceneId, state.roomNum);
+    NoteRoom(server, client, state.sceneId, state.roomNum, state.layer);
     client.entrance = state.entrance;
     client.pos[0] = state.pos[0];
     client.pos[1] = state.pos[1];
@@ -44,6 +47,22 @@ void OnPlayerState(Server& server, RemoteClient& client, uint8_t* data, size_t s
     StampPlayerId(data, size, client.id);
     if (client.host) {
         return; // the server's own game: its (ghost) Link is nobody's to see; the pose only told us where it is
+    }
+    // What this server does not share leaves the pose (sounds, ocarina): the rest goes as it came
+    std::vector<uint8_t> trimmed;
+    const ServerConfig& cfg = server.Config();
+    if ((!cfg.sounds && !state.sounds.empty()) || (!cfg.ocarina && state.ocarinaInstrument != 0)) {
+        if (!cfg.sounds) {
+            state.sounds.clear();
+        }
+        if (!cfg.ocarina) {
+            state.ocarinaInstrument = 0;
+            state.ocarinaPitch = 0xFF;
+        }
+        state.playerId = client.id;
+        trimmed = EncodePlayerState(state);
+        data = trimmed.data();
+        size = trimmed.size();
     }
     // Players see each other in the same scene. A host gets the poses of its scene, and those of the player it follows
     // wherever they are (that is how it knows where to go).
@@ -73,7 +92,8 @@ void OnLoc(Server& server, RemoteClient& client, const json& ev) {
     int16_t scene = (int16_t)GetInt(ev, "scene", -1);
     std::string sceneName = SanitizeChat(GetString(ev, "sceneName"), 64);
     bool changed = scene != client.scene || sceneName != client.sceneName;
-    NoteRoom(server, client, scene, (int8_t)GetInt(ev, "room", client.room));
+    uint8_t layer = (uint8_t)std::clamp<int64_t>(GetInt(ev, "layer", client.layer), 0, pose_limits::kMaxLayer);
+    NoteRoom(server, client, scene, (int8_t)GetInt(ev, "room", client.room), layer);
     client.busy = GetBool(ev, "busy");
     uint16_t entrance = (uint16_t)GetInt(ev, "entrance", client.entrance);
     if ((entrance >> 9) < pose_limits::kEntranceScenes) {

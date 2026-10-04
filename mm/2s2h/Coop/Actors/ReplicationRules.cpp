@@ -3,6 +3,7 @@
 #include "ReplicationRules.h"
 
 #include "2s2h/Coop/Activities/Activities.h"
+#include "2s2h/Coop/Sync/Sync.h"
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -29,6 +30,7 @@ bool NeverReplicated(int16_t id) {
         ACTOR_EN_SDA,     // the player's dynamic shadow (category BOSS): each game draws its own Link's
         ACTOR_ITEM_INBOX, ACTOR_OBJ_DORA, ACTOR_OBJ_KENDO_KANBAN, // fixtures filed as NPC
         ACTOR_EN_JS, // the Moon's children: the masks given to them are each player's own (masksGivenOnMoon)
+        ACTOR_OBJ_ETCETERA, // Deku flowers: who launches from one needs their own (also on a replicated lift)
     });
 }
 
@@ -97,13 +99,14 @@ bool IsPropEnemy(int16_t id) {
 } // namespace
 
 Replication Rules_ListActor(int16_t actorId, uint8_t category) {
-    if (NeverReplicated(actorId)) {
+    if (NeverReplicated(actorId) || SceneObjects_ForcedLocal(actorId)) {
         return Replication::Local;
     }
     if (IsCutsceneActor(actorId)) {
         return CutsceneRule();
     }
-    return (TrackedCategory(category) || IsSpawner(actorId) || IsPropEnemy(actorId) || Activity_IsPropId(actorId))
+    return (TrackedCategory(category) || IsSpawner(actorId) || IsPropEnemy(actorId) || Activity_IsPropId(actorId) ||
+            SceneObjects_Shared(actorId)) // the scene's machinery (Sync/SceneObjects.cpp)
                ? Replication::Replicated
                : Replication::Local;
 }
@@ -111,6 +114,9 @@ Replication Rules_ListActor(int16_t actorId, uint8_t category) {
 Replication Rules_RuntimeChild(int16_t actorId, uint8_t category) {
     if (IsEcho(actorId)) {
         return Replication::Echo;
+    }
+    if (SceneObjects_ForcedLocal(actorId)) {
+        return Replication::Local; // gCoop.Sync.Local (Sync/SceneObjects.cpp)
     }
     if (actorId == ACTOR_EN_HORSE) {
         // Epona stays local to each game (her Init needs her own object files loaded; a copy made at run time

@@ -1,4 +1,5 @@
 #include "global.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 /**
  * Update the `carriedActor`'s position based on the dynapoly actor identified by `bgId`.
@@ -70,6 +71,7 @@ void DynaPolyActor_AttachCarriedActor(CollisionContext* colCtx, Actor* carriedAc
 
     dynaActor = DynaPoly_GetActor(colCtx, bgId);
     if (dynaActor != NULL) {
+        Coop_OnCarried(dynaActor, carriedActor); // [COOP] who stands on what (Sync/SceneObjects.cpp)
         DynaPolyActor_SetActorOnTop(dynaActor);
 
         if (CHECK_FLAG_ALL(carriedActor->flags, ACTOR_FLAG_CAN_PRESS_SWITCHES)) {

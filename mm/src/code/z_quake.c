@@ -4,6 +4,7 @@
 #include "z64view.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 typedef struct {
     /* 0x00 */ s16 index;
@@ -373,7 +374,10 @@ void Quake_Init(void) {
 }
 
 s16 Quake_Request(Camera* camera, u32 type) {
-    return Quake_RequestImpl(camera, type)->index;
+    s16 index = Quake_RequestImpl(camera, type)->index;
+
+    Coop_OnQuake(index); // [COOP] an actor we simulate shakes the camera: the others in its room too
+    return index;
 }
 
 u32 Quake_RemoveRequest(s16 index) {
@@ -920,4 +924,21 @@ s32 Quake_GetNumActiveQuakes(void) {
     }
 
     return numActiveQuakes;
+}
+
+// [COOP] Sincronización total S2: what a quake request is (AmbientEcho.cpp sends it at the end of the frame).
+s32 Coop_QuakeRead(s16 index, s16* out) {
+    QuakeRequest* req = Quake_GetRequest(index);
+
+    if ((req == NULL) || (req->type == QUAKE_TYPE_NONE)) {
+        return false;
+    }
+    out[0] = req->type;
+    out[1] = req->speed;
+    out[2] = req->y;
+    out[3] = req->x;
+    out[4] = req->fov;
+    out[5] = req->upRollOffset;
+    out[6] = req->duration;
+    return true;
 }

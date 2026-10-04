@@ -13,8 +13,9 @@ between scenes and **groups** (invitations, shared minigames,
 quests, dialogues and cutscenes; bosses for the whole scene: see "Groups, minigames and quests"), with their
 limits fixed (cutscene actors and effects for whoever is watching, Together / Each / Turn-based minigames,
 contacts, results and texts with the speaker's values), the **mod API** (Lua scripts and DLL plugins on the
-server: see "Mods") and the **game mods (.o2r)** the server shares and the games download and load before entering
-(see "Game mods (.o2r)"). Pending: D2 (spec D).
+server: see "Mods"), the **game mods (.o2r)** the server shares and the games download and load before entering
+(see "Game mods (.o2r)") and the **total sync** (sounds, music and quakes, the players' arrows/bombs/hookshot and what
+they carry, the scene's flags live, its machinery and the ocarina: see "Total sync"). Pending: D2 (spec D).
 
 ## Pieces
 
@@ -52,6 +53,10 @@ server: see "Mods") and the **game mods (.o2r)** the server shares and the games
 | `EffectImage.*` | effect echo: binary stream `kStreamEffects` (particles with their start data as slots) |
 | `Sha256.*` | SHA-256 (incremental and of a file): which exact `.o2r` a server shares and a game has |
 | `O2r.*` | game mods (.o2r): the `welcome` list (names, sizes, hashes, all checked), the chunk on `kChannelFiles`, the cache name and the game's download plan (`Download`, tested without the game) |
+| `Slot.h` | one translated 8-byte value (`SlotKind`: raw, actor, Link, executable...): used by `ActorImage`, `EffectImage` and `SoundEntry` |
+| `SoundEntry.*` | total sync: one sound on the wire (id, where: slot or world position, freq/volume/reverb/token) and bounded lists |
+| `SceneFlags.*` | total sync: the loaded scene's 11 flag words, their changes (`Op`), JSON and which ones are temporary |
+| `Ambient.*` | total sync: the music orders and quakes of `ambient` and their checks (`SeqCmdAllowed`) |
 
 ### `coop/server/`
 | File | Responsibility |
@@ -101,6 +106,9 @@ server: see "Mods") and the **game mods (.o2r)** the server shares and the games
 | `Handlers/ModHandlers.cpp` | the game's `gev` and `stat` (validated) → mod events; the mods' tick |
 | `O2rStore.*` | game mods (.o2r): reads `o2r/` at start (size, SHA-256, safe name), reads chunks, checks the `o2r` of `world_enter` |
 | `Handlers/O2rHandlers.cpp` | `o2r_get` → chunk on `kChannelFiles` (queue of 32 and 256 chunks/s per player) |
+| `Stage.h` | total sync: a scene **and its layer** (`StageOf`, `SameStage`): actors, authority, leases, props, effects, flags and ambient are shared per stage; poses, chat, groups, dialogues and cutscenes per scene |
+| `Handlers/SceneHandlers.cpp` | total sync: `sflag` (to the whole stage, the sender too, in the server's order) and `sflags` (the temporary flags kept per stage while somebody is there) |
+| `Handlers/AmbientHandlers.cpp` | total sync: `ambient` (music orders and quakes) to the same stage |
 
 Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, `coop_plugin.hpp`, `example/`),
 `mods/ejemplo.lua` (example script), `docs/mods/` (guide, reference, ids, plugins), `tools/gen_game_ids.py`.
@@ -155,6 +163,7 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Menu/CoopMenu.*` | "Co-op" tab of the menu (F1) |
 | `Mods/Mods.h` | **map of mods in the game**; `GameOps.cpp` (**one line per command** in `kOps`: when it can run and what it does), `ModSettings.cpp` (forced options and their restoration), `GameEvents.cpp` (`gev`, `stat`), `GameIdsCheck.cpp` (`static_assert` of `GameIds.inc`). Switch `gCoop.Mods` |
 | `O2r/O2r.h` | **map of the server's game mods (.o2r)**; `O2rSync.cpp` (on `welcome`: what is missing, the question, the download to `coop_mods/`, ready), `O2rLoader.cpp` (adds the archives at the frame's safe point and clears the caches; "Enable Mods" while in the world), `O2rWindow.cpp` (window at the top and the menu section) |
+| `Sync/Sync.h` | **map of the total sync** (see "Total sync"): `SyncOptions.cpp` (switches), `SfxIds.cpp`, `SoundEcho.cpp` (S1), `CopyCode.cpp` (a copy's own code: silent, its owner's Link, no attacks), `AmbientEcho.cpp` (S2), `PlayerObjects.cpp` (S3, **`kPlayerObjects` list**), `SceneFlags.cpp` + `FlagReload.cpp` (S4), `SceneObjects.cpp` (S5, **`kSceneObjects` list**), `OcarinaEcho.cpp` (S6), `SyncMenu.cpp` |
 
 ### Changes outside these folders (search for `[COOP]`)
 - `mm/include/tables/actor_table.h`: actor `En_CoopPuppet` (0x2B2).
@@ -192,14 +201,26 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
   `O2r_FrameSafePoint`, where the server's archives are added) and
   `mm/2s2h/Enhancements/GfxPatcher/PlayerCustomFlipbooks.*` (`PlayerCustomFlipbooks_Refresh`: Link's faces resolved
   again after an archive was added).
+- Total sync (`Sync/`): `mm/src/audio/sfx.c` (`AudioSfx_PlaySfx`: `Coop_OnSfx`, which may silence a copy),
+  `mm/src/code/z_sound_source.c` (`SoundSource_Add`: `Coop_OnWorldSfx`), `mm/src/audio/sequence.c`
+  (`AudioSeq_QueueSeqCmd`: `Coop_OnSeqCmd`), `mm/src/audio/code_8019AF00.c` (`Coop_MusicBegin/End` around
+  `Audio_PlayBgm_StorePrevBgm`, `Audio_RestorePrevBgm`, `Audio_PlaySubBgm`, `Audio_StopSubBgm`, `Audio_PlayFanfare`;
+  the others' ocarina after `AudioOcarina_SetInstrument`), `mm/src/code/z_quake.c` (`Quake_Request`: `Coop_OnQuake`;
+  `Coop_QuakeRead`), `mm/src/code/z_actor.c` (`Actor_Draw`/`Actor_Destroy`: `Coop_ActorDrawBegin/End`,
+  `Coop_ActorDestroyBegin/End`; `Actor_UpdateFlaggedAudio`: `Coop_FlaggedAudio`; `Flags_GetSwitch/Treasure/Clear/
+  ClearTemp/Collectible`: `Coop_OnFlagRead`; `Actor_SpawnAsChildAndCutscene`: `gCoopSpawnRoom`; `Actor_PlaySfx` no
+  longer calls `Coop_OnActorSfx`), `mm/src/code/z_collision_check.c` (`CollisionCheck_SetAT/SetAT_SAC`:
+  `Coop_BlockAT`), `mm/src/code/z_effect_soft_sprite.c` (`Coop_OnEffectSpawn` may refuse) and
+  `mm/src/code/z_bg_collect.c` (`DynaPolyActor_AttachCarriedActor`: `Coop_OnCarried`).
 
 `server.json`: `language` (`es`, `en`, `zh`, `ru`; see "Languages"), `sharedEnemies`, `sharedProps` (scenery
 objects), `endingForAll` (Moon/Majora/ending for everyone), `groups` (groups), `bossCutscenes` (boss cutscenes
 for the whole scene) and `effects` (effect echo) can be set to `false`; `inviteSeconds` (10..600, 60 by default)
 is how long an invitation lasts. Also: `timeSpeed` (speed of the three days, 0.1..10), `voteSeconds` (10..300),
 `saveSeconds` (2..600), `giftMax` (1..999), `commandPermissions` (`{"tp": "op"}`: who uses each command),
-`gameSettings` (2 Ship options forced on everyone), `mods` (folders, lists and limits: `docs/mods/README.md`) and
-`o2r` (the game mods the players download: see "Game mods (.o2r)").
+`gameSettings` (2 Ship options forced on everyone), `mods` (folders, lists and limits: `docs/mods/README.md`),
+`o2r` (the game mods the players download: see "Game mods (.o2r)") and the six parts of the total sync, `true` by
+default: `sounds`, `ambient`, `playerObjects`, `sceneFlags`, `sceneObjects`, `ocarina` (see "Total sync").
 
 ## Recipes (what gets modified most)
 
@@ -250,6 +271,15 @@ reference.
 **New command to the game** (`game.*`): the function in `server/Mods/Api/ApiGame.cpp` builds `{op: "name", ...}` and
 sends it with `Send(call, op)`; in the game, a function and a line in `kOps` of `mm/2s2h/Coop/Mods/GameOps.cpp` (with
 when it can run: `Needs::Gameplay`, `FreeLink`...). The game checks every field again.
+
+**New object of the players that the others must see** (an arrow, a bomb...): one line in `kPlayerObjects`
+(`Sync/PlayerObjects.cpp`). Read its `Init` first: it must not change our game (the powder keg's flag, the magic and
+`GET_PLAYER` are handled by `Sync/CopyCode.cpp`).
+
+**New machinery that must be the same for everyone** (a platform, a lift, a push block): one line in `kSceneObjects`
+(`Sync/SceneObjects.cpp`) with its policy (`Touch`: who stands on it runs it; `Near`: who comes within 150; `None`:
+its room's owner). Read the actor first: no writes to the player, no talking, no items, no warps. To try one without
+recompiling: F1 → Co-op → Sincronización → "Compartir también" (`gCoop.Sync.Shared`, ids or `GameIds.inc` names).
 
 **New feature in the game**: a file in `mm/2s2h/Coop/Features/` that registers itself with
 `static RegisterShipInitFunc init(MyFunction);` (the pattern of 2Ship's Enhancements). If you add files, run the
@@ -407,6 +437,9 @@ ignores them. `World.ModRestoreCVars` (internal): the player's options that a se
 Game mods (.o2r): `O2r.AutoDownload` (0 by default: ask before downloading a server's `.o2r`; 1 = never ask),
 `O2r.AltAssets` (1 by default: "Enable Mods" on while in the server's world if its mods have `alt/` files; 0 = never
 touch it), `World.AltAssetsRestore` (internal: "Enable Mods" before that, given back on leaving or at the next start).
+Total sync (1 by default): `Sync.Sounds`, `Sync.Ambient`, `Sync.PlayerObjects`, `Sync.SceneFlags`, `Sync.FlagReload`,
+`Sync.SceneObjects`, `Sync.Ocarina`; `Sync.RemoteVolume` (0-100, 100); `Sync.Shared` and `Sync.Local` (text: actor
+ids or names, comma separated).
 
 ## Game mods (.o2r)
 
@@ -431,6 +464,37 @@ server's world, and loaded while it runs.
   `o2r_get` (C→S `i`, `off`); channel 2 `kChannelFiles` (reliable, server → game only): `[kStreamO2r=5][u8 i][u32
   off][≤16000 bytes]`. Limits in `common/Protocol.h` (`kMaxO2rFiles` 32, `kO2rWindow` 16, `kO2rQueueMax` 32,
   `kO2rPerSecond` 256, `kO2rStallMs` 20000).
+
+## Total sync
+
+Spec `docs/superpowers/specs/2026-10-04-coop-sincronizacion-total-design.md`, plan
+`docs/superpowers/plans/2026-10-04-coop-sincronizacion-total.md`. One rule for everything in a scene: one game
+simulates each thing and the others show a copy whose behaviour comes only from its owner's echo. Six parts, each with
+a game CVar (`gCoop.Sync.*`, 1 by default) and a `server.json` option (`true` by default, told in `welcome.sync`):
+
+| Part | CVar / option | What travels |
+|---|---|---|
+| S1 sounds | `Sounds` / `sounds` | every `AudioSfx_PlaySfx` and `SoundSource_Add` of our Link (in the pose, ≤ 8 a frame) and of the actors we simulate (in their record, ≤ 8); a copy's own `Init`/`Draw`/`Destroy` is silent; the flagged sounds (`sfxId`/`audioFlags`) travel with the memory every frame. `gCoop.Sync.RemoteVolume` (0-100) |
+| S2 ambient | `Ambient` / `ambient` | music orders (`SEQCMD_*` of the BGM/fanfare/sub/ambience players, `Audio_PlayBgm_StorePrevBgm`...) and quakes of the actors we simulate (`ambient`, to the same stage, played if you are in that room) |
+| S3 players' objects | `PlayerObjects` / `playerObjects` | arrows, bombs, bombchus, hookshot, Zora fins, spin attack, Elegy statues and their flash (`kPlayerObjects`; never the songs' waves: they are drawn at the viewer's camera) as room `kPlayerRoom` (63) of the actor stream: visual copies (no AC/OC, never lent, never hit); the room-list props our Link carries (adopted while carried); the puppets' sword trail |
+| S4 scene flags | `SceneFlags` / `sceneFlags` | the 11 words of `actorCtx.sceneFlags` (`sflag` changes to the whole stage, sender included; `sflags` on arrival: the server keeps the temporary ones per stage); `gCoop.Sync.FlagReload`: what read a flag only in its `Init` is created again when another player changes it |
+| S5 machinery | `SceneObjects` / `sceneObjects` | `kSceneObjects` (+ `gCoop.Sync.Shared`, − `gCoop.Sync.Local`) replicated like the enemies; who touches it holds its lease; copies get their owner's dynamic collision flags (`kRecDyna`) |
+| S6 ocarina | `Ocarina` / `ocarina` | the note our controller plays (in the pose); the nearest puppet playing (< 1500) sounds on our ocarina channel while ours is quiet |
+
+- **Scene = scene + layer** (`gSaveContext.sceneLayer`, in the pose, `loc` and `props`): two players in the same scene
+  with different layers (a minigame's special entrance) see each other but share no actors, leases, props, effects,
+  flags or ambient (`server/Stage.h`).
+- **Copies never attack nor queue cutscenes**: `Coop_BlockAT` stops the AT colliders of every copy and puppet, and a
+  copy's own code (Init/Draw/Destroy) never queues a cutscene here (`VB_QUEUE_CUTSCENE`); a player's object whose
+  player has no puppet here sees a blank stand-in as `GET_PLAYER`, never our Link (`CopyCode.cpp`).
+- **Menu**: F1 → Co-op → **Sincronización**: the six switches, the volume of the others, the two id lists and "Ver lo
+  sincronizado cerca" (replicated actors within 1500: name, id, room, who simulates it) to report "this object is not
+  synced: id X".
+- **Protocol v15**: the pose gains `layer`, `meleeWeaponState`, `meleeWeaponAnimation`, the ocarina (instrument, note,
+  bend, vibrato) and a sound queue; the actor records carry `SoundEntry` lists (`kRecSfx`) and `kRecDyna`; room 63 =
+  `kPlayerRoom` (forwarded from anyone in the stage); `loc` gains `layer`; new events `sflag`, `sflags`, `ambient`;
+  `welcome` gains `sync`. Limits in `common/Protocol.h` (`kSceneFlagBurst/PerSecond`, `kAmbientBurst/PerSecond`).
+- Test list (in Spanish): `coop_pruebas/LEEME_SYNC.md`.
 
 ## Server security
 - Malformed or unknown packets are logged (cleaned, only the first 3) and at 50 the client is kicked.

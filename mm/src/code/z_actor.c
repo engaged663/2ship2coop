@@ -803,6 +803,7 @@ void Attention_Update(Attention* attention, Player* player, Actor* playerFocusAc
  */
 s32 Flags_GetSwitch(PlayState* play, s32 flag) {
     if ((flag > SWITCH_FLAG_NONE) && (flag < 0x80)) {
+        Coop_OnFlagRead(0, flag); // [COOP] who reads which flag, and when (Sync/FlagReload.cpp)
         return play->actorCtx.sceneFlags.switches[(flag & ~0x1F) >> 5] & (1 << (flag & 0x1F));
     }
     return 0;
@@ -838,6 +839,7 @@ void Flags_UnsetSwitch(PlayState* play, s32 flag) {
  * Tests if a current scene chest flag is set.
  */
 s32 Flags_GetTreasure(PlayState* play, s32 flag) {
+    Coop_OnFlagRead(1, flag); // [COOP]
     return play->actorCtx.sceneFlags.chest & (1 << flag);
 }
 
@@ -870,6 +872,7 @@ s32 Flags_GetAllTreasure(PlayState* play) {
  * Tests if a current scene clear flag is set.
  */
 s32 Flags_GetClear(PlayState* play, s32 roomNumber) {
+    Coop_OnFlagRead(2, roomNumber); // [COOP]
     return play->actorCtx.sceneFlags.clearedRoom & (1 << roomNumber);
 }
 
@@ -899,6 +902,7 @@ void Flags_UnsetClear(PlayState* play, s32 roomNumber) {
  * Tests if a current scene temp clear flag is set.
  */
 s32 Flags_GetClearTemp(PlayState* play, s32 roomNumber) {
+    Coop_OnFlagRead(3, roomNumber); // [COOP]
     return play->actorCtx.sceneFlags.clearedRoomTemp & (1 << roomNumber);
 }
 
@@ -921,6 +925,7 @@ void Flags_UnsetClearTemp(PlayState* play, s32 roomNumber) {
  */
 s32 Flags_GetCollectible(PlayState* play, s32 flag) {
     if ((flag > 0) && (flag < 0x80)) {
+        Coop_OnFlagRead(4, flag); // [COOP]
         return play->actorCtx.sceneFlags.collectible[(flag & ~0x1F) >> 5] & (1 << (flag & 0x1F));
     }
     return 0;
@@ -1306,7 +1311,9 @@ void Actor_Init(Actor* actor, PlayState* play) {
 void Actor_Destroy(Actor* actor, PlayState* play) {
     if (actor->init == NULL) {
         if (actor->destroy != NULL) {
+            Coop_ActorDestroyBegin(actor); // [COOP] a copy's own destroy: silent, its owner's globals kept
             actor->destroy(actor, play);
+            Coop_ActorDestroyEnd(actor); // [COOP]
             actor->destroy = NULL;
         }
     }
@@ -2511,7 +2518,6 @@ void Player_PlaySfx(Player* player, u16 sfxId) {
  * Play a sound effect at the actor's position
  */
 void Actor_PlaySfx(Actor* actor, u16 sfxId) {
-    Coop_OnActorSfx(actor, sfxId); // [COOP]
     Audio_PlaySfx_AtPos(&actor->projectedPos, sfxId);
 }
 
@@ -3010,7 +3016,9 @@ void Actor_Draw(PlayState* play, Actor* actor) {
     }
 
     if (GameInteractor_ShouldActorDraw(actor)) {
+        Coop_ActorDrawBegin(actor); // [COOP] a copy's own draw: silent, its owner's Link as GET_PLAYER
         actor->draw(actor, play);
+        Coop_ActorDrawEnd(actor); // [COOP]
         GameInteractor_ExecuteOnActorDraw(actor);
     }
 
@@ -3034,6 +3042,7 @@ void Actor_Draw(PlayState* play, Actor* actor) {
 void Actor_UpdateFlaggedAudio(Actor* actor) {
     s32 sfxId = actor->sfxId;
 
+    Coop_FlaggedAudio(1); // [COOP] these sounds travel with the actor's memory, not as echoes (SoundEcho.cpp)
     if (sfxId != NA_SE_NONE) {
         if (actor->audioFlags & ACTOR_AUDIO_FLAG_SFX_ACTOR_POS_2) {
             AudioSfx_PlaySfx(sfxId, &actor->projectedPos, 4, &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
@@ -3059,6 +3068,7 @@ void Actor_UpdateFlaggedAudio(Actor* actor) {
     if (actor->audioFlags & ACTOR_AUDIO_FLAG_SEQ_KAMARO_DANCE) {
         Audio_PlaySequenceAtPos(SEQ_PLAYER_BGM_MAIN, &actor->projectedPos, NA_BGM_KAMARO_DANCE, 900.0f);
     }
+    Coop_FlaggedAudio(0); // [COOP]
 }
 
 void Actor_ResetLensActors(PlayState* play) {
@@ -3820,7 +3830,8 @@ Actor* Actor_SpawnAsChildAndCutscene(ActorContext* actorCtx, PlayState* play, s1
         actor->parent = parent;
         parent->child = actor;
     } else {
-        actor->room = play->roomCtx.curRoom.num;
+        // [COOP] FlagReload.cpp creates an actor again in its own room
+        actor->room = (gCoopSpawnRoom >= 0) ? gCoopSpawnRoom : play->roomCtx.curRoom.num;
     }
 
     actor->home.pos.x = x;

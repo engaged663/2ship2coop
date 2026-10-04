@@ -19,6 +19,7 @@
 #include "2s2h/Coop/Host/HostMode.h"
 #include "2s2h/Coop/Puppet/PuppetActor.h"
 #include "2s2h/Coop/Puppet/PuppetManager.h"
+#include "2s2h/Coop/Sync/Sync.h"
 #include "2s2h/Coop/World/WorldSession.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
@@ -27,6 +28,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <deque>
 #include <map>
 #include <set>
@@ -105,6 +107,9 @@ void OnActors(const uint8_t* data, size_t size) {
         p.playerId == 0 || p.playerId == Session_LocalId()) {
         return;
     }
+    if (p.room == image_limits::kPlayerRoom && !Sync_On(SyncPart::PlayerObjects)) {
+        return; // the players' own objects are off here (Sync/PlayerObjects.cpp)
+    }
     Stream& st = sStreams[{ p.room, p.playerId }];
     if (st.frames.empty() || st.frames.back().seq != p.seq) {
         Frame f;
@@ -130,8 +135,20 @@ void KillCopy(TrackedActor& t) {
     Actor_Kill(t.actor);
 }
 
+constexpr u16 kDynaFlags =
+    BGACTOR_COLLISION_DISABLED | BGACTOR_CEILING_COLLISION_DISABLED | BGACTOR_FLOOR_COLLISION_DISABLED;
+
+// Its dynamic collision is still its own here (the index is checked: a destroyed mesh frees it).
+u16* DynaFlagsOf(const TrackedActor& t) {
+    if (t.bgId < 0 || gPlayState == nullptr ||
+        DynaPoly_GetActor(&gPlayState->colCtx, t.bgId) != (DynaPolyActor*)t.actor) {
+        return nullptr;
+    }
+    return &gPlayState->colCtx.dyna.bgActorFlags[t.bgId];
+}
+
 // Another game created this actor at run time: we create our copy, once a second at most until it works.
-TrackedActor* CreateCopy(const ActorImageRecord& r, int8_t room) {
+TrackedActor* CreateCopy(const ActorImageRecord& r, int8_t room, uint8_t sender) {
     int64_t now = NowMs();
     auto tried = sCreateTried.find(r.key);
     if (tried != sCreateTried.end() && now - tried->second < 1000) {
@@ -141,7 +158,7 @@ TrackedActor* CreateCopy(const ActorImageRecord& r, int8_t room) {
     const SpawnInfo& s = r.spawn;
     TrackedActor* parent = s.parentKey != 0 ? ActorRegistry_Find(s.parentKey) : nullptr;
     uint32_t root = parent != nullptr ? parent->rootKey : r.key;
-    ActorRegistry_ExpectReplica(r.key, s.parentKey, root, room, s);
+    ActorRegistry_ExpectReplica(r.key, s.parentKey, root, room, s, room == image_limits::kPlayerRoom ? sender : 0);
     Actor* a = parent != nullptr
                    ? Actor_SpawnAsChild(&gPlayState->actorCtx, parent->actor, gPlayState, (s16)s.actorId, s.pos[0],
                                         s.pos[1], s.pos[2], s.rot[0], s.rot[1], s.rot[2], s.params)
@@ -155,6 +172,9 @@ TrackedActor* CreateCopy(const ActorImageRecord& r, int8_t room) {
 // watches that cutscene; the rest, from the lessee of its family or the owner of its room (a game showing a cutscene
 // may send frames of a room that is not its own: ActorHandlers.cpp).
 bool MayCreate(const ActorImageRecord& r, int8_t room, uint8_t sender) {
+    if (room == image_limits::kPlayerRoom) {
+        return PlayerObjects_MayCreate(r.key, r.spawn.parentKey, sender); // the sender's own object (or its child)
+    }
     if (ActorRegistry_IsCinemaSpawn(r.spawn.parentKey, r.spawn)) {
         return Rules_CinemaActorsOn() && Cinema_WatchingFrom(sender);
     }
@@ -171,7 +191,10 @@ void DispatchFrame(int8_t room, uint8_t sender, Frame& f, Stream& st) {
         TrackedActor* t = ActorRegistry_Find(r.key);
         if (t == nullptr && !r.continuation && r.hasSpawn && (r.key & kRuntimeKeyBit) != 0 &&
             MayCreate(r, room, sender)) {
-            t = CreateCopy(r, room);
+            t = CreateCopy(r, room, sender);
+        }
+        if (t == nullptr && room == image_limits::kPlayerRoom && !r.continuation && IsListKey(r.key)) {
+            t = PlayerObjects_AdoptFor(r.key, r.actorId, sender); // a prop of the room it carries
         }
         if (t == nullptr || t->actor->id != (s16)r.actorId || t->room != room || Leases_Owner(*t) != sender) {
             continue; // unknown here, another actor with that key, or not (or no longer) simulated by the sender
@@ -186,7 +209,10 @@ void DispatchFrame(int8_t room, uint8_t sender, Frame& f, Stream& st) {
         if (!r.continuation) {
             t->remoteAc = r.acMask;
             t->remoteOc = r.ocMask;
-            t->pendingSfx.insert(t->pendingSfx.end(), r.sfx.begin(), r.sfx.end());
+            t->pendingSounds.insert(t->pendingSounds.end(), r.sfx.begin(), r.sfx.end());
+            if (r.dyna >= 0) {
+                t->pendingDyna = r.dyna; // its collision switched on or off there (spec §6.3)
+            }
         }
         t->hasState = true;
         t->lastSeenMs = now;
@@ -213,6 +239,12 @@ void DispatchFrame(int8_t room, uint8_t sender, Frame& f, Stream& st) {
             t->missedAlive = 0;
             named++;
         } else {
+            if (t->adopted) {
+                if (++t->missedAlive >= 2) {
+                    ActorRegistry_ReleaseAdopted(t->actor); // put down: ours again, where it was left
+                }
+                continue;
+            }
             // Its simulator has no such actor (already killed there). NPCs of the room's list (the Moon's children)
             // are removed only after several lists in a row: a lease changing hands must never delete them.
             if (t->cinema && !t->runtime) {
@@ -257,7 +289,7 @@ void ApplyPending(TrackedActor& t) {
     }
     t.pendingSpans.clear();
     HitSync_ClearMarks(t);
-    for (size_t i = 0; i < t.colliders.size(); i++) {
+    for (size_t i = 0; i < t.colliders.size() && t.owner == 0; i++) { // a player's object is only seen here
         if (t.remoteAc & (1u << i)) {
             CollisionCheck_SetAC(gPlayState, &gPlayState->colChkCtx, t.colliders[i]);
         }
@@ -265,11 +297,17 @@ void ApplyPending(TrackedActor& t) {
             CollisionCheck_SetOC(gPlayState, &gPlayState->colChkCtx, t.colliders[i]);
         }
     }
-    for (uint16_t sfx : t.pendingSfx) {
-        Actor_PlaySfx(t.actor, sfx);
+    for (const SoundEntry& s : t.pendingSounds) {
+        SoundEcho_PlayOn(t.actor, s); // what its simulator heard it make (Sync/SoundEcho.cpp)
     }
-    t.pendingSfx.clear();
+    t.pendingSounds.clear();
     Actor_UpdateBgCheckInfo(gPlayState, t.actor, 0.0f, 0.0f, 0.0f, UPDBGCHECKINFO_FLAG_4); // floor for the shadow
+    if (t.pendingDyna >= 0) {
+        if (u16* f = DynaFlagsOf(t)) {
+            *f = (u16)((*f & ~kDynaFlags) | ((u16)t.pendingDyna & kDynaFlags)); // its owner's collision on/off
+        }
+        t.pendingDyna = -1;
+    }
 }
 
 // Copies never run their own logic. Every replicated actor (ours too) first gets the hits of the last frame.
@@ -286,7 +324,9 @@ void OnShouldActorUpdate(Actor* actor, bool* should) {
         return; // nobody known simulates it: ours for now, sent to nobody
     }
     *should = false;
-    HitSync_ReportReplicaHits(*t); // reads the hit flags before its new state overwrites them
+    if (t->owner == 0) {
+        HitSync_ReportReplicaHits(*t); // reads the hit flags before its new state overwrites them
+    }
     if (t->hasState && t->actor->update != nullptr) {
         ApplyPending(*t);
     }
@@ -350,7 +390,8 @@ bool OnOurLinkOnly(const TrackedActor& t) {
     if (root == nullptr || root->actor == nullptr) {
         return false;
     }
-    return (root->actor->category == ACTORCAT_NPC && Leases_LentToMe(*root)) || Director_PinsFamily(root->actor);
+    return (root->actor->category == ACTORCAT_NPC && Leases_LentToMe(*root)) || Director_PinsFamily(root->actor) ||
+           (SceneObjects_Policy(root->actor->id) != TouchPolicy::None && Leases_LentToMe(*root)); // what we touch
 }
 
 // Farther than kFarDist from every Link (ours and the puppets): nobody sees it up close.
@@ -372,10 +413,16 @@ bool MakeRecord(TrackedActor& t, ActorImageRecord& r) {
     r.actorId = (uint16_t)t.actor->id;
     r.acMask = t.acMask;
     r.ocMask = t.ocMask;
-    r.sfx = t.oneShotSfx;
-    t.oneShotSfx.clear(); // sent now (or dropped: nobody is near): never sent twice
-    r.hasSpawn = t.runtime && full;
+    r.sfx.swap(t.sounds);
+    t.sounds.clear(); // sent now (or dropped: nobody is near): never sent twice
+    constexpr uint8_t kSpawnFrames = 3; // a new one's first records always say how to create it
+    r.hasSpawn = t.runtime && (full || t.spawnSent < kSpawnFrames);
     r.spawn = t.spawn;
+    // A flagged sound (sfxId/audioFlags) is cleared by the engine before every update: while it sounds its slots go
+    // every frame, so the copy has it again before drawing (Actor_UpdateFlaggedAudio plays it there too)
+    bool flagged = t.actor->sfxId != 0 || t.actor->audioFlags != 0;
+    constexpr size_t kSfxSlot = offsetof(Actor, sfxId) / 8;
+    constexpr size_t kAudioFlagsSlot = offsetof(Actor, audioFlags) / 8;
     for (size_t rg = 0; rg < t.regions.size(); rg++) {
         size_t slots = (t.regions[rg].size + 7) / 8;
         auto& sent = t.sentSlots[rg];
@@ -394,7 +441,8 @@ bool MakeRecord(TrackedActor& t, ActorImageRecord& r) {
                     sent[i] = now;
                     changed[i] = sFrame;
                 }
-                include = full || sFrame - changed[i] < kResendFrames;
+                include = full || sFrame - changed[i] < kResendFrames ||
+                          (rg == 0 && flagged && (i == kSfxSlot || i == kAudioFlagsSlot));
             }
             bool contiguous = !span.slots.empty() && span.first + span.slots.size() == i &&
                               span.slots.size() < (size_t)image_limits::kSpanSlots;
@@ -417,12 +465,24 @@ bool MakeRecord(TrackedActor& t, ActorImageRecord& r) {
             }
         }
     }
+    if (u16* f = DynaFlagsOf(t)) {
+        int16_t d = (int16_t)(*f & kDynaFlags);
+        if (full || d != t.sentDyna) {
+            r.dyna = d; // its collision on/off (a platform that vanishes)
+        }
+    }
     bool masksChanged = t.acMask != t.sentAc || t.ocMask != t.sentOc;
-    if (!send || (r.spans.empty() && r.sfx.empty() && !masksChanged && !r.hasSpawn)) {
+    if (!send || (r.spans.empty() && r.sfx.empty() && !masksChanged && !r.hasSpawn && r.dyna < 0)) {
         return false;
     }
     t.sentAc = t.acMask;
     t.sentOc = t.ocMask;
+    if (r.dyna >= 0) {
+        t.sentDyna = r.dyna;
+    }
+    if (r.hasSpawn && t.spawnSent < 255) {
+        t.spawnSent++;
+    }
     return true;
 }
 
@@ -488,7 +548,7 @@ void ActorSync_FrameEnd() {
         gone.erase(std::remove_if(gone.begin(), gone.end(),
                                   [&](const auto& g) { return now - g.second > kGoneMemoryMs; }),
                    gone.end());
-        if (gone.empty() || !Authority_IsMine(room) || !frames.count(room)) {
+        if (gone.empty() || !(room == image_limits::kPlayerRoom || Authority_IsMine(room)) || !frames.count(room)) {
             continue; // only with a frame: the alive list says the rest
         }
         ActorImagePacket& f = frames[room];
@@ -527,6 +587,10 @@ extern "C" Player* Coop_ActorUpdateBegin(PlayState* play, Actor* actor, s32* for
     if (!Leases_IsMine(*t)) {
         return nullptr; // nobody known simulates it yet: it stays local and quiet
     }
+    if (t->owner != 0) {
+        sUpdating = t; // our own object: it plays with our Link, as always
+        return nullptr;
+    }
     if (t->cinema) {
         // A cutscene actor of ours plays with our own Link; what it creates travels only while others watch
         if (Cinema_DirectingShared()) {
@@ -554,15 +618,12 @@ extern "C" void Coop_ActorUpdateEnd(PlayState* play, Actor* actor) {
     gCoopPlayerOverride = nullptr;
 }
 
-extern "C" void Coop_OnActorSfx(Actor* actor, u16 sfxId) {
-    if (sUpdating != nullptr && sUpdating->actor == actor && sUpdating->oneShotSfx.size() < (size_t)image_limits::kSfx) {
-        sUpdating->oneShotSfx.push_back(sfxId);
-    }
-}
-
 static void RegisterActorSync() {
     COND_HOOK(ShouldActorUpdate, true, OnShouldActorUpdate);
     COND_HOOK(OnGameStateMainStart, true, []() {
+        for (TrackedActor* t : ActorRegistry_All()) {
+            t->sounds.clear(); // a record that was not sent takes nothing late
+        }
         if (Active()) {
             ApplyFrames();
         }

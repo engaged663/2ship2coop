@@ -1,5 +1,6 @@
 #include "global.h"
 #include "z64sound_source.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 void SoundSource_InitAll(PlayState* play) {
     SoundSource* sources = &play->soundSources[0];
@@ -37,6 +38,7 @@ void SoundSource_Add(PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId, 
     SoundSource* backupSource = NULL;
     s32 i;
 
+    Coop_OnWorldSfx(play, worldPos, duration, sfxId, playSfxEachFrame, 1); // [COOP] who it is from (SoundEcho.cpp)
     source = &play->soundSources[0];
     for (i = 0; i < SOUND_SOURCE_COUNT; i++) {
         if (source->countdown == 0) {
@@ -65,6 +67,7 @@ void SoundSource_Add(PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId, 
 
     SkinMatrix_Vec3fMtxFMultXYZ(&play->viewProjectionMtxF, &source->worldPos, &source->projectedPos);
     Audio_PlaySfx_AtPos(&source->projectedPos, sfxId);
+    Coop_OnWorldSfx(play, worldPos, duration, sfxId, playSfxEachFrame, 0); // [COOP]
 }
 
 void SoundSource_PlaySfxAtFixedWorldPos(PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId) {

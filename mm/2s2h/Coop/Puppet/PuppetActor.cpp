@@ -7,6 +7,7 @@
 #include "2s2h/Coop/Actors/HitSync.h"
 
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Sync/Sync.h"
 #include "2s2h/NameTag/NameTag.h"
 
 #include "common/PlayerState.h"
@@ -19,9 +20,14 @@ void ResourceMgr_UnregisterSkeleton(SkelAnime* skelAnime);    // BenPort.cpp
 extern PlayerAgeProperties sPlayerAgeProperties[PLAYER_FORM_MAX]; // z_player.c
 extern s32 D_801F59E0;                                             // z_player_lib.c: hand model index
 void Player_Draw(Actor* thisx, PlayState* play);
+extern EffectBlureInit2 D_8085D30C; // z_player.c: the sword trail of Player_Init
 }
 
 namespace {
+
+// TOTAL_EFFECT_COUNT of z_effect.c (3 sparks + 25 blures + 3 shield particles + 15 tire marks): "no effect" for
+// Effect_GetByIndex and Effect_Destroy.
+constexpr s32 kNoEffect = 3 + 25 + 3 + 15;
 
 // Height of the nick above the feet, per form (PLAYER_FORM_*).
 int16_t NameTagOffset(u8 form) {
@@ -75,6 +81,9 @@ void ApplyState(EnCoopPuppet* self, const coop::PlayerState& st, PlayState* play
     p->av1.actionVar1 = st.actionVar1;
     p->unk_B8E = st.unk_B8E;
     p->unk_B62 = st.unk_B62;
+    bool trail = coop::client::Sync_On(coop::client::SyncPart::PlayerObjects);
+    p->meleeWeaponState = trail ? st.meleeWeaponState : 0;
+    p->meleeWeaponAnimation = (PlayerMeleeWeaponAnimation)st.meleeWeaponAnimation;
 
     PlayerAnimationFrame* frame = (PlayerAnimationFrame*)p->skelAnime.jointTable;
     for (int i = 0; i < coop::kPoseJoints; i++) {
@@ -119,6 +128,14 @@ static void EnCoopPuppet_Init(Actor* thisx, PlayState* play) {
     play->playerInit(p, play, gPlayerSkeletons[form]);
     D_801F59E0 = savedHandIndex;
 
+    // [COOP] Sincronización total: the sword's trail, as Player_Init makes it (the tire marks never: index none). Its
+    // sword colliders never attack (Coop_BlockAT stops them anyway).
+    Effect_Add(play, &p->meleeWeaponEffectIndex[0], EFFECT_BLURE2, 0, 0, &D_8085D30C);
+    Effect_Add(play, &p->meleeWeaponEffectIndex[1], EFFECT_BLURE2, 0, 0, &D_8085D30C);
+    p->meleeWeaponEffectIndex[2] = kNoEffect;
+    p->meleeWeaponQuads[0].base.atFlags &= ~AT_ON;
+    p->meleeWeaponQuads[1].base.atFlags &= ~AT_ON;
+
     // The engine only gives Fierce Deity his larger scale to ACTOR_PLAYER (func_80123140); a puppet keeps the
     // default 0.01 and looks tiny.
     Actor_SetScale(&p->actor, form == PLAYER_FORM_FIERCE_DEITY ? 0.015f : 0.01f);
@@ -150,6 +167,8 @@ static void EnCoopPuppet_Destroy(Actor* thisx, PlayState* play) {
     }
     ResourceMgr_UnregisterSkeleton(&p->skelAnime);
     ResourceMgr_UnregisterSkeleton(&p->skelAnimeUpper);
+    Effect_Destroy(play, p->meleeWeaponEffectIndex[0]); // [COOP] its sword trail
+    Effect_Destroy(play, p->meleeWeaponEffectIndex[1]);
     Collider_DestroyCylinder(play, &p->cylinder);
     Collider_DestroyCylinder(play, &p->shieldCylinder);
     Collider_DestroyQuad(play, &p->meleeWeaponQuads[0]);

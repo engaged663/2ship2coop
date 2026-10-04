@@ -32,8 +32,12 @@ void Coop_ActorUpdateEnd(PlayState* play, Actor* actor);
 
 // func_800B8D10 (knockback of GET_PLAYER). 1 = it was aimed at a puppet: sent to its player instead.
 s32 Coop_OnKnockback(PlayState* play, Actor* actor, f32 speed, s16 yaw, f32 velY, s32 type, u32 damage);
-// Actor_PlaySfx: a shared enemy's sounds also play on the other games.
-void Coop_OnActorSfx(Actor* actor, u16 sfxId);
+// Sincronización total S1 (Sync/SoundEcho.cpp). Coop_OnSfx: every AudioSfx_PlaySfx, before it runs; 1 = it must not
+// sound here (a copy's own code: its owner sends its sounds). Coop_OnWorldSfx: SoundSource_Add, begin = 1 before and
+// 0 after. Coop_FlaggedAudio: around Actor_UpdateFlaggedAudio (those travel with the actor's memory).
+s32 Coop_OnSfx(u16 sfxId, Vec3f* pos, u8 token, f32* freqScale, f32* volume, s8* reverbAdd);
+void Coop_OnWorldSfx(PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId, u32 eachFrame, s32 begin);
+void Coop_FlaggedAudio(s32 begin);
 // Item_DropCollectibleRandom (fn 0) / Item_DropCollectible (fn 1) while a shared enemy of this game updates:
 // every other game in the scene drops its own.
 void Coop_OnDrop(PlayState* play, Vec3f* pos, s32 params, s32 fn);
@@ -102,11 +106,45 @@ void Coop_OnMessageDecode(PlayState* play, s32 begin);
 // the game that simulates it runs that code). The mods hear who gave it.
 void Coop_OnEnemyDefeated(PlayState* play, Actor* actor);
 
-// Effects echo (Features/EffectEcho.cpp). Coop_OnEffectSpawn: every EffectSs_Spawn, before it runs.
-// Coop_CollisionPass: begin = 1 before this frame's collision checks (z_play.c), 0 after them: the hit marks made in
-// between come from our Link's and our actors' attacks.
-void Coop_OnEffectSpawn(PlayState* play, s32 type, s32 priority, void* initData);
+// Effects echo (Features/EffectEcho.cpp). Coop_OnEffectSpawn: every EffectSs_Spawn, before it runs; 1 = do not create
+// it here (the Init of a copy we create: its owner sends it). Coop_CollisionPass: begin = 1 before this frame's
+// collision checks (z_play.c), 0 after them: the hit marks made in between come from our Link's and our actors' attacks.
+s32 Coop_OnEffectSpawn(PlayState* play, s32 type, s32 priority, void* initData);
 void Coop_CollisionPass(s32 begin);
+
+// Sincronización total (Sync/CopyCode.cpp): around a Draw and a Destroy (a copy's own code runs silent, with its
+// owner's Link as GET_PLAYER). Coop_BlockAT: 1 = this collider must not attack in this game (copies and puppets).
+void Coop_ActorDrawBegin(Actor* actor);
+void Coop_ActorDrawEnd(Actor* actor);
+void Coop_ActorDestroyBegin(Actor* actor);
+void Coop_ActorDestroyEnd(Actor* actor);
+s32 Coop_BlockAT(Collider* collider);
+
+// Sincronización total S2 (Sync/AmbientEcho.cpp): music orders and quakes of what this game simulates. The music
+// functions call Coop_MusicBegin(kind, value) first and Coop_MusicEnd() last (kinds of common/Ambient.h); the raw
+// orders inside them are not counted again. Coop_QuakeRead: a request's values (type, speed, y, x, fov, roll,
+// duration); 0 if there is none.
+void Coop_OnSeqCmd(u32 cmd);
+void Coop_MusicBegin(s32 kind, u32 value);
+void Coop_MusicEnd(void);
+void Coop_OnQuake(s16 index);
+s32 Coop_QuakeRead(s16 index, s16* out);
+
+// Sincronización total S4 (Sync/FlagReload.cpp): an actor reads a scene flag (kind 0 switch, 1 chest, 2 clear,
+// 3 clear temp, 4 collectible). gCoopSpawnRoom >= 0: the room of the actor Actor_SpawnAsChildAndCutscene creates now
+// (FlagReload.cpp creates an actor again in its own room).
+void Coop_OnFlagRead(s32 kind, s32 flag);
+extern s32 gCoopSpawnRoom;
+
+// Sincronización total S5 (Sync/SceneObjects.cpp): an actor stands on a dynamic collision actor this frame.
+void Coop_OnCarried(DynaPolyActor* dyna, Actor* carried);
+
+// Sincronización total S6 (Sync/OcarinaEcho.cpp): the note our controller plays (instrument 0: not playing), whether
+// our own ocarina is busy, and another player's note played on the ocarina channel while ours is quiet.
+void Coop_OcarinaRead(u8* instrument, u8* pitch, f32* bend, s8* vibrato);
+s32 Coop_OcarinaLocalBusy(void);
+void Coop_OcarinaRemote(u8 instrument, u8 pitch, f32 bend, s8 vibrato, Vec3f* pos);
+void Coop_OcarinaRemoteStop(void);
 
 #ifdef __cplusplus
 }

@@ -123,11 +123,13 @@ struct TestClient {
     void Cmd(const std::string& line) {
         Send({ { "t", "cmd" }, { "line", line } });
     }
-    void SendState(int16_t scene, int8_t room = 0, uint16_t entrance = 0, float x = 0, float y = 0, float z = 0) {
+    void SendState(int16_t scene, int8_t room = 0, uint16_t entrance = 0, float x = 0, float y = 0, float z = 0,
+                   uint8_t layer = 0) {
         coop::PlayerState st;
         st.seq = ++seq;
         st.sceneId = scene;
         st.roomNum = room;
+        st.layer = layer;
         st.entrance = entrance;
         st.pos[0] = x;
         st.pos[1] = y;

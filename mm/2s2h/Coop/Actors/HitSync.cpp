@@ -107,6 +107,12 @@ bool InList(const Actor* who, uint8_t category) {
     return false;
 }
 
+// An explosive of ours: a local one, or our own object the others see (Sync/PlayerObjects.cpp).
+bool OwnExplosive(Actor* who) {
+    TrackedActor* t = ActorRegistry_Get(who);
+    return t == nullptr || t->owner == Session_LocalId();
+}
+
 // Writes an attack into collider/element exactly as CollisionCheck_SetATvsAC would, then lets the engine compute
 // the damage and effect from the target's damage table.
 void InjectHit(Collider* col, ColliderElement* elem, Actor* attacker, uint32_t dmgFlags, uint8_t effect,
@@ -246,7 +252,7 @@ void HitSync_ReportReplicaHits(TrackedActor& t) {
         }
         Actor* who = col->oc;
         col->ocFlags1 &= ~OC1_HIT;
-        bool ours = who == link || (InList(who, ACTORCAT_EXPLOSIVES) && ActorRegistry_Get(who) == nullptr);
+        bool ours = who == link || (InList(who, ACTORCAT_EXPLOSIVES) && OwnExplosive(who));
         bool again = who != link && who == t.ocLast[c]; // the same bomb still resting on it: it counted already
         if (!ours || again || t.ocCooldown[c] > 0) {
             continue;

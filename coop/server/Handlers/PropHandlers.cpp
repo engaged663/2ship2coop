@@ -6,6 +6,7 @@
 // server.json: "sharedProps": false turns it off.
 #include "server/Registry.h"
 #include "server/Server.h"
+#include "server/Stage.h"
 
 #include "common/PlayerState.h"
 
@@ -24,7 +25,7 @@ constexpr int kChildRecut = -4;      // grass that grows back was cut: never rem
 constexpr int kChildMin = -4;
 constexpr int kChildMax = 15; // a grass group has at most 16 grass
 
-std::map<int16_t, std::set<std::pair<int64_t, int>>> sGone; // scene -> (key, child)
+std::map<int16_t, std::set<std::pair<int64_t, int>>> sGone; // stage (scene + layer, Stage.h) -> (key, child)
 
 bool TakesProps(Server& server, const RemoteClient& c) {
     return server.Config().sharedProps && c.welcomed && !c.closing && !c.host && c.inWorld && c.hasState;
@@ -52,10 +53,10 @@ bool FinitePos(const json& ev) {
     return true;
 }
 
-// Everyone else in that scene who plays in the world (the server's own games have no props to break).
-void SendToScene(Server& server, const RemoteClient& from, int16_t scene, const json& ev) {
+// Everyone else in the same scene and layer who plays in the world (the server's own games have no props to break).
+void SendToStage(Server& server, const RemoteClient& from, const json& ev) {
     for (RemoteClient* other : server.Players().Welcomed()) {
-        if (other != &from && TakesProps(server, *other) && other->scene == scene) {
+        if (other != &from && TakesProps(server, *other) && SameStage(*other, from)) {
             server.SendEvent(*other, ev);
         }
     }
@@ -76,14 +77,14 @@ void OnProp(Server& server, RemoteClient& client, const json& ev) {
     int64_t key = GetInt(ev, "key");
     int child = (int)GetInt(ev, "child");
     if (child != kChildSharedItem && child != kChildRecut) {
-        auto& gone = sGone[scene];
+        auto& gone = sGone[StageOf(client)];
         if (gone.size() >= kMaxPropsPerScene || !gone.insert({ key, child }).second) {
             return; // already gone (two players broke it at once): the others know
         }
     }
     json out = ev;
     out["from"] = client.id;
-    SendToScene(server, client, scene, out);
+    SendToStage(server, client, out);
     server.Log().Info("Objeto roto por " + client.nick + ": escena " + std::to_string(scene) + ", clave " +
                       std::to_string(key) + ", parte " + std::to_string(child));
 }
@@ -93,13 +94,13 @@ void OnProps(Server& server, RemoteClient& client, const json& ev) {
     if (!TakesProps(server, client) || !client.propBudget.Take(server.NowMs())) {
         return;
     }
-    if (!IntIn(ev, "scene", 0, 0x7FFF)) {
+    if (!IntIn(ev, "scene", 0, 0x7FFF) || (ev.contains("layer") && !IntIn(ev, "layer", 0, pose_limits::kMaxLayer))) {
         server.NoteInvalid(client, Tr(Msg::InvPropRequest));
         return;
     }
     int16_t scene = (int16_t)GetInt(ev, "scene");
     json list = json::array();
-    auto it = sGone.find(scene);
+    auto it = sGone.find(StageOf(scene, (uint8_t)GetInt(ev, "layer", 0))); // the layer it arrived in (Stage.h)
     if (it != sGone.end()) {
         for (const auto& [key, child] : it->second) {
             list.push_back(json::array({ key, child }));
@@ -126,7 +127,7 @@ void OnItem(Server& server, RemoteClient& client, const json& ev) {
     }
     json out = ev;
     out["from"] = client.id;
-    SendToScene(server, client, scene, out);
+    SendToStage(server, client, out);
     server.Log().Info("Objeto soltado por " + client.nick + ": escena " + std::to_string(scene) + ", clave " +
                       std::to_string(GetInt(ev, "key")));
 }
@@ -136,7 +137,7 @@ void TickProps(Server& server) {
     for (auto it = sGone.begin(); it != sGone.end();) {
         bool occupied = false;
         for (RemoteClient* c : server.Players().Welcomed()) {
-            occupied = occupied || (TakesProps(server, *c) && c->scene == it->first);
+            occupied = occupied || (TakesProps(server, *c) && StageOf(*c) == it->first);
         }
         it = occupied ? std::next(it) : sGone.erase(it);
     }

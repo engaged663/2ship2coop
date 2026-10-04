@@ -14,9 +14,9 @@ using namespace image_limits;
 
 // Packet: [type u8][playerId u8][scene s16][room s8][seq u16][part u8][parts u8][flags u8: 1 = alive list]
 //         [aliveCount u8][alive u32...][goneCount u8][gone u32...][recordCount u8][records...]
-// Record: [key u32][actorId u16][flags u8: 1 masks, 2 sfx, 4 spawn, 8 continuation]
-//         [acMask u8][ocMask u8] (masks) [n u8][sfx u16...] (sfx)
-//         [actorId u16][params s16][pos f32 x3][rot s16 x3][parentKey u32] (spawn)
+// Record: [key u32][actorId u16][flags u8: 1 masks, 2 sfx, 4 spawn, 8 continuation, 16 dyna]
+//         [acMask u8][ocMask u8] (masks) [n u8][SoundEntry...] (sfx)
+//         [actorId u16][params s16][pos f32 x3][rot s16 x3][parentKey u32] (spawn) [flags u8] (dyna)
 //         [spanCount u8] then spans: [region u8][first u16][count u8] + per slot [kind u8][payload]
 // Payload: Raw u64, Zero/Keep none, Exe u32, Actor key u32 + region u8 + offset u16, Link player u8 + offset u32.
 constexpr size_t kHeaderBytes = 1 + 1 + 2 + 1 + 2 + 1 + 1 + 1;
@@ -31,6 +31,7 @@ constexpr uint8_t kRecMasks = 1;
 constexpr uint8_t kRecSfx = 2;
 constexpr uint8_t kRecSpawn = 4;
 constexpr uint8_t kRecContinuation = 8;
+constexpr uint8_t kRecDyna = 16;
 
 size_t PayloadBytes(SlotKind kind) {
     switch (kind) {
@@ -64,8 +65,9 @@ size_t RecordHeadBytes(const ActorImageRecord& r, bool first) {
     size_t n = 4 + 2 + 1 + 1; // key, actorId, flags, spanCount
     if (first) {
         n += HasMasks(r) ? 2 : 0;
-        n += r.sfx.empty() ? 0 : 1 + 2 * std::min<size_t>(r.sfx.size(), kSfx);
+        n += r.sfx.empty() ? 0 : SoundsBytes(r.sfx, kSfx);
         n += r.hasSpawn ? kSpawnBytes : 0;
+        n += r.dyna >= 0 ? 1 : 0;
     }
     return n;
 }
@@ -95,10 +97,9 @@ void WriteSlot(Writer& w, const Slot& s) {
 }
 
 void WriteRecord(Writer& w, const ActorImageRecord& r) {
-    size_t sfx = std::min<size_t>(r.sfx.size(), kSfx);
     uint8_t flags = r.continuation ? kRecContinuation
-                                   : (uint8_t)((HasMasks(r) ? kRecMasks : 0) | (sfx > 0 ? kRecSfx : 0) |
-                                               (r.hasSpawn ? kRecSpawn : 0));
+                                   : (uint8_t)((HasMasks(r) ? kRecMasks : 0) | (!r.sfx.empty() ? kRecSfx : 0) |
+                                               (r.hasSpawn ? kRecSpawn : 0) | (r.dyna >= 0 ? kRecDyna : 0));
     w.U32(r.key);
     w.U16(r.actorId);
     w.U8(flags);
@@ -107,10 +108,7 @@ void WriteRecord(Writer& w, const ActorImageRecord& r) {
         w.U8(r.ocMask);
     }
     if (flags & kRecSfx) {
-        w.U8((uint8_t)sfx);
-        for (size_t i = 0; i < sfx; i++) {
-            w.U16(r.sfx[i]);
-        }
+        WriteSounds(w, r.sfx, kSfx);
     }
     if (flags & kRecSpawn) {
         w.U16(r.spawn.actorId);
@@ -122,6 +120,9 @@ void WriteRecord(Writer& w, const ActorImageRecord& r) {
             w.S16(v);
         }
         w.U32(r.spawn.parentKey);
+    }
+    if (flags & kRecDyna) {
+        w.U8((uint8_t)r.dyna);
     }
     w.U8((uint8_t)r.spans.size());
     for (const SlotSpan& s : r.spans) {
@@ -205,7 +206,7 @@ bool ReadSlot(Reader& r, Slot& s) {
 bool ReadRecord(Reader& r, ActorImageRecord& out) {
     uint8_t flags = 0;
     if (!r.U32(out.key) || !r.U16(out.actorId) || !r.U8(flags) ||
-        (flags & ~(kRecMasks | kRecSfx | kRecSpawn | kRecContinuation)) ||
+        (flags & ~(kRecMasks | kRecSfx | kRecSpawn | kRecContinuation | kRecDyna)) ||
         ((flags & kRecContinuation) && flags != kRecContinuation)) {
         return false;
     }
@@ -213,17 +214,8 @@ bool ReadRecord(Reader& r, ActorImageRecord& out) {
     if ((flags & kRecMasks) && (!r.U8(out.acMask) || !r.U8(out.ocMask))) {
         return false;
     }
-    if (flags & kRecSfx) {
-        uint8_t n = 0;
-        if (!r.U8(n) || n == 0 || n > kSfx) {
-            return false;
-        }
-        out.sfx.resize(n);
-        for (uint16_t& s : out.sfx) {
-            if (!r.U16(s)) {
-                return false;
-            }
-        }
+    if ((flags & kRecSfx) && (!ReadSounds(r, out.sfx, kSfx) || out.sfx.empty())) {
+        return false;
     }
     out.hasSpawn = (flags & kRecSpawn) != 0;
     if (out.hasSpawn) {
@@ -244,6 +236,13 @@ bool ReadRecord(Reader& r, ActorImageRecord& out) {
         if (!r.U32(sp.parentKey)) {
             return false;
         }
+    }
+    if (flags & kRecDyna) {
+        uint8_t dyna = 0;
+        if (!r.U8(dyna)) {
+            return false;
+        }
+        out.dyna = dyna;
     }
     uint8_t spans = 0;
     if (!r.U8(spans) || spans > kSpans) {
@@ -328,6 +327,7 @@ std::vector<std::vector<uint8_t>> EncodeActorImage(const ActorImagePacket& frame
                 piece.sfx.assign(rec.sfx.begin(), rec.sfx.begin() + std::min<size_t>(rec.sfx.size(), kSfx));
                 piece.hasSpawn = rec.hasSpawn;
                 piece.spawn = rec.spawn;
+                piece.dyna = rec.dyna;
             }
             used += head;
             // Whole spans (or pieces of kChunkSlots slots) while they fit.

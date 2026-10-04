@@ -4,8 +4,8 @@ An online co-op mod for [2 Ship 2 Harkinian](README.md): up to 4 players share o
 three-day clock, the same unique items and quest flags, the same enemies, props and NPCs — through a small
 dedicated server.
 
-> **Status:** work in progress. The server and protocol (v14) are covered by an automated test suite
-> (361 tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
+> **Status:** work in progress. The server and protocol (v15) are covered by an automated test suite
+> (385 tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
 > Bug reports are welcome.
 
 You need your own legally obtained copy of the game, exactly as for 2 Ship itself. This repository contains no
@@ -27,6 +27,12 @@ copyrighted assets.
 - **Game mods (.o2r):** the server can share 2 Ship mods (models, textures...). On connecting, each game downloads the
   ones it lacks, loads them without restarting and only then enters the server's world. See
   [Game mods (.o2r)](#game-mods-o2r).
+- **Total sync:** what happens in a scene sounds and looks the same in every game: the other Links' sounds (steps,
+  sword, voice, items) and those of the enemies and NPCs, boss and miniboss music and quakes, the others' arrows,
+  bombs, hookshot, Zora fins and Elegy statues, what they carry in their hands, their sword trail, the
+  scene's switches/chests/cleared rooms live (walls and blocks that depend on them are recreated), platforms, lifts
+  and push blocks (run by whoever stands on them) and the notes of their ocarina. Each part can be switched off in
+  F1 → Co-op → *Sincronización* or in `server.json`.
 
 ## Quick start
 
@@ -40,7 +46,9 @@ copyrighted assets.
 `server.json` options: `port`, `maxPlayers`, `password`, `motd`, `language`, `sharedEnemies`, `sharedProps`,
 `groups`, `inviteSeconds`, `bossCutscenes`, `effects`, `endingForAll`, `timeSpeed` (how fast the three days pass),
 `voteSeconds`, `saveSeconds`, `giftMax`, `commandPermissions` (who may use each command), `gameSettings` (2 Ship
-options forced on everyone in the server's world), `mods` (below) and `o2r` (the game mods the players download).
+options forced on everyone in the server's world), `mods` (below), `o2r` (the game mods the players download) and the
+total sync's parts (all `true` by default): `sounds`, `ambient` (music and quakes), `playerObjects`, `sceneFlags`,
+`sceneObjects` (platforms, lifts, switches, blocks) and `ocarina`.
 
 To try it alone: `2ship-coop-bot.exe --target YourNick --mode mirror` makes a fake player.
 

@@ -290,6 +290,7 @@ void ActorMemory_BuildLocalMask(TrackedActor& t) {
     if (DynaPoly_GetActor(&gPlayState->colCtx, bgId) != (DynaPolyActor*)t.actor) {
         return; // not a DynaPolyActor (DynaPoly_GetActor checks the index is valid and in use)
     }
+    t.bgId = bgId; // its collision flags travel (kRecDyna, ActorSync.cpp)
     auto mark = [&](size_t off, size_t size) {
         std::fill(t.localMask.begin() + off, t.localMask.begin() + off + size, (uint8_t)1);
     };

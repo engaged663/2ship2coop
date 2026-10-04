@@ -19,6 +19,7 @@
 #include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
+#include "common/PlayerState.h"
 #include "common/Protocol.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
@@ -27,6 +28,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <set>
@@ -335,6 +337,7 @@ void FrameEnd() {
         sAskedScene = gPlayState->sceneId; // just arrived: what did the others break here?
         json ev = MakeEvent(ev::kProps);
         ev["scene"] = gPlayState->sceneId;
+        ev["layer"] = (int)std::clamp<int>(gSaveContext.sceneLayer, 0, coop::pose_limits::kMaxLayer); // Stage.h
         NetClient::Get().SendEvent(ev);
     }
     PollMures();
@@ -420,6 +423,10 @@ void RegisterPropSync() {
 }
 
 } // namespace
+
+bool PropSync_IsShared(int16_t actorId) {
+    return PropOf(actorId) != nullptr;
+}
 
 void PropSync_OnSpawned(Actor* actor) {
     if (sApplying || !Active() || actor->id != ACTOR_EN_ITEM00 || gPlayState->transitionTrigger != TRANS_TRIGGER_OFF) {

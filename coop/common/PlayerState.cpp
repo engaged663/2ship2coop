@@ -47,7 +47,9 @@ template <class IO> bool VisitFields(IO& io, PlayerState& s) {
     for (int i = 0; ok && i < kPoseJoints; i++) {
         ok = Vec(io, s.joints[i]);
     }
-    return ok && io.S16(s.appearance);
+    return ok && io.S16(s.appearance) && io.U8(s.layer) && io.S8(s.meleeWeaponState) &&
+           io.U8(s.meleeWeaponAnimation) && io.U8(s.ocarinaInstrument) && io.U8(s.ocarinaPitch) &&
+           io.U16(s.ocarinaBend) && io.S8(s.ocarinaVibrato);
 }
 
 } // namespace
@@ -63,7 +65,10 @@ bool SanitizePlayerState(PlayerState& s) {
                      finite(s.pos[2], kWorldLimit) && finite(s.speed, kValueLimit) &&
                      finite(s.unk_AB8, kValueLimit) && finite(s.unk_ABC, kValueLimit) &&
                      finite(s.unk_B10, kValueLimit);
-    if (!inRange || !plausible) {
+    bool v15 = s.layer <= kMaxLayer && s.meleeWeaponState >= -1 && s.meleeWeaponState <= 1 &&
+               s.meleeWeaponAnimation < kMeleeAnimations && s.ocarinaInstrument < kOcarinaInstruments &&
+               (s.ocarinaPitch < kOcarinaPitches || s.ocarinaPitch == 0xFF);
+    if (!inRange || !plausible || !v15) {
         return false;
     }
     s.stateFlags1 &= kStateFlags1;
@@ -81,6 +86,7 @@ std::vector<uint8_t> EncodePlayerState(const PlayerState& state) {
     io.w.U8(state.playerId);
     PlayerState copy = state;
     VisitFields(io, copy);
+    WriteSounds(io.w, state.sounds, sound_limits::kPerPose);
     return io.w.Take();
 }
 
@@ -90,16 +96,17 @@ size_t PlayerStateWireSize() {
 }
 
 bool DecodePlayerState(const uint8_t* data, size_t size, PlayerState& out) {
-    if (data == nullptr || size != PlayerStateWireSize() || data[0] != kStreamPlayerState) {
+    if (data == nullptr || size < PlayerStateWireSize() || data[0] != kStreamPlayerState) {
         return false;
     }
     ReadIO io{ Reader(data, size) };
     uint8_t type = 0;
     PlayerState decoded;
-    if (!io.U8(type) || !io.U8(decoded.playerId) || !VisitFields(io, decoded)) {
+    if (!io.U8(type) || !io.U8(decoded.playerId) || !VisitFields(io, decoded) ||
+        !ReadSounds(io.r, decoded.sounds, sound_limits::kPerPose) || io.r.Remaining() != 0) {
         return false;
     }
-    out = decoded;
+    out = std::move(decoded);
     return true;
 }
 

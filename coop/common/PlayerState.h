@@ -1,6 +1,8 @@
 #pragma once
 // Binary pose stream of one player (channel kChannelStream), sent once per game frame (20 Hz).
 // The "unk_*" fields mirror the Player struct fields of the same name that the engine's draw code reads.
+#include "SoundEntry.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -52,6 +54,15 @@ struct PlayerState {
     int16_t unk_B62 = 0;
     Vec3s16 joints[kPoseJoints]; // PlayerAnimationFrame.frameTable
     int16_t appearance = 0;      // PlayerAnimationFrame.appearanceInfo (face + hands)
+    // v15 (Sincronización total)
+    uint8_t layer = 0;              // gSaveContext.sceneLayer: another layer of a scene has other actors
+    int8_t meleeWeaponState = 0;    // the sword's trail (-1, 0, 1)
+    uint8_t meleeWeaponAnimation = 0;
+    uint8_t ocarinaInstrument = 0;  // 0: not playing
+    uint8_t ocarinaPitch = 0xFF;    // the note held (OCARINA_PITCH_*; 0xFF: none)
+    uint16_t ocarinaBend = 4096;    // its pitch bend, ×1/4096
+    int8_t ocarinaVibrato = 0;
+    std::vector<SoundEntry> sounds; // what the sender's Link sounded this frame (≤ sound_limits::kPerPose)
 };
 
 // Limits of the engine values a puppet uses as table indexes (checked against the game headers by
@@ -72,6 +83,10 @@ constexpr float kValueLimit = 1.0e6f;      // speed and the raw float fields
 constexpr uint32_t kStateFlags1 = (1u << 27) | (1u << 22) | (1u << 25) | (1u << 23); // swimming, shield up, Zora boomerang, riding
 constexpr uint32_t kStateFlags2 = 1u << 29;                             // not drawn
 constexpr uint32_t kStateFlags3 = (1u << 12) | (1u << 15);              // Goron ball, Zora fast swim
+constexpr uint8_t kMaxLayer = 16;           // gSaveContext.sceneLayer: (cutscene index & 0xF) + 1 at most
+constexpr uint8_t kMeleeAnimations = 34;    // PLAYER_MWA_MAX
+constexpr uint8_t kOcarinaInstruments = 17; // OCARINA_INSTRUMENT_AMPLIFIED_GUITAR + 1
+constexpr uint8_t kOcarinaPitches = 16;     // OCARINA_PITCH_EFLAT5 + 1 (0xFF: none)
 } // namespace pose_limits
 
 // False when a value is impossible (enum out of range, non-finite or absurd float): drop the packet.
@@ -83,6 +98,6 @@ std::vector<uint8_t> EncodePlayerState(const PlayerState& state);
 bool DecodePlayerState(const uint8_t* data, size_t size, PlayerState& out);
 // Overwrites the player id inside an encoded packet (offset 1). False if the buffer is too small.
 bool StampPlayerId(uint8_t* data, size_t size, uint8_t playerId);
-size_t PlayerStateWireSize();
+size_t PlayerStateWireSize(); // bytes of a pose without sounds
 
 } // namespace coop
