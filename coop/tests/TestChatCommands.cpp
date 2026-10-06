@@ -1,4 +1,5 @@
 #include "TestNet.h"
+#include "TestWorld.h"
 
 using namespace coop_test;
 
@@ -186,6 +187,7 @@ TEST_CASE(UnlockAllAndGiveReachThePlayer) {
     TestServer s;
     auto a = Join(s, "Alice");
     s.server->ExecuteConsoleLine("op Alice");
+    CreateWorld(s, *a); // both only reach players in the server's world (TestSaveCommands.cpp)
     a->Cmd("/unlockall Alice");
     auto unlock = a->WaitFor("unlock_all", s);
     CHECK(unlock.has_value());
@@ -203,10 +205,12 @@ TEST_CASE(UnlockAllAndGiveReachThePlayer) {
     CHECK(a->WaitForSys("error", s));
 }
 
-TEST_CASE(GiveWithoutWorldStillDelivers) {
+// The rupees go into the server's world only: outside it /give refuses (UnlockAllAndGiveNeedThePlayerInTheWorld).
+TEST_CASE(GiveChecksTheAmount) {
     TestServer s;
     auto a = Join(s, "Alice");
     s.server->ExecuteConsoleLine("op Alice");
+    CreateWorld(s, *a);
     a->Cmd("/give Alice 1000000");
     CHECK(a->WaitForSys("error", s)); // out of range
     a->Cmd("/give Alice 500");

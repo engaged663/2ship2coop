@@ -4,8 +4,8 @@ An online co-op mod for [2 Ship 2 Harkinian](README.md): up to 4 players share o
 three-day clock, the same unique items and quest flags, the same enemies, props and NPCs — through a small
 dedicated server.
 
-> **Status:** work in progress. The server and protocol (v16) are covered by an automated test suite
-> (393 tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
+> **Status:** work in progress. The server and protocol (v18) are covered by an automated test suite
+> (460+ tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
 > Bug reports are welcome.
 
 You need your own legally obtained copy of the game, exactly as for 2 Ship itself. This repository contains no
@@ -14,7 +14,10 @@ copyrighted assets.
 ## What it does
 
 - **Shared world:** one server-owned save. Chests, heart pieces, masks, songs, quest flags and owl statues are shared;
-  each player keeps their own inventory. Progress lives on the server, never in your local saves.
+  each player keeps their own inventory. Progress lives on the server, never in your local saves, with automatic
+  backups. See [Saving and backups](#saving-and-backups).
+- **Bring your own save:** `2ship-coop-convert` turns a normal 2 Ship save into the server's world. See
+  [Converting a base-game save](#converting-a-base-game-save).
 - **Shared clock:** the three-day cycle belongs to the server and never stops; the Song of Time is a vote.
 - **Shared enemies, props, NPCs and Epona** (including multiple horses and passengers between scenes).
 - **Groups:** invite players into a group to share dialogues, cutscenes, minigames (together / each on their own /
@@ -46,12 +49,52 @@ copyrighted assets.
 
 `server.json` options: `port`, `maxPlayers`, `password`, `motd`, `language`, `sharedEnemies`, `sharedProps`,
 `groups`, `inviteSeconds`, `bossCutscenes`, `effects`, `endingForAll`, `timeSpeed` (how fast the three days pass),
-`voteSeconds`, `saveSeconds`, `giftMax`, `commandPermissions` (who may use each command), `gameSettings` (2 Ship
+`voteSeconds`, `saveSeconds`, `backupMinutes`, `backupKeep`, `giftMax`, `commandPermissions` (who may use each
+command), `gameSettings` (2 Ship
 options forced on everyone in the server's world), `mods` (below), `o2r` (the game mods the players download) and the
 total sync's parts (all `true` by default): `sounds`, `ambient` (music and quakes), `playerObjects`, `sceneFlags`,
 `sceneObjects` (platforms, lifts, switches, blocks) and `ocarina`.
 
 To try it alone: `2ship-coop-bot.exe --target YourNick --mode mirror` makes a fake player.
+
+## Saving and backups
+
+The server saves the shared world (`world.json`) and each player's own data (`players/<nick>.json`) every
+`saveSeconds` while something changes, when the world is created or starts a new cycle, and when it stops. Your game
+uploads your data every 2 seconds while it changes, and again when you leave or close the game; **Save** in the pause
+menu (2 Ship's *Pause Save*) writes it to the server's disk at once.
+
+- **Backups** go to `backups/<date>-<reason>/` next to `world.json` (the world and every player's file): when the
+  server starts with a world that changed, every `backupMinutes` (30; `0` = never) while it changes, and before the
+  moon, a new cycle, `/reiniciar`, an import or a restore. The newest `backupKeep` (20) are kept. `/backup` (admins)
+  makes one now (manual copies are never removed by themselves); `/backup lista` lists them.
+- **Restoring:** `/restaurar <name|ultima>` in the server console puts a backup back while the server runs: everyone
+  in the world switches to it.
+- **Damaged files are never overwritten:** they are moved aside (`world.json.bad-<date>`,
+  `players/<nick>.json.bad-<date>`), and a damaged `world.json` comes back from the newest backup. A `world.json` saved
+  by another version of the mod still loads (new parts start empty).
+- `/unlockall <player>` (admins) gives every item, mask, song and heart — the shared ones for the whole world — and it
+  is saved like any other progress. It and `/give` only reach players inside the server's world. In a world where its
+  first version was used, it also repairs what that one broke (Deku stick and nut capacities, two unused songs, more
+  than 20 hearts).
+
+## Converting a base-game save
+
+`2ship-coop-convert.exe` (next to the server) turns a 2 Ship save — `saves/file1.json` of your normal game — into the
+server's world: drag the file onto the exe in the server's folder, type the nick of the player who owns the save and
+start the server. It shows a summary (hearts, masks, songs...), keeps a backup of the world that was there and refuses
+to write while that server is running (use `/importar` in its console instead). If the save lacks what a co-op world
+needs to work (a save still in its first cycle: no Ocarina, no Song of Time...), that is added and listed. An owl save
+keeps its day and time and starts at its owl statue; otherwise the world starts at the Dawn of the First Day.
+Randomizer saves are not supported.
+
+```
+2ship-coop-convert saves/file1.json --nick Ana --out C:\coop\server
+2ship-coop-convert saves/file2.json --nick Ben --player-only     # only Ben's own items, for the world already there
+```
+
+Options: `--source auto|owl|cycle`, `--info` (summary only), `--yes` (replace an existing world without asking),
+`--force`, `--lang es|en|zh|ru`. In the server console: `/importar <file> [nick] [auto|buho|ciclo]`.
 
 ## Mods
 

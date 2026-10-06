@@ -46,6 +46,12 @@ struct ServerConfig {
     bool groups = true;
     bool bossCutscenes = true; // bosses' cutscenes, title cards and dialogues go to everyone in their scene
     int inviteMs = kInviteMs;  // server.json "inviteSeconds" (10..600)
+    // Activity rooms (docs/superpowers/specs/2026-10-04-coop-salas-actividades-design.md): every minigame a game
+    // starts opens a room (lobby, invitations, chat, ready check). false: no rooms (the groups work as before).
+    bool rooms = true;
+    int64_t roomCountdownMs = kRoomCountdownMs; // not stored in server.json (tests only)
+    int64_t roomLobbyMs = kRoomLobbyMs;
+    int64_t roomLingerMs = kRoomLingerMs;
     bool effects = true;       // the effects echo (stream kStreamEffects): false = never relayed
     // Total sync (docs/superpowers/specs/2026-10-04-coop-sincronizacion-total-design.md): what the games may share.
     // They are told in "welcome" ("sync") and the server drops what is off.
@@ -76,6 +82,8 @@ struct ServerConfig {
     std::string configPath; // server.json, where /lang saves the language ("" = not saved, tests)
     int voteTimeoutMs = kSotVoteMs;           // server.json "voteSeconds" (10..300)
     int worldSaveMs = kWorldSaveMs;           // server.json "saveSeconds" (2..600)
+    int backupMs = kBackupMs;                 // server.json "backupMinutes" (0..1440; 0 = no periodic backups)
+    int backupKeep = kBackupKeep;             // server.json "backupKeep" (1..500): automatic backups kept
     // Not stored in server.json (tests only)
     int cycleComputeTimeoutMs = kCycleComputeMs;
     int worldCreateTimeoutMs = kWorldCreateMs;

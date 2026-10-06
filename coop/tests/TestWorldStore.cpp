@@ -7,9 +7,13 @@
 #include "server/World/PlayerStore.h"
 #include "server/World/SotVote.h"
 #include "server/World/WorldClock.h"
+#include "server/World/WorldImage.h"
 #include "server/World/WorldStore.h"
 
+#include <algorithm>
 #include <fstream>
+#include <iterator>
+#include <map>
 
 using namespace coop;
 using namespace coop::server;
@@ -98,6 +102,120 @@ TEST_CASE(WorldStoreCycleStartSnapshot) {
     CHECK_EQ(back.Fields()[Field("sceneFlags")][100], (uint8_t)0);
 }
 
+// A world.json from another version of the server still loads: what is missing starts empty, what changed size is
+// cut or padded, what this version does not know is dropped (each case is a warning). Only a non-hex value fails.
+TEST_CASE(WorldStoreLoadsOlderSchemas) {
+    json fields = WorldFields(0x11);
+    fields.erase("sceneExtra");
+    fields["owls"] = "ab"; // one byte instead of two
+    fields["zzz"] = "00";
+    json saved = { { "version", 1 }, { "cycle", 3 }, { "fields", fields } };
+    WorldStore store;
+    std::string err;
+    std::vector<std::string> warnings;
+    CHECK(store.FromJson(saved, &err, &warnings));
+    CHECK_EQ(warnings.size(), (size_t)3);
+    for (const char* name : { "sceneExtra", "owls", "zzz" }) {
+        CHECK(std::any_of(warnings.begin(), warnings.end(),
+                          [name](const std::string& w) { return w.find(name) != std::string::npos; }));
+    }
+    CHECK_EQ(store.Cycle(), 3);
+    CHECK(store.Fields()[Field("sceneExtra")] == std::vector<uint8_t>(480, 0));
+    CHECK(store.Fields()[Field("owls")] == std::vector<uint8_t>({ 0xAB, 0x00 }));
+    CHECK_EQ(store.Fields()[Field("items")][0], (uint8_t)0x11);
+    CHECK(store.Start() == store.Fields()); // no copy of the cycle's start in the file: the current world
+    fields["items"] = "xyz";
+    saved["fields"] = fields;
+    WorldStore bad;
+    CHECK(!bad.FromJson(saved, &err));
+    CHECK(err.find("items") != std::string::npos);
+    CHECK_EQ(store.ToJson()["version"].get<int>(), 2);
+}
+
+TEST_CASE(WorldStoreReplaceSetsBoth) {
+    FieldSet now = WorldStore::EmptyFields();
+    FieldSet start = WorldStore::EmptyFields();
+    now[Field("owls")][0] = 1;
+    start[Field("owls")][0] = 2;
+    WorldStore store;
+    store.Replace(now, start, 7);
+    CHECK(store.Exists());
+    CHECK_EQ(store.Cycle(), 7);
+    CHECK(store.Fields() == now);
+    CHECK(store.Start() == start);
+    store.RestoreCycleStart(8);
+    CHECK(store.Fields() == start);
+}
+
+TEST_CASE(SetAsideNeverOverwrites) {
+    TempDir dir("coop_test_set_aside");
+    std::string path = dir.File("world.json");
+    std::string first;
+    std::string second;
+    std::ofstream(path) << "uno";
+    CHECK(SetAside(path, &first));
+    std::ofstream(path) << "dos";
+    CHECK(SetAside(path, &second));
+    CHECK(first != second);
+    CHECK(first.find("world.json.bad-") != std::string::npos);
+    CHECK(std::filesystem::exists(first));
+    CHECK(std::filesystem::exists(second));
+    CHECK(!std::filesystem::exists(path));
+    CHECK(!SetAside(dir.File("nada.json"), &first)); // nothing to set aside
+    CHECK_EQ(FileStamp().size(), (size_t)19);       // 2026-10-05_14-30-00
+}
+
+TEST_CASE(WorldImageRoundTrip) {
+    TempDir dir("coop_test_world_image");
+    WorldImage image;
+    image.fields = WorldStore::EmptyFields();
+    image.start = WorldStore::EmptyFields();
+    image.fields[Field("owls")][1] = 0x40;
+    image.start[Field("items")][3] = 0x07;
+    image.cycle = 4;
+    image.clockAbs = 1234;
+    image.inverted = true;
+    image.frozen = true;
+    PlayerRecord ana;
+    ana.nick = "Ana";
+    ana.inv = { { "v", 1 }, { "fields", { { "rupees", "0a00" } } } };
+    ana.cycle = 4;
+    ana.start = ana.inv;
+    ana.startCycle = 4;
+    PlayerRecord bob = ana;
+    bob.nick = "Bob";
+    bob.cycle = 3; // missed the last Song of Time
+    image.players = { ana, bob };
+    std::string err;
+    std::string world = dir.File("world.json");
+    std::string players = dir.File("players");
+    std::ofstream(dir.File("old.json")) << "{}";
+    CHECK(SaveWorldImage(image, world, players, &err));
+    WorldImage back;
+    std::vector<std::string> warnings;
+    CHECK(LoadWorldImage(world, players, back, &warnings, &err));
+    CHECK(warnings.empty());
+    CHECK(back.fields == image.fields);
+    CHECK(back.start == image.start);
+    CHECK_EQ(back.cycle, 4);
+    CHECK_EQ(back.clockAbs, 1234u);
+    CHECK(back.inverted);
+    CHECK(back.frozen);
+    std::map<std::string, PlayerRecord> byNick;
+    for (const PlayerRecord& r : back.players) {
+        byNick[r.nick] = r;
+    }
+    CHECK_EQ(byNick.size(), (size_t)2);
+    CHECK_EQ(byNick["Ana"].inv, ana.inv);
+    CHECK_EQ(byNick["Bob"].cycle, 3);
+    CHECK_EQ(byNick["Bob"].startCycle, 4);
+    // Saving another image puts the previous players aside (.old), never deletes them
+    image.players = { bob };
+    CHECK(SaveWorldImage(image, world, players, &err));
+    CHECK(std::filesystem::exists(std::filesystem::path(players) / "ana.json.old"));
+    CHECK(!std::filesystem::exists(std::filesystem::path(players) / "ana.json"));
+}
+
 TEST_CASE(WorldClockRunsOnlyWhenAsked) {
     WorldClock c;
     CHECK_EQ(c.Abs(5000), 0u);
@@ -169,6 +287,83 @@ TEST_CASE(PlayerStorePersistsToDisk) {
     bool missing = false;
     CHECK(!LoadJsonFile(dir.File("nada.json"), saved, &err, &missing));
     CHECK(missing);
+}
+
+// A damaged player file is set aside (never overwritten by the next upload): it can still be fixed by hand.
+TEST_CASE(PlayerStoreSetsAsideBadFiles) {
+    TempDir dir("coop_test_players_aside");
+    std::ofstream(dir.path / "ana.json") << "{roto";
+    PlayerStore players(dir.path.string());
+    std::string warn;
+    players.LoadAll(&warn);
+    CHECK(warn.find("ana.json") != std::string::npos);
+    CHECK(players.Get("ana") == nullptr);
+    CHECK(!std::filesystem::exists(dir.path / "ana.json"));
+    auto setAside = [&dir]() {
+        std::vector<std::filesystem::path> found;
+        for (const auto& entry : std::filesystem::directory_iterator(dir.path)) {
+            if (entry.path().filename().string().rfind("ana.json.bad-", 0) == 0) {
+                found.push_back(entry.path());
+            }
+        }
+        return found;
+    };
+    CHECK_EQ(setAside().size(), (size_t)1);
+    players.Upload("Ana", json{ { "r", 1 } }, 1);
+    std::string err;
+    CHECK(players.SaveAll(&err));
+    CHECK(std::filesystem::exists(dir.path / "ana.json"));
+    std::vector<std::filesystem::path> aside = setAside();
+    CHECK_EQ(aside.size(), (size_t)1);
+    std::ifstream in(aside[0]);
+    std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    CHECK_EQ(text, std::string("{roto"));
+}
+
+TEST_CASE(PlayerStoreReplaceAll) {
+    TempDir dir("coop_test_players_replace");
+    PlayerStore players(dir.path.string());
+    players.Upload("Ana", json{ { "r", 1 } }, 1);
+    std::string err;
+    CHECK(players.SaveAll(&err));
+    PlayerRecord bob;
+    bob.nick = "Bob";
+    bob.inv = { { "r", 2 } };
+    bob.cycle = 3;
+    bob.start = bob.inv;
+    bob.startCycle = 3;
+    players.ReplaceAll({ bob });
+    CHECK(players.Get("Ana") == nullptr);
+    CHECK_EQ(players.Get("bob")->cycle, 3);
+    CHECK(players.SaveAll(&err));
+    CHECK(std::filesystem::exists(dir.path / "bob.json"));
+    CHECK(std::filesystem::exists(dir.path / "ana.json.old"));
+    CHECK(!std::filesystem::exists(dir.path / "ana.json"));
+}
+
+// One player's file written into a world that already has others (the converter's --player-only).
+TEST_CASE(PlayerStoreSetsOneRecord) {
+    TempDir dir("coop_test_players_set");
+    PlayerStore players(dir.path.string());
+    players.Upload("Ana", json{ { "r", 1 } }, 2);
+    std::string err;
+    CHECK(players.SaveAll(&err));
+    PlayerRecord bob;
+    bob.nick = "Bob";
+    bob.inv = { { "r", 5 } };
+    bob.cycle = 2;
+    bob.start = { { "r", 0 } };
+    bob.startCycle = 2;
+    players.Set(bob);
+    CHECK(players.SaveAll(&err));
+    CHECK(std::filesystem::exists(dir.path / "ana.json")); // the others stay as they were
+    CHECK(!std::filesystem::exists(dir.path / "ana.json.old"));
+    PlayerStore again(dir.path.string());
+    again.LoadAll(nullptr);
+    CHECK(again.Get("ana") != nullptr);
+    CHECK_EQ(again.Get("bob")->inv, bob.inv);
+    CHECK_EQ(again.Get("bob")->start, bob.start);
+    CHECK(!again.IsStale("Bob", 2));
 }
 
 TEST_CASE(SotVoteNeedsMoreThanHalf) {

@@ -6,6 +6,7 @@
 
 #include "common/Events.h"
 
+#include <cstdint>
 #include <functional>
 #include <string>
 
@@ -15,8 +16,11 @@ void SaveBuilder_NewWorld();                    // a new save with the state of 
 void SaveBuilder_LoadWorld(const json& fields); // a new save with the world's fields (fields::CheckJson passed)
 void SaveBuilder_LoadPlayer(const json& inv);   // this player's own data {v, fields, loc}; null = a new player
 void SaveBuilder_SetClock(const json& serverClock); // day and time from the server's clock {abs, inv, stopped}
-// What loading a file sets before Play_Init. spot == nullptr: South Clock Town.
-void SaveBuilder_PrepareStart(const WarpTarget* spot, const std::string& nick);
+constexpr uint16_t kNoStartEntrance = 0xFFFF;
+// What loading a file sets before Play_Init. spot == nullptr: startEntrance (a converted base-game owl save's statue,
+// coop/common/SaveImport.h) when it is a real entrance, else South Clock Town.
+void SaveBuilder_PrepareStart(const WarpTarget* spot, const std::string& nick,
+                              uint16_t startEntrance = kNoStartEntrance);
 // Runs the end-of-cycle rules (Song of Time + Dawn of the First Day) on the live save, which needs a loaded scene,
 // calls readResult, and puts everything back as it was.
 void SaveBuilder_EndOfCycleOnCopy(const std::function<void()>& readResult);

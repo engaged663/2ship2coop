@@ -217,14 +217,19 @@ TEST_CASE(WorldSurvivesServerRestart) {
         int64_t abs = GetInt(full["clock"], "abs");
         CHECK(abs >= (int64_t)noon && abs < (int64_t)noon + 600); // it only ran while Alice was inside
     }
-    // A damaged world.json is set aside (never overwritten) and the next player creates a new world.
+    // A damaged world.json is set aside (never overwritten) and the newest backup (taken when the second server
+    // found the world) takes its place. Without backups: DamagedWorldWithoutBackupsIsSetAside.
     {
         std::ofstream broken(cfg.worldPath);
         broken << "{roto";
     }
     TestServer s(cfg);
-    CHECK(!s.server->World().Exists());
-    CHECK(std::filesystem::exists(cfg.worldPath + ".bad"));
+    CHECK(s.server->World().Exists());
+    bool setAside = false;
+    for (const auto& entry : std::filesystem::directory_iterator(dir.path)) {
+        setAside = setAside || entry.path().filename().string().rfind("world.json.bad-", 0) == 0;
+    }
+    CHECK(setAside);
 }
 
 TEST_CASE(ClockRunsOnlyWithSomeoneInTheWorld) {

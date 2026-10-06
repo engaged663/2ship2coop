@@ -6,7 +6,7 @@
 
 namespace coop::client {
 
-enum class ChatKind { Chat, Private, Info, Ok, Warn, Error, Presence };
+enum class ChatKind { Chat, Private, Info, Ok, Warn, Error, Presence, Room }; // Room: an activity room's chat
 
 struct ChatLine {
     ChatKind kind;

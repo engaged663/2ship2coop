@@ -29,6 +29,8 @@
 #include "2s2h/Enhancements/Songs/Songs.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
+extern void Coop_OnPauseSave(void); // [COOP] Coop/World/WorldSession.cpp: "Save" while playing in the server's world
+
 #pragma increment_block_number "n64-us:128"
 
 // Page Textures (Background of Page):
@@ -3594,6 +3596,13 @@ void KaleidoScope_Update(PlayState* play) {
                             if (!gSaveContext.flashSaveAvailable ||
                                 gSaveContext.fileNum ==
                                     255) { // 2S2H [Enhancement] Don't let them save if they are in debug save
+                                // [COOP] No file behind this save (the server's world, the debug save): the pause
+                                // save's markers go back as they were, and the server's world saves on the server.
+                                gSaveContext.save.isOwlSave = currentOwlSaveState;
+                                if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {
+                                    SavingEnhancements_ClearSaveEntranceInfo();
+                                }
+                                Coop_OnPauseSave();
                                 pauseCtx->savePromptState = PAUSE_SAVEPROMPT_STATE_5;
                             } else {
                                 if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {

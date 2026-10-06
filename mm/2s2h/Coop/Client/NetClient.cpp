@@ -223,9 +223,21 @@ void NetClient::ThreadMain(std::string host, uint16_t port, std::string helloTex
 
     if (mUserDisconnect) {
         if (connected) {
+            // What the game queued last (its final world changes and data, world_leave) goes out first: ENet delivers
+            // queued reliable packets before the goodbye.
+            std::deque<Outbound> last;
+            {
+                std::lock_guard<std::mutex> lock(mMutex);
+                last.swap(mOutbound);
+            }
+            for (auto& o : last) {
+                if (o.channel == kChannelEvents) {
+                    transport.Send(peer, o.channel, o.bytes.data(), o.bytes.size());
+                }
+            }
             // Polite goodbye so the others see us leave immediately.
             transport.Disconnect(peer);
-            auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+            auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
             bool done = false;
             while (!done && std::chrono::steady_clock::now() < until) {
                 std::vector<NetEvent> events;

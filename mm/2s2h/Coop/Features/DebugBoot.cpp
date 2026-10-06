@@ -6,7 +6,8 @@
 // - gCoop.Debug.DumpActors: every 15 s of gameplay writes the loaded actors (id, name, category, room, position) to
 //   the log, to see what a scene really has.
 // - gCoop.Debug.FieldSelfTest: once in gameplay, writes every shared-world and player field back to the save and
-//   checks that nothing changed (the result goes to the chat and the log).
+//   checks that nothing changed, then that the base-game save converter reads this save like FieldTable (the result
+//   goes to the chat and the log).
 #include "2s2h/Coop/Chat/ChatModel.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 #include "2s2h/Coop/World/FieldTable.h"
@@ -78,6 +79,9 @@ static void RegisterDebugBoot() {
         }
         sDone = true;
         std::string err = coop::client::fields::SelfTest();
+        if (err.empty()) {
+            err = coop::client::fields::ImportCrossCheck(); // the converter of base-game saves reads the same
+        }
         if (err.empty()) {
             SPDLOG_INFO("[Coop] Field self-test OK");
             coop::client::Chat_Add(coop::client::ChatKind::Ok, "Prueba de campos del mundo: correcta.");

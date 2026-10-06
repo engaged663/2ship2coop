@@ -30,5 +30,8 @@ void SyncSwordButton();               // B shows the sword of equips.equipment (
 // Test aid (gCoop.Debug.FieldSelfTest): reading, writing back and reading again must not change anything.
 // "" = OK, otherwise what differed.
 std::string SelfTest();
+// Test aid too (ImportCheck.cpp): the save converter (coop/common/SaveImport.h) reads the live save as 2 Ship writes it
+// to saves/fileN.json and must get exactly what FieldTable reads. "" = OK, otherwise the first field that differed.
+std::string ImportCrossCheck();
 
 } // namespace coop::client::fields

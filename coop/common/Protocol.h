@@ -6,7 +6,11 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 16; // v16: continuous sounds (without the 0x800 bit) travel, "song";
+constexpr uint32_t kProtocolVersion = 18; // v18: saving (world_full reset "import"/"restore", inv "save",
+                                          // /unlockall only in the world, inv "entrance" of converted saves);
+                                          // v17: activity rooms (room_op, room, room_invite, room_chat, rooms),
+                                          // room prizes and trips (act_reward/follow/tp "room", "all");
+                                          // v16: continuous sounds (without the 0x800 bit) travel, "song";
                                           // v15: total sync (sounds in poses and actor records, scene + layer, live
                                           // scene flags, ambient music and quakes, the players' objects);
                                           // v14: the server's game mods (.o2r): list, download, world_enter check;
@@ -48,6 +52,8 @@ constexpr int kWorldEntryBurst = 6;         // entering/leaving the server's wor
 constexpr double kWorldEntryPerSecond = 0.5; // ...and sustained rate (a menu click, a reconnection)
 constexpr int kClockBroadcastMs = 1000; // the clock goes to everyone in the world this often (and on changes)
 constexpr int kWorldSaveMs = 10000;     // world.json and players/ are saved this often
+constexpr int kBackupMs = 30 * 60000;   // a backup this often while the world changes (server.json "backupMinutes")
+constexpr int kBackupKeep = 20;         // automatic backups kept (server.json "backupKeep"; manual ones always stay)
 constexpr int kSotVoteMs = 30000;       // Song of Time vote
 constexpr int kCycleComputeMs = 15000;  // a game has this long to compute the new cycle
 constexpr int kWorldCreateMs = 15000;   // the first player has this long to create the world
@@ -127,6 +133,13 @@ constexpr int kAmbientPerSecond = 20;   // ...and sustained rate (one per room a
 constexpr int kSongBurst = 4;           // song events per player: burst...
 constexpr double kSongPerSecond = 0.5;  // ...and sustained rate (a song lasts several seconds)
 constexpr int kMaxSong = 13;            // OCARINA_SONG_DOUBLE_TIME: the last song with music of its own
+// Activity rooms (docs/superpowers/specs/2026-10-04-coop-salas-actividades-design.md)
+constexpr int kRoomOpBurst = 30;          // room_op per player: burst...
+constexpr double kRoomOpPerSecond = 10.0; // ...and sustained rate (a click each; "chat" also passes the chat limit)
+constexpr int kRoomCountdownMs = 3000;    // everyone is ready: the room runs this long after (alone: at once)
+constexpr int kRoomLobbyMs = 600000;      // a room waiting this long for its confirmations closes (its director's
+                                          // game waits meanwhile)
+constexpr int kRoomLingerMs = 120000;     // a room whose activity ended stays this long: prizes, chat, another round
 
 enum Channel : uint8_t {
     kChannelEvents = 0, // reliable + ordered, JSON events
@@ -151,7 +164,8 @@ inline constexpr const char* kChat = "chat";               // C->S text; S->C fr
 inline constexpr const char* kPm = "pm";                   // S->C from, to, text
 inline constexpr const char* kCmd = "cmd";                 // C->S line
 inline constexpr const char* kSys = "sys";                 // S->C text, level
-inline constexpr const char* kTp = "tp";                   // S->C scene, entrance, room, pos[3], rot
+inline constexpr const char* kTp = "tp";                   // S->C scene, entrance, room, pos[3], rot, target,
+                                                           // roomTrip (an activity room's trip: retried)
 inline constexpr const char* kGiftDebit = "gift_debit";    // S->C gid, to, amount
 inline constexpr const char* kGiftPaid = "gift_paid";      // C->S gid, paid
 inline constexpr const char* kGiftCredit = "gift_credit";  // S->C gid, from, amount
@@ -162,9 +176,13 @@ inline constexpr const char* kWorldEnter = "world_enter";     // C->S o2r[sha256
                                                               // world; o2r: the server's .o2r this game has loaded)
 inline constexpr const char* kWorldLeave = "world_leave";     // C->S
 inline constexpr const char* kWorldFull = "world_full";       // S->C create, fields{}, cycle, clock{}, you{inv, stale}, reset
+                                                              // ("" entering; "sot", "moon": a new cycle, back to the
+                                                              // clock tower; "import", "restore": a whole other world,
+                                                              // each one to their own place)
 inline constexpr const char* kWorldInit = "world_init";       // C->S fields{} (the creator, once)
 inline constexpr const char* kWops = "wops";                  // C->S bits[], bytes[], adds[], cycle; S->C same + from
-inline constexpr const char* kInv = "inv";                    // C->S inv{} (this player's own data, opaque), cycle (the world cycle it belongs to)
+inline constexpr const char* kInv = "inv";                    // C->S inv{} (this player's own data, opaque), cycle (the world cycle it belongs to),
+                                                              // save (true: on disk at once, "Save" in the pause menu)
 inline constexpr const char* kClock = "clock";                // S->C abs, inv, stopped, jump
 inline constexpr const char* kClockJump = "clock_jump";       // C->S (Song of Double Time)
 inline constexpr const char* kClockSpeed = "clock_speed";     // C->S inv (Inverted Song of Time)
@@ -212,11 +230,24 @@ inline constexpr const char* kAct = "act";              // C->S state (here, sta
                                                         // cs, won; S->C + from, nick
 inline constexpr const char* kActHud = "act_hud";       // C->S key, score, hidden, status, mstate, perfect, ammo, b, bomb,
                                                         // chu, arrows, frozen, sub, pos[3], rot, timer{}; S->C + from
-inline constexpr const char* kActReward = "act_reward"; // C->S gi | rupees; S->C + from, nick
-inline constexpr const char* kFollow = "follow";        // C->S entrance, cs, trans, scope, key; S->C + from
+inline constexpr const char* kActReward = "act_reward"; // C->S gi | rupees, room (to the room); S->C + from, nick
+inline constexpr const char* kFollow = "follow";        // C->S entrance, cs, trans, scope, key, all (the whole room
+                                                        // goes, wherever it is); S->C + from
 inline constexpr const char* kTalk = "talk";            // C->S op (open, id, page, choice, close), id, page, choice,
                                                         // scope, vars; S->C + from
 inline constexpr const char* kTitle = "title";          // C->S tex, x, y, w, h, scope: a boss's title card; S->C + from
+// Activity rooms (docs/superpowers/specs/2026-10-04-coop-salas-actividades-design.md)
+inline constexpr const char* kRoomOp = "room_op";       // C->S op (open: key, name, mode, place | ready: ready | invite:
+                                                        // to | group | answer: room, accept | leave | kick: who | close |
+                                                        // settings: open, travel, rewards | join: room | chat: text)
+inline constexpr const char* kRoom = "room";            // S->C id (0: none, + reason), key, name, mode, place, state, ms,
+                                                        // host, director, members [{id, nick, ready, here, score, cs,
+                                                        // won}], invites [{id, nick, ms}], settings {open, travel, rewards}
+inline constexpr const char* kRoomInvite = "room_invite";        // S->C room, from, nick, key, name, ms
+inline constexpr const char* kRoomInviteEnd = "room_invite_end"; // S->C room, from, reason
+inline constexpr const char* kRoomChat = "room_chat";   // S->C room, from, nick, text (the room's own chat)
+inline constexpr const char* kRooms = "rooms";          // S->C list [{id, host, nick, key, name, count, state}]: the
+                                                        // open rooms anyone in the world may join
 // Mods (server: Mods/Api/ApiGame.cpp, Handlers/ModHandlers.cpp; game: Mods/)
 inline constexpr const char* kMod = "mod";        // S->C ops [{op, ...}]: orders of the server's mods for this game
                                                   // (notify, message, sfx, item, take, rupees, heal, damage, kill,

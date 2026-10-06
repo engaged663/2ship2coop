@@ -691,7 +691,7 @@ A new three-day cycle has started.
 | Field | Type | Writable | What it is |
 |---|---|---|---|
 | `cycle` | int |  | Number of the new cycle |
-| `reason` | string |  | `sot` (vote), `moon` (the moon fell), `restart` (command) or `ending` (end of the game) |
+| `reason` | string |  | `sot` (vote), `moon` (the moon fell), `restart` (command), `ending` (end of the game), `import` (a converted base-game save, /importar) or `restore` (a backup, /restaurar) |
 
 ### `moon_crash`
 

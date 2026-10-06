@@ -44,8 +44,15 @@ bool NestedDeeperThan(const json& value, int levels) {
 
 } // namespace
 
+// A file next to world.json ("" without world.json: a server that keeps nothing on disk).
+static std::string NextToWorld(const std::string& worldPath, const char* name) {
+    return worldPath.empty() ? "" : (std::filesystem::path(worldPath).parent_path() / name).string();
+}
+
 SharedWorld::SharedWorld(Server& server, std::string worldPath, std::string playersDir)
-    : mServer(server), mWorldPath(std::move(worldPath)), mPlayers(std::move(playersDir)) {
+    : mServer(server), mWorldPath(std::move(worldPath)), mPlayersDir(playersDir),
+      mLockPath(NextToWorld(mWorldPath, "server.lock")), mPlayers(std::move(playersDir)),
+      mBackups(NextToWorld(mWorldPath, "backups"), server.Config().backupKeep) {
     mClock.SetScale(server.Config().timeSpeed, 0);
 }
 
@@ -85,50 +92,13 @@ std::vector<uint32_t> SharedWorld::EligiblePeers() {
     return peers;
 }
 
-void SharedWorld::Load() {
-    std::string warnings;
-    mPlayers.LoadAll(&warnings);
-    if (!warnings.empty()) {
-        mServer.Log().Warn(warnings);
-    }
-    if (mWorldPath.empty()) {
-        return;
-    }
-    json saved;
-    std::string err;
-    bool missing = false;
-    if (!LoadJsonFile(mWorldPath, saved, &err, &missing)) {
-        if (missing) {
-            mServer.Log().Info(Tr(Msg::NoWorldLog));
-        } else {
-            Quarantine(err);
-        }
-        return;
-    }
-    if (!mStore.FromJson(saved, &err)) {
-        Quarantine(err);
-        return;
-    }
-    json savedClock = saved.value("clock", json::object());
-    uint32_t abs = (uint32_t)std::clamp<int64_t>(GetInt(savedClock, "abs", 0), 0, clock::kMoonAbs);
-    mClock.Set(abs, Now());
-    mClock.SetInverted(GetBool(savedClock, "inv"), Now());
-    mServer.Log().Info(Tr(Msg::WorldLoaded, { std::to_string(mStore.Cycle()), clock::Format(abs) }));
-}
-
-void SharedWorld::Quarantine(const std::string& why) {
-    std::error_code ec;
-    std::filesystem::rename(mWorldPath, mWorldPath + ".bad", ec);
-    mServer.Log().Error(Tr(Msg::WorldCorrupt, { mWorldPath, why }));
-}
-
 void SharedWorld::Flush() {
     int64_t now = Now();
     std::string err;
-    if (!mWorldPath.empty() && mStore.Exists()) {
-        json saved = mStore.ToJson();
-        saved["clock"] = json{ { "abs", mClock.Abs(now) }, { "inv", mClock.Inverted() } };
-        if (!SaveJsonFile(mWorldPath, saved, &err)) {
+    if (!mWorldPath.empty() && mStore.Exists() && !mBlocked) { // blocked: the damaged file stays as it is
+        if (SaveJsonFile(mWorldPath, WorldFileJson(mStore, mClock.Abs(now), mClock.Inverted(), mFrozen), &err)) {
+            mBackupDirty = true;
+        } else {
             mServer.Log().Error(Tr(Msg::WorldSaveFail, { err }));
         }
     }
@@ -156,12 +126,17 @@ void SharedWorld::Tick() {
     if ((mDirty || mClock.Running()) && now - mLastSaveMs >= mServer.Config().worldSaveMs) {
         Flush();
     }
+    TickBackups(now);
 }
 
 void SharedWorld::Enter(RemoteClient& c) {
     bool waiting = std::find(mWaiting.begin(), mWaiting.end(), c.peer) != mWaiting.end();
     if (c.inWorld || c.peer == mCreator || waiting) {
         return; // asked twice
+    }
+    if (mBlocked) {
+        mServer.SendSystem(&c, Tr(Msg::WorldBlockedEnter), level::kError); // nothing is created over that file
+        return;
     }
     if (c.host) {
         // The server's own game follows a world that a player created; it never creates or resets one.
@@ -435,6 +410,9 @@ void SharedWorld::Upload(RemoteClient& c, const json& ev) {
     }
     mPlayers.Upload(c.nick, *inv, mStore.Cycle());
     mDirty = true;
+    if (GetBool(ev, "save")) {
+        Flush(); // "Save" in the pause menu, /unlockall: on disk now
+    }
 }
 
 void SharedWorld::UpdateClock() {
@@ -546,6 +524,9 @@ std::string SharedWorld::Describe() {
     }
     if (!mWorldPath.empty()) {
         text += Tr(Msg::DescFile, { mWorldPath });
+    }
+    if (mBackups.Enabled()) {
+        text += Tr(Msg::DescBackups, { std::to_string(mBackups.List().size()) });
     }
     return text;
 }

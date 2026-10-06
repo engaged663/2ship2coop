@@ -347,3 +347,34 @@ TEST_CASE(SlotClassification) {
     CHECK(ClassifySlot(0x0000000500000003ull, r) == (Slot{ SlotKind::Raw, 0x0000000500000003ull }));
     CHECK(ClassifySlot(0x70000, r) == (Slot{ SlotKind::Raw, 0x70000 }));
 }
+
+// A pointer into an actor of the room's list nobody replicates (Bomber Jim's balloon) travels as an Actor slot whose
+// key names that list entry and its id: the receiver points at its own one. It is never a replicated actor's key.
+TEST_CASE(LocalListKeys) {
+    uint16_t id = 0;
+    uint8_t room = 0;
+    uint8_t index = 0;
+    uint32_t k = LocalListKey(0x1A7, 3, 21);
+    CHECK(ParseLocalListKey(k, id, room, index));
+    CHECK_EQ(id, (uint16_t)0x1A7);
+    CHECK_EQ(room, (uint8_t)3);
+    CHECK_EQ(index, (uint8_t)21);
+    CHECK(ParseLocalListKey(LocalListKey(0, 0, 0), id, room, index));
+    CHECK(id == 0 && room == 0 && index == 0);
+    CHECK(ParseLocalListKey(LocalListKey(kMaxLocalListId, 63, 255), id, room, index));
+    CHECK(id == kMaxLocalListId && room == 63 && index == 255);
+    CHECK_EQ(LocalListKey(kMaxLocalListId + 1, 3, 21), 0u); // no such actor id: no key
+    // Never the key of a replicated actor: list (room << 8 | index), derived (bit 30) or runtime (bit 31) keys.
+    CHECK((k & 0xC0000000u) == 0);
+    CHECK(k != ((3u << 8) | 21u));
+    CHECK(!ParseLocalListKey((3u << 8) | 21u, id, room, index));
+    CHECK(!ParseLocalListKey(0x40000000u | k, id, room, index));
+    CHECK(!ParseLocalListKey(0x80010003u, id, room, index));
+    CHECK(!ParseLocalListKey(0, id, room, index));
+    // It travels like any Actor slot.
+    ActorImagePacket f = Frame();
+    f.records = { Rec(2, { Span(0, 94, { { SlotKind::Actor, ActorRefValue(k, 0, 0x24) } }) }) };
+    auto d = DecodeAll(EncodeActorImage(f));
+    CHECK_EQ(d.size(), (size_t)1);
+    CHECK(SlotsOf(d, 2).at(0).second == (Slot{ SlotKind::Actor, ActorRefValue(k, 0, 0x24) }));
+}

@@ -177,6 +177,7 @@ void SharedWorld::CycleResult(RemoteClient& c, const json& ev) {
         NextComputer();
         return;
     }
+    MakeBackup(mResetReason, nullptr); // the cycle that ends, as it was
     int64_t now = Now();
     mResetting = false;
     mComputer = 0;
@@ -204,6 +205,7 @@ void SharedWorld::MoonFalls() {
         mServer.Mods().Fire(ModEvent::MoonCrash, e);
     }
     mVote.Cancel();
+    MakeBackup("moon", nullptr); // what the moon takes back
     mStore.RestoreCycleStart(oldCycle + 1);
     mPlayers.RestoreCycleStart(oldCycle, oldCycle + 1);
     mClock.Set(0, now);

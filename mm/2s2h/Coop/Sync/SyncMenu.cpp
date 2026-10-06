@@ -107,6 +107,11 @@ void SyncMenu_Draw() {
         UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
             "Un objeto que solo mira su bandera al crearse se crea de nuevo cuando otro jugador la cambia."));
     UIWidgets::CVarCheckbox(
+        "Las copias miran los objetos de tu juego (el globo de Jim)", "gCoop.Sync.ListPointers",
+        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
+            "Un personaje copiado de otro juego que mira algo que cada juego tiene por su cuenta (el globo al que "
+            "dispara Jim, un cartel, una puerta) mira el de tu juego. Apagado: como antes."));
+    UIWidgets::CVarCheckbox(
         "Ver el efecto de las canciones de los demás (destello, lluvia)", "gCoop.Sync.SongEffects",
         UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
             "Cuando otro jugador toca bien una canción a tu lado la oyes siempre; esto añade su destello en tu "

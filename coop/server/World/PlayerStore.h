@@ -7,6 +7,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 namespace coop::server {
 
@@ -23,6 +24,10 @@ class PlayerStore {
     explicit PlayerStore(std::string dir); // "" = memory only (tests)
 
     void LoadAll(std::string* warnings);
+    // The records of a players/ folder. Invalid files are skipped with a warning; with setAsideBad they are also renamed
+    // to "<name>.bad-<date>" so the next upload never overwrites them (the server's own folder, not a backup's).
+    static void LoadDir(const std::string& dir, std::vector<PlayerRecord>& out, std::string* warnings,
+                        bool setAsideBad = false);
     const PlayerRecord* Get(const std::string& nick) const; // case-insensitive
     size_t Count() const {
         return mRecords.size();
@@ -34,6 +39,10 @@ class PlayerStore {
     bool IsStale(const std::string& nick, int worldCycle) const;
     bool SaveAll(std::string* err); // changed records only
     void Clear();                   // a new world: forget everyone (files renamed to .old, never deleted)
+    // An imported or restored world: Clear, then exactly these records (saved on the next SaveAll).
+    void ReplaceAll(std::vector<PlayerRecord> records);
+    // One player's record as it is given (the converter's --player-only); the others stay as they are.
+    void Set(const PlayerRecord& record);
 
   private:
     std::string PathOf(const std::string& key) const;

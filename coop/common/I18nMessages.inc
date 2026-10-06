@@ -137,8 +137,10 @@ X(StatsUsage, "/stats", "/stats", "/stats", "/stats")
 X(StatsHelp, "estadísticas de red por jugador", "network statistics per player", "每位玩家的网络统计",
   "сетевая статистика по игрокам")
 X(UnlockAllUsage, "/unlockall <jugador>", "/unlockall <player>", "/unlockall <玩家>", "/unlockall <игрок>")
-X(UnlockAllHelp, "desbloquear todos los objetos, canciones y corazones", "unlock every item, song and heart",
-  "解锁所有道具、歌曲和心之容器", "разблокировать все предметы, песни и сердца")
+X(UnlockAllHelp, "dar todos los objetos, máscaras, canciones y corazones (lo compartido es para toda la partida)",
+  "give every item, mask, song and heart (the shared ones are for the whole world)",
+  "给予所有道具、面具、歌曲和心之容器(共享的部分对整个世界生效)",
+  "выдать все предметы, маски, песни и сердца (общее — для всего мира)")
 X(GiveUsage, "/give <jugador> <cantidad>", "/give <player> <amount>", "/give <玩家> <数量>", "/give <игрок> <количество>")
 X(GiveHelp, "entregar rupias (lo que no quepa va al banco)", "hand out rupees (what does not fit goes to the bank)",
   "发放卢比(装不下的部分存入银行)", "выдать рупии (что не поместится — уйдёт в банк)")
@@ -220,9 +222,9 @@ X(GiftExpired, "El regalo ha caducado.", "The gift has expired.", "赠送已过�
 X(AlreadyIs, "Ya es {0}.", "It is already {0}.", "现在已经是 {0}。", "Уже {0}.")
 X(UnlockAllReply, "Desbloqueando todo para {0}...", "Unlocking everything for {0}...", "正在为 {0} 解锁全部内容……",
   "Разблокировка всего для {0}...")
-X(UnlockAllNotice, "Un administrador te ha desbloqueado todos los objetos del juego.",
-  "An administrator unlocked every item in the game for you.", "管理员已为你解锁游戏中的所有道具。",
-  "Администратор разблокировал для вас все предметы игры.")
+X(UnlockAllNotice, "{0} ha desbloqueado todos los objetos, máscaras, canciones y corazones de la partida.",
+  "{0} unlocked every item, mask, song and heart of the world.", "{0} 解锁了世界中所有的道具、面具、歌曲和心之容器。",
+  "{0} разблокировал все предметы, маски, песни и сердца мира.")
 X(GiveRange, "La cantidad debe ser un número entre 1 y 999999.", "The amount must be a number between 1 and 999999.",
   "数量必须是 1 到 999999 之间的数字。", "Количество должно быть числом от 1 до 999999.")
 X(GiveReply, "Entregando {0} rupias a {1}...", "Giving {0} rupees to {1}...", "正在给 {1} 发放 {0} 卢比……",
@@ -331,10 +333,10 @@ X(NoWorldCreate, "Todavía no hay mundo: lo creará el primer jugador que entre 
 X(WorldLoaded, "Mundo cargado: ciclo {0}, {1}.", "World loaded: cycle {0}, {1}.", "世界已加载:第 {0} 个周期,{1}。",
   "Мир загружен: цикл {0}, {1}.")
 X(WorldCorrupt,
-  "{0} está dañado ({1}); se ha apartado como {0}.bad y el primer jugador que entre creará un mundo nuevo.",
-  "{0} is damaged ({1}); it was moved aside as {0}.bad and the first player to enter will create a new world.",
-  "{0} 已损坏({1});已另存为 {0}.bad,将由第一个进入的玩家创建新世界。",
-  "{0} повреждён ({1}); он перемещён как {0}.bad, а первый вошедший игрок создаст новый мир.")
+  "{0} está dañado ({1}); se ha apartado como {2}.",
+  "{0} is damaged ({1}); it was moved aside as {2}.",
+  "{0} 已损坏({1});已另存为 {2}。",
+  "{0} повреждён ({1}); он перемещён как {2}.")
 X(WorldSaveFail, "No se pudo guardar el mundo: {0}", "Could not save the world: {0}", "无法保存世界:{0}", "Не удалось сохранить мир: {0}")
 X(PlayersSaveFail, "No se pudo guardar a los jugadores: {0}", "Could not save the players: {0}", "无法保存玩家数据:{0}",
   "Не удалось сохранить игроков: {0}")
@@ -477,6 +479,16 @@ X(WsNotHex, "el campo '{0}' no es hexadecimal", "field '{0}' is not hexadecimal"
   "поле «{0}» не является шестнадцатеричным")
 X(WsBadSize, "el campo '{0}' debe tener {1} bytes", "field '{0}' must have {1} bytes", "字段“{0}”必须为 {1} 字节",
   "поле «{0}» должно содержать {1} байт")
+X(WsFieldAdded, "world.json: el campo '{0}' no estaba (mundo de una versión anterior): empieza vacío",
+  "world.json: field '{0}' was missing (a world from an older version): it starts empty",
+  "world.json:缺少字段“{0}”(来自旧版本的世界):将从空值开始",
+  "world.json: поля «{0}» не было (мир из старой версии): оно начинается пустым")
+X(WsFieldResized, "world.json: el campo '{0}' tenía {1} bytes y ahora tiene {2}",
+  "world.json: field '{0}' had {1} bytes and now has {2}", "world.json:字段“{0}”原有 {1} 字节,现在为 {2} 字节",
+  "world.json: в поле «{0}» было {1} байт, теперь {2}")
+X(WsFieldUnknown, "world.json: el campo '{0}' no existe en esta versión: se ignora",
+  "world.json: field '{0}' does not exist in this version: ignored", "world.json:此版本中不存在字段“{0}”:已忽略",
+  "world.json: поля «{0}» нет в этой версии: игнорируется")
 X(NotAnObject, "no es un objeto", "is not an object", "不是对象", "не является объектом")
 X(WsBadCycle, "ciclo inválido", "invalid cycle", "无效的周期", "недопустимый цикл")
 X(OpsNotList, "'{0}' no es una lista", "'{0}' is not a list", "“{0}”不是列表", "«{0}» не является списком")
@@ -591,6 +603,120 @@ X(InvTitle, "rótulo de jefe inválido", "invalid boss title card", "无效的�
 X(LogActivityWon, "{0} gana {1}", "{0} wins {1}", "{0} 赢得了{1}", "{0} побеждает: {1}")
 X(LogActivityLost, "{0} no gana {1}", "{0} does not win {1}", "{0} 没有赢得{1}", "{0} не побеждает: {1}")
 X(InvEffects, "paquete de efectos inválido", "invalid effects packet", "无效的特效数据包", "недопустимый пакет эффектов")
+
+// ---- Activity rooms (Rooms.cpp, Handlers/RoomHandlers.cpp, Commands/RoomCommands.cpp) ----
+X(RoomUsage, "/sala [invitar|aceptar|rechazar|listo|salir|quitar|cerrar|unirse|abierta|viaje|premios] ...  (/room)",
+  "/room [invite|accept|decline|ready|leave|kick|close|join|open|travel|rewards] ...  (/sala)",
+  "/room [invite|accept|decline|ready|leave|kick|close|join|open|travel|rewards] ...  (/sala)",
+  "/room [invite|accept|decline|ready|leave|kick|close|join|open|travel|rewards] ...  (/sala)")
+X(RoomHelp, "tu sala de actividad: invitar, confirmar, salir y su configuración",
+  "your activity room: invite, confirm, leave and its settings", "你的活动房间:邀请、确认、离开及其设置",
+  "ваша комната занятия: приглашения, готовность, выход и настройки")
+X(ReadyUsage, "/listo  (/ready)", "/ready  (/listo)", "/ready  (/listo)", "/ready  (/listo)")
+X(ReadyHelp, "confirmar (o dejar de confirmar) que estás listo para la actividad de tu sala",
+  "confirm (or take back) that you are ready for your room's activity", "确认(或取消确认)你已准备好进行房间的活动",
+  "подтвердить (или отменить) готовность к занятию вашей комнаты")
+X(RoomSayUsage, "/s <texto>", "/s <text>", "/s <文字>", "/s <текст>")
+X(RoomSayHelp, "hablar en el chat de tu sala", "talk in your room's chat", "在房间聊天中发言",
+  "написать в чат вашей комнаты")
+X(RoomsOff, "Las salas están desactivadas en este servidor.", "Rooms are turned off on this server.",
+  "此服务器已关闭房间功能。", "Комнаты на этом сервере отключены.")
+X(RoomOnlyPlayers, "Solo los jugadores pueden usar las salas.", "Only players can use rooms.", "只有玩家可以使用房间。",
+  "Комнатами могут пользоваться только игроки.")
+X(RoomNotInWorld, "Tienes que estar en la partida del servidor para usar las salas.",
+  "You must be in the server's game to use rooms.", "你必须在服务器的游戏中才能使用房间。",
+  "Чтобы пользоваться комнатами, нужно быть в игре сервера.")
+X(RoomNone, "No estás en ninguna sala.", "You are not in a room.", "你不在任何房间中。", "Вы не находитесь в комнате.")
+X(RoomOnlyHost, "Solo el anfitrión de la sala puede hacer eso.", "Only the room's host can do that.",
+  "只有房主可以这样做。", "Это может сделать только хозяин комнаты.")
+X(RoomNotWaiting, "La sala no está esperando confirmaciones.", "The room is not waiting for confirmations.",
+  "房间当前不在等待确认。", "Комната сейчас не ждёт подтверждений.")
+X(RoomReadyYou, "Estás listo.", "You are ready.", "你已准备好。", "Вы готовы.")
+X(RoomNotReadyYou, "Ya no estás listo.", "You are no longer ready.", "你已取消准备。", "Вы больше не готовы.")
+X(RoomInviteSent, "Invitación a la sala enviada a {0}.", "Room invitation sent to {0}.", "已向 {0} 发送房间邀请。",
+  "Приглашение в комнату отправлено игроку {0}.")
+X(RoomInvitedYou, "{0} te invita a su sala: {1}. Escribe /sala aceptar {0} o /sala rechazar {0}.",
+  "{0} invites you to their room: {1}. Type /room accept {0} or /room decline {0}.",
+  "{0} 邀请你加入其房间:{1}。输入 /room accept {0} 或 /room decline {0}。",
+  "{0} приглашает вас в свою комнату: {1}. Введите /room accept {0} или /room decline {0}.")
+X(RoomAlreadyMember, "{0} ya está en tu sala.", "{0} is already in your room.", "{0} 已经在你的房间里。",
+  "{0} уже в вашей комнате.")
+X(RoomFull, "La sala está llena (máximo {0}).", "The room is full (at most {0}).", "房间已满(最多 {0} 人)。",
+  "Комната заполнена (не больше {0}).")
+X(RoomGone, "Esa sala ya no existe.", "That room no longer exists.", "该房间已不存在。", "Этой комнаты больше нет.")
+X(RoomInviteNone, "No tienes invitaciones a salas.", "You have no room invitations.", "你没有房间邀请。",
+  "У вас нет приглашений в комнаты.")
+X(RoomInviteNoneFrom, "No tienes ninguna invitación a la sala de {0}.", "You have no invitation to {0}'s room.",
+  "你没有来自 {0} 的房间邀请。", "У вас нет приглашения в комнату {0}.")
+X(RoomInviteDeclinedYou, "Has rechazado la invitación a la sala de {0}.", "You declined the invitation to {0}'s room.",
+  "你拒绝了 {0} 的房间邀请。", "Вы отклонили приглашение в комнату {0}.")
+X(RoomInviteDeclinedOther, "{0} ha rechazado la invitación a tu sala.", "{0} declined the invitation to your room.",
+  "{0} 拒绝了你的房间邀请。", "{0} отклонил приглашение в вашу комнату.")
+X(RoomInviteExpiredYou, "La invitación a la sala de {0} ha caducado.", "The invitation to {0}'s room expired.",
+  "{0} 的房间邀请已过期。", "Приглашение в комнату {0} истекло.")
+X(RoomInviteExpiredOther, "{0} no respondió a la invitación a tu sala.",
+  "{0} did not answer the invitation to your room.", "{0} 没有回应你的房间邀请。",
+  "{0} не ответил на приглашение в вашу комнату.")
+X(RoomAutoJoined, "{0} empieza {1}: estás en su sala. Pulsa Listo para jugar o sal de la sala si no quieres participar.",
+  "{0} starts {1}: you are in their room. Press Ready to play, or leave the room if you do not want to take part.",
+  "{0} 开始了{1}:你在其房间中。按“准备”参加,不想参加可离开房间。",
+  "{0} начинает: {1}. Вы в его комнате. Нажмите «Готов», чтобы играть, или выйдите из комнаты, если не хотите "
+  "участвовать.")
+X(RoomJoinedYou, "Has entrado en la sala de {0}: {1}.", "You joined {0}'s room: {1}.", "你加入了 {0} 的房间:{1}。",
+  "Вы вошли в комнату {0}: {1}.")
+X(RoomJoinedOther, "{0} ha entrado en la sala.", "{0} joined the room.", "{0} 加入了房间。", "{0} вошёл в комнату.")
+X(RoomLeftYou, "Has salido de la sala.", "You left the room.", "你离开了房间。", "Вы вышли из комнаты.")
+X(RoomLeftOther, "{0} ha salido de la sala.", "{0} left the room.", "{0} 离开了房间。", "{0} вышел из комнаты.")
+X(RoomKickedYou, "{0} te ha quitado de la sala.", "{0} removed you from the room.", "{0} 将你移出了房间。",
+  "{0} удалил вас из комнаты.")
+X(RoomKickedOther, "{0} ya no está en la sala.", "{0} is no longer in the room.", "{0} 已不在房间中。",
+  "{0} больше нет в комнате.")
+X(RoomNotMember, "{0} no está en tu sala.", "{0} is not in your room.", "{0} 不在你的房间里。", "{0} нет в вашей комнате.")
+X(RoomClosed, "La sala se ha cerrado.", "The room closed.", "房间已关闭。", "Комната закрыта.")
+X(RoomClosedTimeout, "La sala se ha cerrado: no empezó a tiempo.", "The room closed: it did not start in time.",
+  "房间已关闭:未能及时开始。", "Комната закрыта: занятие не началось вовремя.")
+X(RoomHostNow, "Ahora eres el anfitrión de la sala.", "You are now the room's host.", "你现在是房主。",
+  "Теперь вы хозяин комнаты.")
+X(RoomHostOther, "{0} es ahora el anfitrión de la sala.", "{0} is now the room's host.", "{0} 现在是房主。",
+  "{0} теперь хозяин комнаты.")
+X(RoomStarted, "¡Empieza {0}!", "{0} starts!", "{0}开始了!", "{0}: начали!")
+X(RoomNotOpen, "La sala de {0} no está abierta: necesitas una invitación.",
+  "{0}'s room is not open: you need an invitation.", "{0} 的房间未开放:你需要邀请。",
+  "Комната {0} закрыта: нужно приглашение.")
+X(RoomNoRoomOf, "{0} no tiene ninguna sala.", "{0} has no room.", "{0} 没有房间。", "У {0} нет комнаты.")
+X(RoomAlreadyIn, "Ya estás en esa sala.", "You are already in that room.", "你已经在该房间中。", "Вы уже в этой комнате.")
+X(RoomGroupNobody, "No hay nadie de tu grupo para invitar a la sala.",
+  "There is nobody of your group to invite to the room.", "你的小队中没有可邀请到房间的人。",
+  "В вашей группе некого пригласить в комнату.")
+X(RoomSettingsNow, "Sala: abierta {0}, viaje {1}, premios {2}.", "Room: open {0}, travel {1}, rewards {2}.",
+  "房间:开放 {0},传送 {1},奖励 {2}。", "Комната: открыта {0}, перемещение {1}, награды {2}.")
+X(RoomYes, "sí", "yes", "是", "да")
+X(RoomNo, "no", "no", "否", "нет")
+X(RoomBadValue, "Usa sí o no.", "Use yes or no.", "请使用 yes 或 no。", "Используйте yes или no.")
+X(RoomTitle, "Sala de {0}: {1}, {2} ({3}/{4}):", "{0}'s room: {1}, {2} ({3}/{4}):", "{0} 的房间:{1},{2}({3}/{4}):",
+  "Комната {0}: {1}, {2} ({3}/{4}):")
+X(RoomStateLobby, "esperando confirmaciones", "waiting for confirmations", "等待确认", "ждёт подтверждений")
+X(RoomStateStarting, "a punto de empezar", "about to start", "即将开始", "вот-вот начнётся")
+X(RoomStateRunning, "en marcha", "running", "进行中", "идёт")
+X(RoomStateEnded, "terminada", "over", "已结束", "закончилась")
+X(RoomHostTag, " (anfitrión)", " (host)", "(房主)", " (хозяин)")
+X(RoomReadyTag, " - listo", " - ready", " - 已准备", " - готов")
+X(RoomWaitingTag, " - esperando", " - waiting", " - 等待中", " - ждёт")
+X(RoomInvitesTitle, "Invitaciones a salas:", "Room invitations:", "房间邀请:", "Приглашения в комнаты:")
+X(RoomInviteLine, "{0}: {1} ({2} s)", "{0}: {1} ({2} s)", "{0}:{1}({2} 秒)", "{0}: {1} ({2} с)")
+X(RoomChatEmpty, "Escribe algo para la sala.", "Type something for the room.", "请输入要发送到房间的内容。",
+  "Напишите что-нибудь для комнаты.")
+X(LogRoomOpen, "{0} abre una sala: {1}", "{0} opens a room: {1}", "{0} 开设了房间:{1}", "{0} открывает комнату: {1}")
+X(LogRoomJoin, "{0} entra en la sala de {1} ({2})", "{0} joins {1}'s room ({2})", "{0} 加入了 {1} 的房间({2})",
+  "{0} входит в комнату {1} ({2})")
+X(LogRoomLeave, "{0} sale de una sala ({1})", "{0} leaves a room ({1})", "{0} 离开了房间({1})",
+  "{0} выходит из комнаты ({1})")
+X(LogRoomInvite, "{0} invita a {1} a su sala ({2})", "{0} invites {1} to their room ({2})",
+  "{0} 邀请 {1} 加入其房间({2})", "{0} приглашает {1} в свою комнату ({2})")
+X(LogRoomStart, "Empieza la sala de {0}: {1}", "{0}'s room starts: {1}", "{0} 的房间开始了:{1}",
+  "Комната {0} начинает: {1}")
+X(LogRoomChat, "[sala de {0}] <{1}> {2}", "[{0}'s room] <{1}> {2}", "[{0} 的房间] <{1}> {2}", "[комната {0}] <{1}> {2}")
+X(InvRoom, "operación de sala inválida", "invalid room operation", "无效的房间操作", "неверная операция с комнатой")
 
 // ---- Clock ----
 X(ClockFormat, "Día {0}, {1}", "Day {0}, {1}", "第 {0} 天 {1}", "День {0}, {1}")
@@ -780,3 +906,151 @@ X(O2rEnterMissingLog, "{0} intentó entrar en la partida sin los mods del servid
 X(InvO2rGet, "petición o2r_get inválida", "invalid o2r_get request", "无效的 o2r_get 请求", "неверный запрос o2r_get")
 X(InvO2rFlood, "demasiadas peticiones o2r_get", "too many o2r_get requests", "o2r_get 请求过多",
   "слишком много запросов o2r_get")
+
+// ---- Base-game saves into the co-op (common/SaveImport.cpp) ----
+X(ImpNotSave, "No es una partida de 2 Ship (no tiene newCycleSave ni owlSave).",
+  "This is not a 2 Ship save (it has neither newCycleSave nor owlSave).",
+  "这不是 2 Ship 的存档(没有 newCycleSave 或 owlSave)。", "Это не сохранение 2 Ship (нет ни newCycleSave, ни owlSave).")
+X(ImpEmpty, "La partida está vacía o borrada.", "The save is empty or erased.", "该存档为空或已被删除。",
+  "Сохранение пустое или удалено.")
+X(ImpRando, "Las partidas del randomizer no se pueden usar en el co-op.", "Randomizer saves cannot be used in the co-op.",
+  "随机模式(randomizer)的存档无法在合作模式中使用。", "Сохранения рандомайзера (randomizer) нельзя использовать в кооперативе.")
+X(ImpNoOwl, "Esta partida no tiene guardado de búho.", "This save has no owl save.", "此存档没有猫头鹰存档。",
+  "В этом сохранении нет сохранения у совы.")
+X(ImpNoCycle, "Esta partida no tiene guardado de inicio de ciclo.", "This save has no start-of-cycle save.",
+  "此存档没有周期开始时的存档。", "В этом сохранении нет сохранения начала цикла.")
+X(ImpMissing, "Partida dañada: falta o no vale '{0}'.", "Damaged save: '{0}' is missing or invalid.",
+  "存档已损坏:“{0}”缺失或无效。", "Сохранение повреждено: «{0}» отсутствует или недопустимо.")
+X(ImpNewer, "La partida es de una versión más nueva de 2 Ship ({0}); se convierte igualmente.",
+  "The save comes from a newer 2 Ship version ({0}); it is converted anyway.",
+  "该存档来自更新的 2 Ship 版本({0});仍会进行转换。",
+  "Сохранение из более новой версии 2 Ship ({0}); оно всё равно будет преобразовано.")
+X(ImpSumName, "Partida de {0} (versión {1}): {2}.", "{0}'s save (version {1}): {2}.", "{0} 的存档(版本 {1}):{2}。",
+  "Сохранение {0} (версия {1}): {2}.")
+X(ImpSourceOwl, "guardado de búho, {0}", "owl save, {0}", "猫头鹰存档,{0}", "сохранение у совы, {0}")
+X(ImpSourceCycle, "inicio del ciclo (Amanecer del Primer Día)", "start of the cycle (Dawn of the First Day)",
+  "周期开始(第一天的黎明)", "начало цикла (Рассвет первого дня)")
+X(ImpSumStats, "Corazones: {0} (+{1}/4) · Máscaras: {2}/24 · Canciones: {3}/10 · Restos: {4}/4 · Ciclos: {5}",
+  "Hearts: {0} (+{1}/4) · Masks: {2}/24 · Songs: {3}/10 · Remains: {4}/4 · Cycles: {5}",
+  "心:{0}(+{1}/4)· 面具:{2}/24 · 歌曲:{3}/10 · 遗骸:{4}/4 · 周期:{5}",
+  "Сердца: {0} (+{1}/4) · Маски: {2}/24 · Песни: {3}/10 · Останки: {4}/4 · Циклы: {5}")
+X(ImpSumAdded, "Añadido para que funcione en el co-op: {0}.", "Added so it works in the co-op: {0}.",
+  "为使其在合作模式中正常运行而添加:{0}。", "Добавлено, чтобы всё работало в кооперативе: {0}.")
+X(ImpAddTatl, "Tatl", "Tatl", "Tatl", "Татл")
+X(ImpAddOcarina, "Ocarina del Tiempo", "Ocarina of Time", "时之笛", "Окарина времени")
+X(ImpAddDekuNut, "nueces Deku", "Deku Nuts", "德库坚果", "орехи Деку")
+X(ImpAddDekuMask, "Máscara Deku", "Deku Mask", "德库面具", "маска Деку")
+X(ImpAddSongTime, "Canción del Tiempo", "Song of Time", "时之歌", "Песнь времени")
+X(ImpAddSongHealing, "Canción de Curación", "Song of Healing", "治愈之歌", "Песнь исцеления")
+X(ImpAddMagic, "magia", "magic", "魔力", "магия")
+X(ImpAddReset, "un ciclo completado", "one cycle done", "已完成一个周期", "один пройденный цикл")
+X(ImpAddIntro, "la introducción vista", "the intro seen", "已看过的开场", "просмотренное вступление")
+
+// ---- Saving: backups, recovery, import and restore (World/SharedWorld.cpp, World/WorldBackups.cpp,
+//      Commands/SaveCommands.cpp) ----
+X(WorldNoBackup, "No hay copias de seguridad: el primer jugador que entre creará un mundo nuevo.",
+  "There are no backups: the first player to enter will create a new world.", "没有备份:第一个进入的玩家将创建新世界。",
+  "Резервных копий нет: первый вошедший игрок создаст новый мир.")
+X(WorldRecovered, "Se ha recuperado el mundo de la copia de seguridad {0}.", "The world was recovered from the backup {0}.",
+  "已从备份 {0} 恢复世界。", "Мир восстановлен из резервной копии {0}.")
+X(WorldRecoverFail, "No se pudo recuperar la copia de seguridad {0}: {1}", "Could not recover the backup {0}: {1}",
+  "无法恢复备份 {0}:{1}", "Не удалось восстановить резервную копию {0}: {1}")
+X(WorldBlocked,
+  "No se puede leer ni apartar {0} ({1}): el servidor no creará un mundo nuevo encima. Ciérralo en los demás programas y reinicia el servidor.",
+  "{0} can be neither read nor moved aside ({1}): the server will not create a new world over it. Close it in other programs and restart the server.",
+  "无法读取也无法移走 {0}({1}):服务器不会在其上创建新世界。请在其他程序中关闭它并重启服务器。",
+  "{0} нельзя ни прочитать, ни переместить ({1}): сервер не создаст поверх него новый мир. Закройте его в других программах и перезапустите сервер.")
+X(WorldBlockedEnter, "El mundo guardado del servidor no se puede leer: avisa al administrador.",
+  "The server's saved world cannot be read: tell the admin.", "无法读取服务器保存的世界:请告诉管理员。",
+  "Сохранённый мир сервера не читается: сообщите администратору.")
+X(ServerLockOther,
+  "Otro servidor (proceso {0}) parece estar usando esta carpeta: su server.lock se queda como está. Dos servidores con los mismos archivos se pisan las partidas guardadas.",
+  "Another server (process {0}) seems to be using this folder: its server.lock is left as it is. Two servers on the same files overwrite each other's saves.",
+  "另一个服务器(进程 {0})似乎正在使用此文件夹:其 server.lock 保持不变。两个服务器使用同一组文件会互相覆盖存档。",
+  "Похоже, эту папку использует другой сервер (процесс {0}): его server.lock оставлен как есть. Два сервера с одними и теми же файлами перезаписывают сохранения друг друга.")
+X(PlayerFileSetAside, "players/{0} no es válido; se ha apartado como {1}", "players/{0} is not valid; it was moved aside as {1}",
+  "players/{0} 无效;已移至 {1}", "players/{0} недопустим; перемещён в {1}")
+X(BackupMade, "Copia de seguridad guardada: {0}", "Backup saved: {0}", "备份已保存:{0}", "Резервная копия сохранена: {0}")
+X(BackupFail, "No se pudo hacer la copia de seguridad: {0}", "Could not make the backup: {0}", "无法创建备份:{0}",
+  "Не удалось сделать резервную копию: {0}")
+X(BackupOff, "Este servidor no guarda archivos: no hay copias de seguridad.",
+  "This server keeps no files: there are no backups.", "此服务器不保存文件:没有备份。",
+  "Этот сервер не хранит файлы: резервных копий нет.")
+X(BackupUsage, "/backup [lista]", "/backup [list]", "/backup [list]", "/backup [list]")
+X(BackupHelp, "guardar ahora una copia de seguridad del mundo, o ver la lista de copias",
+  "save a backup of the world now, or see the list of backups", "立即保存世界备份,或查看备份列表",
+  "сохранить резервную копию мира сейчас или посмотреть список копий")
+X(BackupListHead, "Copias de seguridad (de la más nueva a la más vieja):", "Backups (newest first):", "备份(从新到旧):",
+  "Резервные копии (сначала новые):")
+X(BackupNone, "No hay copias de seguridad.", "There are no backups.", "没有备份。", "Резервных копий нет.")
+X(BackupNotFound, "No hay ninguna copia de seguridad llamada '{0}'. Usa /backup lista.",
+  "There is no backup called '{0}'. Use /backup list.", "没有名为“{0}”的备份。请使用 /backup list。",
+  "Резервной копии «{0}» нет. Используйте /backup list.")
+X(RestoreUsage, "/restaurar <copia|ultima>", "/restore <backup|last>", "/restore <备份|last>", "/restore <копия|last>")
+X(RestoreHelp, "poner en marcha una copia de seguridad del mundo (todos vuelven a entrar)",
+  "put a backup of the world in place (everyone enters again)", "启用一份世界备份(所有人重新进入)",
+  "вернуть резервную копию мира (все входят заново)")
+X(ImportUsage, "/importar <archivo> [nick] [auto|buho|ciclo]", "/import <file> [nick] [auto|owl|cycle]",
+  "/import <文件> [昵称] [auto|owl|cycle]", "/import <файл> [ник] [auto|owl|cycle]")
+X(ImportHelp, "convertir una partida del juego base (saves/fileN.json) y ponerla como mundo del servidor",
+  "convert a base-game save (saves/fileN.json) and make it the server's world",
+  "转换基础游戏的存档(saves/fileN.json)并将其设为服务器的世界",
+  "преобразовать сохранение базовой игры (saves/fileN.json) и сделать его миром сервера")
+X(ImportNeedNick, "Falta el nick del jugador: el nombre de la partida ('{0}') no vale como nick.",
+  "The player's nick is missing: the save's name ('{0}') is not a valid nick.",
+  "缺少玩家昵称:存档名称(“{0}”)不能作为昵称。", "Не указан ник игрока: имя в сохранении («{0}») не подходит как ник.")
+X(ImportBadSource, "Parte desconocida '{0}': usa auto, buho o ciclo.", "Unknown part '{0}': use auto, owl or cycle.",
+  "未知部分“{0}”:请使用 auto、owl 或 cycle。", "Неизвестная часть «{0}»: используйте auto, owl или cycle.")
+X(ImportDone, "Partida importada para {0}.", "Save imported for {0}.", "已为 {0} 导入存档。", "Сохранение импортировано для {0}.")
+X(ReplaceBusy, "Ahora no: el mundo se está creando o reiniciando.", "Not now: the world is being created or reset.",
+  "现在不行:世界正在创建或重置。", "Не сейчас: мир создаётся или перезапускается.")
+X(WorldImported, "{0} ha cargado una partida convertida del juego base ({1}): todos vuelven a entrar.",
+  "{0} loaded a save converted from the base game ({1}): everyone enters again.",
+  "{0} 载入了从基础游戏转换的存档({1}):所有人重新进入。",
+  "{0} загрузил сохранение, преобразованное из базовой игры ({1}): все входят заново.")
+X(WorldRestored, "{0} ha restaurado la copia de seguridad {1}: todos vuelven a entrar.",
+  "{0} restored the backup {1}: everyone enters again.", "{0} 恢复了备份 {1}:所有人重新进入。",
+  "{0} восстановил резервную копию {1}: все входят заново.")
+X(DescBackups, "\nCopias de seguridad: {0}", "\nBackups: {0}", "\n备份:{0}", "\nРезервные копии: {0}")
+X(NotInWorld, "{0} no está en la partida del servidor: tiene que entrar primero.",
+  "{0} is not in the server's world: they must enter first.", "{0} 不在服务器的世界中:需要先进入。",
+  "{0} не в мире сервера: сначала нужно войти.")
+
+// ---- Converter tool (tools/SaveConvert.cpp: 2ship-coop-convert) ----
+X(CvUsage,
+  "Uso: 2ship-coop-convert <partida.json> [opciones]\n  --nick N            nick del jugador dueño de la partida\n  --out CARPETA       carpeta del servidor (por defecto, la de este programa)\n  --source auto|owl|cycle  guardado de búho o inicio del ciclo\n  --player-only       solo la ficha del jugador (el mundo no se toca)\n  --info              solo enseña el resumen\n  --yes               no pregunta nada\n  --force             aunque el servidor esté en marcha\n  --lang es|en|zh|ru\nTambién puedes arrastrar la partida (saves/file1.json) encima de este programa.",
+  "Usage: 2ship-coop-convert <save.json> [options]\n  --nick N            nick of the player who owns the save\n  --out FOLDER        the server's folder (by default, this program's)\n  --source auto|owl|cycle  owl save or start of the cycle\n  --player-only       only the player's file (the world is left alone)\n  --info              only show the summary\n  --yes               ask nothing\n  --force             even if the server is running\n  --lang es|en|zh|ru\nYou can also drag the save (saves/file1.json) onto this program.",
+  "用法:2ship-coop-convert <存档.json> [选项]\n  --nick N            存档所属玩家的昵称\n  --out 文件夹         服务器文件夹(默认为本程序所在文件夹)\n  --source auto|owl|cycle  猫头鹰存档或周期开始\n  --player-only       只写玩家文件(不动世界)\n  --info              只显示摘要\n  --yes               不询问任何问题\n  --force             即使服务器正在运行\n  --lang es|en|zh|ru\n也可以把存档(saves/file1.json)拖到本程序上。",
+  "Использование: 2ship-coop-convert <сохранение.json> [параметры]\n  --nick N            ник игрока, которому принадлежит сохранение\n  --out ПАПКА         папка сервера (по умолчанию папка этой программы)\n  --source auto|owl|cycle  сохранение у совы или начало цикла\n  --player-only       только файл игрока (мир не трогается)\n  --info              только показать сводку\n  --yes               ничего не спрашивать\n  --force             даже если сервер запущен\n  --lang es|en|zh|ru\nМожно также перетащить сохранение (saves/file1.json) на эту программу.")
+X(CvReading, "Leyendo {0}...", "Reading {0}...", "正在读取 {0}……", "Чтение {0}...")
+X(CvAskNick, "Nick del jugador dueño de esta partida [{0}]: ", "Nick of the player who owns this save [{0}]: ",
+  "此存档所属玩家的昵称 [{0}]:", "Ник игрока, которому принадлежит это сохранение [{0}]: ")
+X(CvAskReplace, "Ya hay un mundo en {0}: se guardará una copia en backups/ y se reemplazará. ¿Seguir? (s/n): ",
+  "There is already a world in {0}: a copy goes to backups/ and it will be replaced. Continue? (y/n): ",
+  "{0} 中已有一个世界:将在 backups/ 中保存副本并替换它。继续吗?(y/n):",
+  "В {0} уже есть мир: копия попадёт в backups/, а мир будет заменён. Продолжить? (y/n): ")
+X(CvNeedYes, "Ya hay un mundo en {0}: añade --yes para reemplazarlo (antes se guarda una copia en backups/).",
+  "There is already a world in {0}: add --yes to replace it (a copy goes to backups/ first).",
+  "{0} 中已有一个世界:添加 --yes 以替换它(会先在 backups/ 中保存副本)。",
+  "В {0} уже есть мир: добавьте --yes, чтобы заменить его (сначала копия попадёт в backups/).")
+X(CvCancelled, "Cancelado: no se ha cambiado nada.", "Cancelled: nothing was changed.", "已取消:没有任何更改。",
+  "Отменено: ничего не изменено.")
+X(CvServerRunning,
+  "El servidor está en marcha en {0} (proceso {1}): ciérralo antes, o usa /importar en su consola (o --force).",
+  "The server is running in {0} (process {1}): close it first, or use /import in its console (or --force).",
+  "服务器正在 {0} 中运行(进程 {1}):请先关闭它,或在其控制台中使用 /import(或 --force)。",
+  "Сервер запущен в {0} (процесс {1}): сначала закройте его или используйте /import в его консоли (или --force).")
+X(CvWritten, "Escrito: {0}", "Written: {0}", "已写入:{0}", "Записано: {0}")
+X(CvDone, "Listo: arranca el servidor y entrad en su partida.", "Done: start the server and enter its world.",
+  "完成:启动服务器并进入它的世界。", "Готово: запустите сервер и войдите в его мир.")
+X(CvDonePlayer, "Listo: ficha de {0} preparada para el mundo actual (ciclo {1}).",
+  "Done: {0}'s file is ready for the current world (cycle {1}).", "完成:{0} 的文件已为当前世界准备好(第 {1} 个周期)。",
+  "Готово: файл {0} готов для текущего мира (цикл {1}).")
+X(CvPressEnter, "Pulsa Intro para salir.", "Press Enter to exit.", "按回车键退出。", "Нажмите Enter для выхода.")
+X(CvNeedWorld, "--player-only necesita un world.json válido en {0}: {1}", "--player-only needs a valid world.json in {0}: {1}",
+  "--player-only 需要 {0} 中有一个有效的 world.json:{1}", "--player-only требует корректный world.json в {0}: {1}")
+X(CvBackup, "Copia de seguridad de lo que había: {0}", "Backup of what was there: {0}", "原有内容的备份:{0}",
+  "Резервная копия прежнего: {0}")
+X(CvBadArg, "Argumento desconocido: {0}", "Unknown argument: {0}", "未知参数:{0}", "Неизвестный аргумент: {0}")
+X(CvNoFile, "No se puede leer {0}: {1}", "Cannot read {0}: {1}", "无法读取 {0}:{1}", "Не удаётся прочитать {0}: {1}")
+X(CvFailed, "No se pudo escribir: {0}", "Could not write: {0}", "无法写入:{0}", "Не удалось записать: {0}")

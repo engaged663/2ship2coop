@@ -1,12 +1,16 @@
 // [COOP] "follow" (spec §4): a mate's game goes to another entrance and takes us along: the entrance of the minigame
 // we play with it, or wherever the cutscene we are watching (Features/Cinema.cpp) takes it. The same trip as
 // Features/Ending.cpp: close our text, same entrance, same cutscene, same transition, as soon as we can move (a text
-// or a cutscene of our own is waited for up to 8 s).
+// or a cutscene of our own is waited for up to 8 s). Activity rooms: a trip of our room's activity takes us along
+// wherever we are when it says "all" (into the minigame when the room starts, the end of the Bombers' hide-and-seek),
+// otherwise only if we are in the sender's scene (into its entrance or out of it: the ones that were in it).
 #include "Activities.h"
 
 #include "2s2h/Coop/Client/Dispatcher.h"
+#include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Features/Cinema.h"
 #include "2s2h/Coop/Group/Group.h"
+#include "2s2h/Coop/Room/Room.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "common/Protocol.h"
@@ -43,6 +47,9 @@ struct Trip {
 Trip sTrip;
 
 bool CanGo(PlayState* play, bool force) {
+    if (RoomHold_Active()) {
+        return false; // our own activity waits for its room here: our trip goes first
+    }
     Player* player = (Player*)play->actorCtx.actorLists[ACTORCAT_PLAYER].first;
     if (play->transitionTrigger != TRANS_TRIGGER_OFF || play->transitionMode != TRANS_MODE_OFF ||
         IS_PAUSED(&play->pauseCtx) || (player->stateFlags1 & PLAYER_STATE1_DEAD) ||
@@ -83,7 +90,11 @@ void OnFollow(const json& ev) {
     bool watching = Cinema_WatchingFrom(from);
     bool guest = Guest_Director() == from;
     bool mate = !key.empty() && Group_OptMinigames() && Group_MateNear(from, kFollowDist);
-    if (!watching && !guest && !mate) {
+    const RemotePlayer* sender = Session_FindPlayer(from);
+    bool sameScene = sender != nullptr && sender->scene == play->sceneId;
+    bool room = !key.empty() && Group_OptMinigames() && Room_IsMate(from) && Room_Get().key == key &&
+                (GetBool(ev, "all") || sameScene);
+    if (!watching && !guest && !mate && !room) {
         return;
     }
     uint16_t entrance = (uint16_t)GetInt(ev, "entrance");

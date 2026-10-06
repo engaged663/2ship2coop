@@ -8,7 +8,11 @@
 //   slots      Together: where the guests stand when it starts {right, forward} of the director, in units
 //   props      room actors the minigame uses { ACTOR_..., ours }: the director's game simulates them while it runs
 //              (ours = machinery acting with the director's Link; false = targets any Link may touch)
-//   hooks      EachOwn: how a guest starts its own run and how a run ended (won, time)
+//   hooks      EachOwn: how a guest starts its own run and how a run ended (won, time); a minigame played in several
+//              scenes (scene -1): when it runs (active), how this game sets it off (startedHere) and how it goes
+//              (progress, shown in its room's window)
+// Every minigame a game starts opens an activity room (Room/Room.h): where it is played comes from its line (special
+// entrances: "entrance"; scene -1: "anywhere"; otherwise "here", where its NPC is).
 // Quests only name the invitations ("Ana te invita a Anju y Kafei") by the NPC next to the inviter; their dialogues,
 // cutscenes and prizes are shared by the group anyway (TalkSync.cpp, Cinema.cpp, Rewards.cpp).
 #include "Activities.h"
@@ -59,6 +63,8 @@ bool GoronResult(bool* won, int32_t* cs) {
 
 constexpr ActivityHooks kGormanHooks = { GormanGuestStart, GormanResult };
 constexpr ActivityHooks kGoronHooks = { nullptr, GoronResult };
+// The Bombers' hide-and-seek (Bombers.cpp): Jim sets it off in North Clock Town and the five hide all over the town.
+constexpr ActivityHooks kBombersHooks = { nullptr, nullptr, Bombers_Active, Bombers_StartedHere, Bombers_Progress };
 
 #define NO_SLOTS { { 0.f, 0.f }, { 0.f, 0.f }, { 0.f, 0.f } }
 // Side by side with the director, facing the same way (a shooting gallery's counter)
@@ -132,6 +138,11 @@ constexpr ActivityDef kActivities[] = {
     // with the local switch flags.
     { "mayordomo_deku", "Carrera del mayordomo deku", K::Minigame, SCENE_DANPEI, { ACTOR_EN_DNO }, M::Turns, {}, false,
       false, NO_SLOTS },
+    // Played all over Clock Town (scene -1): every game catches the Bombers it simulates and the count is the world's
+    // (Bombers.cpp); whoever catches the last one takes the room to Jim for the code. Its NPCs name the invitations.
+    { "bombers", "El escondite de los Bombers", K::Minigame, -1,
+      { ACTOR_EN_BOMJIMA, ACTOR_EN_BOMBERS, ACTOR_EN_BOMBERS2 }, M::Shared, {}, false, false, NO_SLOTS, {},
+      &kBombersHooks },
     // ---- Side quests (they name the invitations; their mode is not used) ----
     { "anju_kafei", "Anju y Kafei", K::Quest, -1,
       { ACTOR_EN_AN, ACTOR_EN_TEST3, ACTOR_EN_AL, ACTOR_EN_SUTTARI, ACTOR_EN_AH, ACTOR_EN_PM }, M::Turns, {}, false,
@@ -149,8 +160,6 @@ constexpr ActivityDef kActivities[] = {
       NO_SLOTS },
     { "mascara_gibdo", "El padre de Pamela", K::Quest, -1, { ACTOR_EN_PAMERA, ACTOR_EN_HG, ACTOR_EN_HGO }, M::Turns,
       {}, false, false, NO_SLOTS },
-    { "bombers", "La banda de los Bombers", K::Quest, -1, { ACTOR_EN_BOMJIMA, ACTOR_EN_BOMBERS, ACTOR_EN_BOMBERS2 },
-      M::Turns, {}, false, false, NO_SLOTS },
     { "mano_retrete", "La mano del retrete", K::Quest, -1, { ACTOR_EN_BJT }, M::Turns, {}, false, false, NO_SLOTS },
     { "compania_gorman", "La compañía de Gorman", K::Quest, -1, { ACTOR_EN_GM, ACTOR_EN_TOTO }, M::Turns, {}, false,
       false, NO_SLOTS },
@@ -216,8 +225,8 @@ const ActivityDef* Activity_MinigameOfScene(int16_t scene) {
 
 const ActivityDef* Activity_QuestOfNpc(int16_t actorId) {
     for (const ActivityDef& d : kActivities) {
-        if (d.kind != ActivityKind::Quest) {
-            continue;
+        if (d.kind != ActivityKind::Quest && !Activity_IsGlobal(d)) {
+            continue; // (a minigame played in several scenes names the invitations near its NPCs too)
         }
         for (int16_t npc : d.npcs) {
             if (npc != 0 && npc == actorId) {
@@ -253,6 +262,52 @@ const ActivityProp* Activity_Prop(const ActivityDef& def, int16_t actorId) {
         }
     }
     return nullptr;
+}
+
+bool Activity_IsGlobal(const ActivityDef& def) {
+    return def.kind == ActivityKind::Minigame && def.scene < 0 && def.hooks != nullptr && def.hooks->active != nullptr;
+}
+
+const char* Activity_PlaceName(const ActivityDef& def) {
+    if (Activity_IsGlobal(def)) {
+        return "anywhere";
+    }
+    for (uint16_t e : def.entrances) {
+        if (e != 0) {
+            return "entrance";
+        }
+    }
+    return "here";
+}
+
+const char* Activity_ModeName(ActivityMode mode) {
+    switch (mode) {
+        case ActivityMode::Together:
+            return "together";
+        case ActivityMode::EachOwn:
+            return "each";
+        case ActivityMode::Turns:
+            return "turns";
+        case ActivityMode::Shared:
+            return "shared";
+    }
+    return "together";
+}
+
+const char* Activity_ModeText(const std::string& modeName) {
+    if (modeName == "together") {
+        return "Juntos: todos jugáis la misma partida";
+    }
+    if (modeName == "each") {
+        return "Cada uno: cada uno su carrera, los mismos rivales";
+    }
+    if (modeName == "turns") {
+        return "Por turnos: uno juega y los demás miran";
+    }
+    if (modeName == "shared") {
+        return "Compartido: el progreso es de todos";
+    }
+    return "";
 }
 
 std::string Activity_TimeText(int64_t cs) {

@@ -92,6 +92,12 @@ if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools/CoopBot.cpp)
     target_link_libraries(2ship-coop-bot PRIVATE coop_common)
 endif()
 
+# Base-game saves into the server's world (common/SaveImport.h): ships next to the server.
+if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools/SaveConvert.cpp AND TARGET coop_server_core)
+    add_executable(2ship-coop-convert ${CMAKE_CURRENT_SOURCE_DIR}/tools/SaveConvert.cpp)
+    target_link_libraries(2ship-coop-convert PRIVATE coop_server_core)
+endif()
+
 # --- Plugins (server/Mods/PluginMod.h): the SDK's example and, with the tests, the plugins they load. ---
 function(coop_plugin target source)
     add_library(${target} SHARED ${source})

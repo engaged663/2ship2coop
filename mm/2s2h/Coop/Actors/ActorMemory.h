@@ -1,7 +1,8 @@
 #pragma once
 // [COOP] Sub-project D3: an actor's memory as 8-byte slots. The sender classifies each slot (plain data, or a
-// pointer it can translate: into the exe, into a replicated actor, into a Link); the receiver writes it back with
-// its own addresses. The engine's bookkeeping of the base Actor (lists, culling, distances to the player...) never
+// pointer it can translate: into the exe, into a replicated actor, into an actor of the room's list that every game
+// has for itself (LocalListKey: the receiver points at its own), into a Link); the receiver writes it back with its
+// own addresses. The engine's bookkeeping of the base Actor (lists, culling, distances to the player...) never
 // travels: every game keeps its own.
 #include "ActorRegistry.h"
 
@@ -23,7 +24,8 @@ void ActorMemory_Apply(TrackedActor& t, const SlotSpan& span);
 void ActorMemory_ForgetPointersTo(TrackedActor& copy, const void* start, size_t size);
 
 // For other things that travel like an actor's memory (an effect's init data: Features/EffectEcho.cpp).
-// A raw 8-byte value as it would travel (pointers into the exe, a replicated actor or a Link translated).
+// A raw 8-byte value as it would travel (pointers into the exe, a replicated actor or a Link translated; one into an
+// actor every game has for itself is Keep here: its effects and sounds stay in its game).
 Slot ActorMemory_Classify(uint64_t raw);
 // Where a received slot points in this game (nullptr: nowhere here).
 uint8_t* ActorMemory_Resolve(const Slot& s);

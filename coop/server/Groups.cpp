@@ -63,6 +63,32 @@ json Groups_Event(Server& server, const Group* g) {
     return ev;
 }
 
+void Groups_SendTrip(Server& server, RemoteClient& mover, const RemoteClient& target, bool roomTrip) {
+    json tp = MakeEvent(ev::kTp);
+    tp["scene"] = target.scene;
+    tp["entrance"] = target.entrance;
+    tp["room"] = target.room;
+    tp["pos"] = { target.pos[0], target.pos[1], target.pos[2] };
+    tp["rot"] = target.rotY;
+    tp["target"] = target.nick;
+    if (roomTrip) {
+        tp["roomTrip"] = true;
+    }
+    server.SendEvent(mover, tp);
+}
+
+bool Groups_ValidActivityKey(const std::string& key) {
+    if (key.empty() || key.size() > (size_t)kMaxActivityKey) {
+        return false;
+    }
+    for (char ch : key) {
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_')) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void Groups_Publish(Server& server, const GroupChanges& ch, uint8_t cause) {
     GroupBook& book = server.Groups();
     if (server.Mods().Wants(ModEvent::GroupChange)) {

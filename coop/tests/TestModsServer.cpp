@@ -243,7 +243,7 @@ TEST_CASE(CommandPermissionsComeFromTheConfig) {
     a->Cmd("/help");
     auto help = a->WaitFor("sys", m.s);
     CHECK(help.has_value());
-    CHECK(std::string((*help)["text"]).find("/list") == std::string::npos);
+    CHECK(std::string((*help)["text"]).find("\n/list ") == std::string::npos); // (not /listo: another command)
     CHECK(std::string((*help)["text"]).find("/kick") != std::string::npos);
     a->Cmd("/gift Bob 51");
     CHECK(a->WaitForSys("error", m.s)); // over giftMax

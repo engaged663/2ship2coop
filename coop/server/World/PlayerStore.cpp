@@ -79,7 +79,20 @@ void PlayerStore::LoadAll(std::string* warnings) {
     }
     std::error_code ec;
     std::filesystem::create_directories(mDir, ec);
-    for (const auto& entry : std::filesystem::directory_iterator(mDir, ec)) {
+    std::vector<PlayerRecord> records;
+    LoadDir(mDir, records, warnings, true);
+    for (PlayerRecord& record : records) {
+        std::string key = ToLower(record.nick);
+        mRecords[key] = std::move(record);
+    }
+}
+
+void PlayerStore::LoadDir(const std::string& dir, std::vector<PlayerRecord>& out, std::string* warnings,
+                          bool setAsideBad) {
+    out.clear();
+    std::error_code ec;
+    std::vector<std::filesystem::path> bad; // renamed after the walk, not while the folder is being read
+    for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
         std::error_code fileEc;
         if (!entry.is_regular_file(fileEc) || entry.path().extension() != ".json") {
             continue;
@@ -87,13 +100,37 @@ void PlayerStore::LoadAll(std::string* warnings) {
         json saved;
         PlayerRecord record;
         if (!LoadJsonFile(entry.path().string(), saved, nullptr) || !ParseRecord(saved, record)) {
-            AddWarning(warnings, Tr(Msg::PlayerFileInvalid, { entry.path().filename().string() }));
+            bad.push_back(entry.path());
             continue;
         }
         std::string key = KeyOf(ToLower(entry.path().stem().string()));
-        if (record.nick.empty()) {
-            record.nick = key;
+        if (record.nick.empty() || ToLower(record.nick) != key) {
+            record.nick = key; // the file name is the key: a nick that does not match it is not trusted
         }
+        out.push_back(std::move(record));
+    }
+    for (const std::filesystem::path& path : bad) {
+        std::string file = path.filename().string();
+        std::string aside;
+        if (setAsideBad && SetAside(path.string(), &aside)) {
+            AddWarning(warnings, Tr(Msg::PlayerFileSetAside, { file, std::filesystem::path(aside).filename().string() }));
+        } else {
+            AddWarning(warnings, Tr(Msg::PlayerFileInvalid, { file }));
+        }
+    }
+}
+
+void PlayerStore::Set(const PlayerRecord& record) {
+    std::string key = ToLower(record.nick);
+    mRecords[key] = record;
+    mDirty.insert(key);
+}
+
+void PlayerStore::ReplaceAll(std::vector<PlayerRecord> records) {
+    Clear();
+    for (PlayerRecord& record : records) {
+        std::string key = ToLower(record.nick);
+        mDirty.insert(key);
         mRecords[key] = std::move(record);
     }
 }

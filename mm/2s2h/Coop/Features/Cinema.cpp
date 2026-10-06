@@ -22,6 +22,7 @@
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Group/Group.h"
 #include "2s2h/Coop/Puppet/PuppetManager.h"
+#include "2s2h/Coop/Room/Room.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "common/Protocol.h"
@@ -145,7 +146,7 @@ Scope DirectorScope(PlayState* play) {
         !Leases_IsRemote(*t)) {
         return AnyoneElseHere(play) ? Scope::Scene : Scope::None;
     }
-    if (!Group_Has() || !Group_AnyMateNear(kGroupWatchDist)) {
+    if (!Mates_AnyNear(kGroupWatchDist)) { // group or room mates near us
         return Scope::None;
     }
     bool byNpc = t != nullptr && starter->category == ACTORCAT_NPC;
@@ -205,7 +206,7 @@ bool Wants(PlayState* play, uint8_t from, const std::string& scope) {
         Actor* p = PuppetManager_Actor(from);
         return p != nullptr && Actor_WorldDistXYZToActor(&Link(play)->actor, p) < kSceneWatchDist;
     }
-    return Group_IsMate(from) && (Group_MateNear(from, kGroupWatchDist) || Guest_Director() == from);
+    return Mates_Is(from) && (Mates_Near(from, kGroupWatchDist) || Guest_Director() == from);
 }
 
 bool CanWatch(PlayState* play) {
@@ -468,6 +469,14 @@ uint8_t Cinema_ActorOwner() {
 
 bool Cinema_DirectingShared() {
     return sDirecting != Scope::None;
+}
+
+Actor* Cinema_CutsceneActor() {
+    s16 cs = CutsceneManager_GetCurrentCsId();
+    if (gPlayState == nullptr || cs == CS_ID_NONE || cs != sStarted.csId || IsPlayerCs(gPlayState, cs)) {
+        return nullptr;
+    }
+    return sStarted.actor;
 }
 
 } // namespace coop::client

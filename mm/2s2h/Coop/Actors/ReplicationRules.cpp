@@ -72,6 +72,16 @@ bool IsEcho(int16_t id) {
     });
 }
 
+// Props of the room's list that belong to an NPC there: shared like it and simulated by the same game (its family:
+// Leases and hits go to its root), so what passes between the two happens in one game. ADD A LINE: { prop, its NPC }.
+struct Partner {
+    int16_t prop;
+    int16_t npc;
+};
+const Partner kPartners[] = {
+    { ACTOR_EN_BOMBAL, ACTOR_EN_BOMJIMA }, // the Majora balloon Bomber Jim shoots at: popped for everyone, his cue
+};
+
 bool TrackedCategory(uint8_t category) {
     return category == ACTORCAT_NPC || category == ACTORCAT_ENEMY || category == ACTORCAT_BOSS;
 }
@@ -106,9 +116,19 @@ Replication Rules_ListActor(int16_t actorId, uint8_t category) {
         return CutsceneRule();
     }
     return (TrackedCategory(category) || IsSpawner(actorId) || IsPropEnemy(actorId) || Activity_IsPropId(actorId) ||
-            SceneObjects_Shared(actorId)) // the scene's machinery (Sync/SceneObjects.cpp)
+            SceneObjects_Shared(actorId) || // the scene's machinery (Sync/SceneObjects.cpp)
+            Rules_PartnerNpc(actorId) >= 0)
                ? Replication::Replicated
                : Replication::Local;
+}
+
+int16_t Rules_PartnerNpc(int16_t propId) {
+    for (const Partner& p : kPartners) {
+        if (p.prop == propId) {
+            return p.npc;
+        }
+    }
+    return -1;
 }
 
 Replication Rules_RuntimeChild(int16_t actorId, uint8_t category) {

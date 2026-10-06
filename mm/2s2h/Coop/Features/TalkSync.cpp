@@ -16,6 +16,7 @@
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Group/Group.h"
 #include "2s2h/Coop/Puppet/PuppetManager.h"
+#include "2s2h/Coop/Room/Room.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "common/Protocol.h"
@@ -118,10 +119,10 @@ const char* ScopeOf(PlayState* play) {
         if (fighter || BossArena_Is(play->sceneId)) {
             return AnyoneElseHere(play) ? "scene" : nullptr;
         }
-        return Group_AnyMateNear(kWatchDist) ? "group" : nullptr;
+        return Mates_AnyNear(kWatchDist) ? "group" : nullptr; // (group or room mates: "group" scope)
     }
     const ActivityDef* d = Director_Running();
-    if (who == nullptr && d != nullptr && d->mode != ActivityMode::EachOwn && Group_AnyMateNear(kWatchDist)) {
+    if (who == nullptr && d != nullptr && d->mode != ActivityMode::EachOwn && Mates_AnyNear(kWatchDist)) {
         return "group";
     }
     return nullptr;
@@ -167,8 +168,8 @@ bool Hears(PlayState* play, uint8_t from, const std::string& scope) {
         Actor* p = PuppetManager_Actor(from);
         return p != nullptr && Actor_WorldDistXYZToActor(&Link(play)->actor, p) < kSceneWatchDist;
     }
-    return Group_IsMate(from) &&
-           (Group_MateNear(from, kWatchDist) || Guest_Director() == from || Cinema_WatchingFrom(from));
+    return Mates_Is(from) &&
+           (Mates_Near(from, kWatchDist) || Guest_Director() == from || Cinema_WatchingFrom(from));
 }
 
 bool CanOpen(PlayState* play) {

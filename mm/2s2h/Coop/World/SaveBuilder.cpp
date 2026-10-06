@@ -3,6 +3,8 @@
 #include "FieldTable.h"
 
 #include "common/Clock.h"
+#include "common/SaveLayout.h"
+#include "common/WorldFields.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
 
@@ -18,10 +20,6 @@ extern "C" {
 namespace coop::client {
 
 namespace {
-
-void SetWeekEvent(uint16_t flag) {
-    gSaveContext.save.saveInfo.weekEventReg[flag >> 8] |= (uint8_t)(flag & 0xFF);
-}
 
 // Sram_InitNewSave plus what Sram_OpenSave clears when a save is loaded (nothing of another game stays).
 void FreshSave() {
@@ -83,25 +81,17 @@ void SaveBuilder_NewWorld() {
     Rand_Seed((u32)osGetTime()); // lottery, Bombers and Spider House codes: different in every world
     FreshSave();
     // What SkipIntroSequence + SkipFirstCycle leave (Enhancements/Cutscenes/SkipIntroSequence.cpp): human Link in
-    // Clock Town with Tatl, the Ocarina, the Deku Mask, the Songs of Time and Healing, and magic.
-    gSaveContext.save.isFirstCycle = true;
-    gSaveContext.save.hasTatl = true;
-    gSaveContext.cycleSceneFlags[SCENE_INSIDETOWER].switch0 |= (1 << 0);
-    gSaveContext.cycleSceneFlags[SCENE_OPENINGDAN].switch0 |= (1 << 2) | (1 << 0);
-    gSaveContext.cycleSceneFlags[SCENE_OPENINGDAN].chest |= (1 << 0);
-    gSaveContext.cycleSceneFlags[SCENE_YOUSEI_IZUMI].switch0 |= (1 << 10);
-    INV_CONTENT(ITEM_DEKU_NUT) = ITEM_DEKU_NUT; // with no nuts left, as after the first cycle
-    INV_CONTENT(ITEM_OCARINA_OF_TIME) = ITEM_OCARINA_OF_TIME;
-    INV_CONTENT(ITEM_MASK_DEKU) = ITEM_MASK_DEKU;
-    SavePlayerData& player = gSaveContext.save.saveInfo.playerData;
-    player.isMagicAcquired = true;
-    player.threeDayResetCount = 1;
-    gSaveContext.save.saveInfo.inventory.questItems |= (1 << QUEST_SONG_TIME) | (1 << QUEST_SONG_HEALING);
-    SetWeekEvent(WEEKEVENTREG_59_04);
-    SetWeekEvent(WEEKEVENTREG_31_04);
-    SetWeekEvent(WEEKEVENTREG_ENTERED_EAST_CLOCK_TOWN);
-    SetWeekEvent(WEEKEVENTREG_ENTERED_WEST_CLOCK_TOWN);
-    SetWeekEvent(WEEKEVENTREG_ENTERED_NORTH_CLOCK_TOWN);
+    // Clock Town with Tatl, the Ocarina, the Deku Mask, the Songs of Time and Healing, and magic. The same starting
+    // state a converted base-game save gets (coop/common/SaveLayout.h ApplyCoopBaseline), through the world's fields.
+    save::FieldBytes start;
+    for (size_t i = 0; i < world::kFieldCount; i++) {
+        start.emplace_back(world::kFields[i].size);
+        fields::Read((int)i, start.back().data());
+    }
+    save::ApplyCoopBaseline(start);
+    for (size_t i = 0; i < world::kFieldCount; i++) {
+        fields::Write((int)i, start[i].data());
+    }
 }
 
 void SaveBuilder_LoadWorld(const json& fields) {
@@ -151,7 +141,7 @@ void SaveBuilder_SetClock(const json& serverClock) {
     gSaveContext.save.timeSpeedOffset = GetBool(serverClock, "inv") ? -2 : 0;
 }
 
-void SaveBuilder_PrepareStart(const WarpTarget* spot, const std::string& nick) {
+void SaveBuilder_PrepareStart(const WarpTarget* spot, const std::string& nick, uint16_t startEntrance) {
     SetPlayerName(nick);
     // What FileSelect_LoadGame sets before Play_Init
     gSaveContext.gameMode = GAMEMODE_NORMAL;
@@ -198,7 +188,8 @@ void SaveBuilder_PrepareStart(const WarpTarget* spot, const std::string& nick) {
         gSaveContext.save.entrance = Entrance_Create(spot->entrance >> 9, 0, 0);
         Warp_SetRespawn(*spot);
     } else {
-        gSaveContext.save.entrance = ENTRANCE(SOUTH_CLOCK_TOWN, 0);
+        bool owl = startEntrance != kNoStartEntrance && Warp_IsValidEntrance(startEntrance);
+        gSaveContext.save.entrance = owl ? startEntrance : ENTRANCE(SOUTH_CLOCK_TOWN, 0);
         gSaveContext.respawnFlag = 0;
         gSaveContext.respawn[RESPAWN_MODE_DOWN].entrance = ENTR_LOAD_OPENING;
     }

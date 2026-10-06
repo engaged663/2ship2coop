@@ -80,6 +80,9 @@ struct RemoteClient {
     TokenBucket activityBudget{ kActivityBurst, kActivityPerSecond };
     TokenBucket rewardBudget{ kRewardBurst, kRewardPerSecond };
     TokenBucket effectBudget{ kEffectBurst, kEffectPerSecond }; // effects echo (EffectHandlers.cpp)
+    // Activity rooms (Rooms.cpp, Handlers/RoomHandlers.cpp)
+    TokenBucket roomBudget{ kRoomOpBurst, kRoomOpPerSecond };
+    std::string roomsSent; // the last "rooms" list it got (serialized): only changes are sent
     // Total sync (SceneHandlers.cpp, AmbientHandlers.cpp)
     TokenBucket sceneFlagBudget{ kSceneFlagBurst, kSceneFlagPerSecond };
     TokenBucket ambientBudget{ kAmbientBurst, kAmbientPerSecond };

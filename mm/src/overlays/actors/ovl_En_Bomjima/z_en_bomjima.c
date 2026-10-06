@@ -453,6 +453,22 @@ void func_80BFEB64(EnBomjima* this, PlayState* play) {
         Actor_OfferTalk(&this->actor, play, 70.0f);
     }
 
+    // [COOP] A copy of another game's Jim becoming ours (Coop/Actors/ActorSync.cpp) may come without a balloon: each
+    // game has its own, and ours may be gone (popped here). He takes ours; with none left, he reacts as when it pops.
+    if (this->bombal == NULL) {
+        Actor* balloon = play->actorCtx.actorLists[ACTORCAT_PROP].first;
+
+        while ((balloon != NULL) && ((balloon->id != ACTOR_EN_BOMBAL) || (balloon->update == NULL))) {
+            balloon = balloon->next;
+        }
+        if (balloon == NULL) {
+            func_80BFEFF0(this);
+            return;
+        }
+        this->bombal = (EnBombal*)balloon;
+        Math_Vec3f_Copy(&this->unk_2B0, &balloon->world.pos);
+    }
+
     if ((this->bombal->actor.update == NULL) || (this->bombal->actor.colChkInfo.health == 0)) {
         func_80BFEFF0(this);
         return;

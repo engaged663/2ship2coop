@@ -1,5 +1,6 @@
 #include "2s2h/Coop/Host/HostMode.h" // [COOP]
 #include "2s2h/Coop/O2r/O2r.h"       // [COOP] the server's .o2r mods, loaded at the frame's safe point
+extern "C" void Coop_OnExit();      // [COOP] Coop/CoopInit.cpp: leave the server's world properly when closing
 #include "BenPort.h"
 #include <iostream>
 #include <algorithm>
@@ -1024,6 +1025,7 @@ extern "C" void SaveManager_ThreadPoolWait() {
 }
 
 extern "C" void DeinitOTR() {
+    Coop_OnExit(); // [COOP] while the scene, the save and the network still exist
     SaveManager_ThreadPoolWait();
     OTRAudio_Exit();
 #ifdef ENABLE_CROWD_CONTROL

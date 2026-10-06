@@ -33,18 +33,6 @@ bool CheckSender(CommandContext& ctx) {
     return true;
 }
 
-// The mover appears where target is (the game warps as for /tp).
-void SendTrip(Server& server, RemoteClient& mover, const RemoteClient& target) {
-    json tp = MakeEvent(ev::kTp);
-    tp["scene"] = target.scene;
-    tp["entrance"] = target.entrance;
-    tp["room"] = target.room;
-    tp["pos"] = { target.pos[0], target.pos[1], target.pos[2] };
-    tp["rot"] = target.rotY;
-    tp["target"] = target.nick;
-    server.SendEvent(mover, tp);
-}
-
 void InviteOne(CommandContext& ctx, RemoteClient& to, GroupChanges& ch) {
     RemoteClient& from = *ctx.sender;
     if (!Groups_InWorld(to)) {
@@ -151,7 +139,7 @@ void RunAccept(CommandContext& ctx, const std::vector<std::string>& args) {
             }
             ctx.server.Log().Info(Tr(Msg::LogGroupJoin, { me.nick, inviterNick }));
             if (inviter != nullptr && inviter->hasState && inviter->scene >= 0) {
-                SendTrip(ctx.server, me, *inviter);
+                Groups_SendTrip(ctx.server, me, *inviter);
             }
             break;
     }

@@ -8,6 +8,7 @@
 #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
 #include "assets/objects/object_fusen/object_fusen.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
@@ -93,7 +94,11 @@ void func_80C05B3C(EnBombal* this, PlayState* play) {
             this->collider.base.acFlags &= ~AC_HIT;
             if (!CHECK_WEEKEVENTREG(WEEKEVENTREG_75_40) && !CHECK_WEEKEVENTREG(WEEKEVENTREG_73_10) &&
                 !CHECK_WEEKEVENTREG(WEEKEVENTREG_85_02)) {
-                player->stateFlags1 |= ACTOR_FLAG_DRAW_CULLING_DISABLED;
+                // [COOP] Only Jim frees Link from this (when his cutscene starts); in the server's world he may run in
+                // another game or for another Link, and nothing would ever free ours
+                if (!Coop_InWorld()) {
+                    player->stateFlags1 |= ACTOR_FLAG_DRAW_CULLING_DISABLED;
+                }
                 this->actor.flags |= ACTOR_FLAG_FREEZE_EXCEPTION;
             }
             this->actionFunc = func_80C05C44;

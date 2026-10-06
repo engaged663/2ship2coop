@@ -20,6 +20,10 @@ int WorldSession_Cycle();    // the world cycle of that save
 std::string WorldSession_StatusText();
 void WorldSession_RequestEnter();
 void WorldSession_RequestLeave();
+// This player's own data to the server now (save: and onto its disk at once). Only while playing in its world.
+void WorldSession_UploadNow(bool save);
+// The game is closing (CoopInit.cpp Coop_OnExit): leave the world properly, with the last changes sent.
+void WorldSession_OnExit();
 // The ending (Features/EndingMode.cpp): true lifts the forced cutscene skips and gives the settings that change the
 // pace of its texts and screens their default, so it plays whole and at the same pace everywhere; false undoes it.
 void WorldSession_SetEndingCVars(bool ending);

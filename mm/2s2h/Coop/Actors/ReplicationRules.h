@@ -23,6 +23,9 @@ Replication Rules_ListActor(int16_t actorId, uint8_t category);
 Replication Rules_RuntimeChild(int16_t actorId, uint8_t category);
 // Lent to the player next to it (NPCs: talking, shops, minigames).
 bool Rules_Leasable(int16_t actorId, uint8_t category);
+// A prop of the room's list that goes with an NPC there (kPartners: Bomber Jim's balloon): that NPC's id, -1 if none.
+// ActorRegistry.cpp puts it in the NPC's family.
+int16_t Rules_PartnerNpc(int16_t propId);
 // One of the cutscene actors (Dm_*, Demo_*), whatever the option says; and the option (gCoop.Group.CinemaActors:
 // off = each game's own, never followed, as before the limits fix).
 bool Rules_IsCutsceneActor(int16_t actorId);

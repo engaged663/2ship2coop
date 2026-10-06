@@ -5,6 +5,9 @@
 
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Puppet/PuppetManager.h"
+#include "2s2h/ObjectExtension/ActorListIndex.h"
+
+#include <libultraship/bridge/consolevariablebridge.h>
 
 #include <algorithm>
 #include <array>
@@ -170,9 +173,48 @@ class GameResolver : public PointerResolver {
 
 GameResolver sResolver;
 uint32_t sResolverVersion = 0xFFFFFFFFu; // ActorRegistry_Version() when it was rebuilt
+// gCoop.Sync.ListPointers (read with the resolver): pointers into the room's list actors nobody replicates travel.
+// Off: as before (the copy keeps its own value from its Init).
+bool sListPointers = true;
 
 Player* LocalLink() {
     return gPlayState != nullptr ? (Player*)gPlayState->actorCtx.actorLists[ACTORCAT_PLAYER].first : nullptr;
+}
+
+uint32_t InstanceBytes(const Actor* a) {
+    uint32_t size = (a->overlayEntry != nullptr && a->overlayEntry->profile != nullptr)
+                        ? a->overlayEntry->profile->instanceSize
+                        : 0;
+    return std::min<uint32_t>(size, image_limits::kRegionBytes);
+}
+
+// An actor of the room's list that nobody replicates here (each game has its own: the balloon Bomber Jim shoots at):
+// its LocalListKey, 0 if it is not one. Never a Link: ours and the puppets travel as Link slots.
+uint32_t LocalListKeyOf(const Actor* a) {
+    int16_t index = GetActorListIndex(a);
+    if (a->update == nullptr || a->category == ACTORCAT_PLAYER || index < 0 || index > 0xFF || a->room < 0 ||
+        a->room > image_limits::kRoomMax || a->id < 0 || InstanceBytes(a) == 0 || ActorRegistry_Get(a) != nullptr) {
+        return 0;
+    }
+    return LocalListKey((uint16_t)a->id, (uint8_t)a->room, (uint8_t)index);
+}
+
+// Our own actor of the list entry a LocalListKey names (nullptr: not here, or another actor there).
+Actor* FindLocalListActor(uint32_t key) {
+    uint16_t id = 0;
+    uint8_t room = 0;
+    uint8_t index = 0;
+    if (gPlayState == nullptr || !ParseLocalListKey(key, id, room, index)) {
+        return nullptr;
+    }
+    for (int cat = 0; cat < ACTORCAT_MAX; cat++) {
+        for (Actor* a = gPlayState->actorCtx.actorLists[cat].first; a != nullptr; a = a->next) {
+            if (a->update != nullptr && a->id == (s16)id && a->room == (s8)room && GetActorListIndex(a) == index) {
+                return a;
+            }
+        }
+    }
+    return nullptr;
 }
 
 // Where a received pointer points in this game; nullptr: nowhere here (the slot keeps its own value).
@@ -182,13 +224,14 @@ uint8_t* Resolve(const Slot& s) {
             return (sResolver.exeSize != 0 && s.value < sResolver.exeSize) ? (uint8_t*)(sResolver.exeBase + s.value)
                                                                            : nullptr;
         case SlotKind::Actor: {
-            TrackedActor* x = ActorRegistry_Find((uint32_t)(s.value >> 32));
+            uint32_t key = (uint32_t)(s.value >> 32);
             size_t rg = (s.value >> 16) & 0xFF;
             size_t off = s.value & 0xFFFF;
-            if (x == nullptr || rg >= x->regions.size() || off >= x->regions[rg].size) {
-                return nullptr;
+            if (TrackedActor* x = ActorRegistry_Find(key)) {
+                return (rg < x->regions.size() && off < x->regions[rg].size) ? x->regions[rg].ptr + off : nullptr;
             }
-            return x->regions[rg].ptr + off;
+            Actor* own = (rg == 0 && sListPointers) ? FindLocalListActor(key) : nullptr; // a list actor: ours
+            return (own != nullptr && off < InstanceBytes(own)) ? (uint8_t*)own + off : nullptr;
         }
         case SlotKind::Link: {
             uint8_t pid = (uint8_t)(s.value >> 32);
@@ -264,6 +307,16 @@ void ActorMemory_RebuildResolver() {
         for (size_t i = 0; i < t->regions.size(); i++) {
             const Region& r = t->regions[i];
             sResolver.actors.push_back({ (uintptr_t)r.ptr, (uintptr_t)r.ptr + r.size, t->key, (uint8_t)i });
+        }
+    }
+    // The room's list actors nobody replicates: a copy of one of ours that points at one gets its own game's (without
+    // this it kept the null of its Init, and crashed when it became ours: Bomber Jim and his balloon)
+    sListPointers = CVarGetInteger("gCoop.Sync.ListPointers", 1) != 0;
+    for (int cat = 0; sListPointers && gPlayState != nullptr && cat < ACTORCAT_MAX; cat++) {
+        for (Actor* a = gPlayState->actorCtx.actorLists[cat].first; a != nullptr; a = a->next) {
+            if (uint32_t key = LocalListKeyOf(a)) {
+                sResolver.actors.push_back({ (uintptr_t)a, (uintptr_t)a + InstanceBytes(a), key, 0 });
+            }
         }
     }
     std::sort(sResolver.actors.begin(), sResolver.actors.end(),
@@ -377,7 +430,14 @@ static void RefreshResolver() {
 
 Slot ActorMemory_Classify(uint64_t raw) {
     RefreshResolver();
-    return ClassifySlot(raw, sResolver);
+    Slot s = ClassifySlot(raw, sResolver);
+    uint16_t id = 0;
+    uint8_t room = 0;
+    uint8_t index = 0;
+    if (s.kind == SlotKind::Actor && ParseLocalListKey((uint32_t)(s.value >> 32), id, room, index)) {
+        return { SlotKind::Keep, 0 }; // an effect or a sound on an actor every game has itself stays in its game
+    }
+    return s;
 }
 
 uint8_t* ActorMemory_Resolve(const Slot& s) {

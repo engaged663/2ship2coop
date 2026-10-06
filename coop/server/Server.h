@@ -7,6 +7,7 @@
 #include "Logger.h"
 #include "O2rStore.h"
 #include "PlayerRegistry.h"
+#include "RoomBook.h"
 #include "ServerConfig.h"
 #include "World/SharedWorld.h"
 #include "common/Events.h"
@@ -58,6 +59,9 @@ class Server {
     GroupBook& Groups() {
         return mGroups;
     }
+    RoomBook& Rooms() { // activity rooms (Rooms.h)
+        return mRooms;
+    }
     SharedWorld& World() {
         return mWorld;
     }
@@ -92,6 +96,7 @@ class Server {
     PlayerRegistry mPlayers;
     GiftManager mGifts;
     GroupBook mGroups;
+    RoomBook mRooms;
     SharedWorld mWorld; // after mPlayers: it reads the registry
     O2rStore mO2r;
     bool mRunning = false;

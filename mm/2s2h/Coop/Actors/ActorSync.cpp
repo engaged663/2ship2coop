@@ -251,8 +251,10 @@ void DispatchFrame(int8_t room, uint8_t sender, Frame& f, Stream& st) {
                 continue; // our own cutscene actor, only driven while we watch: a list never removes it
             }
             // The props of a minigame wait like the NPCs: its director takes them a moment after arriving (the rings
-            // of a race only exist in the games that are in it, not in the room's owner's).
-            bool npc = !t->runtime && (t->actor->category == ACTORCAT_NPC || Activity_IsPropId(t->actor->id));
+            // of a race only exist in the games that are in it, not in the room's owner's). So does a prop that goes
+            // with an NPC (its family changes hands with it: Bomber Jim's balloon).
+            bool npc = !t->runtime && (t->actor->category == ACTORCAT_NPC || Activity_IsPropId(t->actor->id) ||
+                                       (IsListKey(t->key) && t->rootKey != t->key));
             // What a cutscene made at run time waits longer: its lists stop a moment before we stop watching
             bool patient = npc || t->cinema;
             if ((first && !patient) || ++t->missedAlive >= (npc ? 8 : (t->cinema ? 4 : 2))) {

@@ -1,6 +1,7 @@
 #include "Warp.h"
 
 #include "2s2h/Coop/Puppet/PoseCapture.h"
+#include "2s2h/Coop/Room/Room.h"
 
 #include "common/PlayerState.h"
 
@@ -14,9 +15,13 @@ extern SceneEntranceTableEntry sSceneEntranceTable[]; // z_scene_table.c
 
 namespace coop::client {
 
+bool Warp_IsValidEntrance(uint16_t entrance) {
+    uint32_t sceneIndex = entrance >> 9;
+    return sceneIndex < ENTR_SCENE_MAX && sSceneEntranceTable[sceneIndex].table != nullptr;
+}
+
 bool Warp_IsValid(const WarpTarget& t) {
-    uint32_t sceneIndex = t.entrance >> 9;
-    if (sceneIndex >= ENTR_SCENE_MAX || sSceneEntranceTable[sceneIndex].table == nullptr || t.room < 0) {
+    if (!Warp_IsValidEntrance(t.entrance) || t.room < 0) {
         return false;
     }
     for (float v : t.pos) {
@@ -92,6 +97,9 @@ std::string Warp_BlockedReason() {
     Player* player = GET_PLAYER(play);
     if (play->transitionTrigger != TRANS_TRIGGER_OFF || play->transitionMode != TRANS_MODE_OFF) {
         return "estás cambiando de escenario";
+    }
+    if (coop::client::RoomHold_Active()) {
+        return "tu partida espera a que empiece tu sala";
     }
     if (player->stateFlags1 & PLAYER_STATE1_DEAD) {
         return "Link no tiene energía";

@@ -29,6 +29,7 @@ json Defaults(const ServerConfig& cfg) {
              { "groups", cfg.groups },
              { "bossCutscenes", cfg.bossCutscenes },
              { "inviteSeconds", cfg.inviteMs / 1000 },
+             { "rooms", cfg.rooms },
              { "effects", cfg.effects },
              { "sounds", cfg.sounds },
              { "ambient", cfg.ambient },
@@ -39,6 +40,8 @@ json Defaults(const ServerConfig& cfg) {
              { "timeSpeed", cfg.timeSpeed },
              { "voteSeconds", cfg.voteTimeoutMs / 1000 },
              { "saveSeconds", cfg.worldSaveMs / 1000 },
+             { "backupMinutes", cfg.backupMs / 60000 },
+             { "backupKeep", cfg.backupKeep },
              { "giftMax", cfg.giftMax },
              { "commandPermissions", json::object() },
              { "gameSettings", json::object() },
@@ -231,6 +234,7 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     cfg.groups = r.Bool("groups", cfg.groups);
     cfg.bossCutscenes = r.Bool("bossCutscenes", cfg.bossCutscenes);
     cfg.inviteMs = r.Int("inviteSeconds", cfg.inviteMs / 1000, 10, 600) * 1000;
+    cfg.rooms = r.Bool("rooms", cfg.rooms);
     cfg.effects = r.Bool("effects", cfg.effects);
     cfg.sounds = r.Bool("sounds", cfg.sounds);
     cfg.ambient = r.Bool("ambient", cfg.ambient);
@@ -241,6 +245,8 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     cfg.timeSpeed = r.Number("timeSpeed", cfg.timeSpeed, kMinTimeSpeed, kMaxTimeSpeed);
     cfg.voteTimeoutMs = r.Int("voteSeconds", cfg.voteTimeoutMs / 1000, 10, 300) * 1000;
     cfg.worldSaveMs = r.Int("saveSeconds", cfg.worldSaveMs / 1000, 2, 600) * 1000;
+    cfg.backupMs = r.Int("backupMinutes", cfg.backupMs / 60000, 0, 1440) * 60000;
+    cfg.backupKeep = r.Int("backupKeep", cfg.backupKeep, 1, 500);
     cfg.giftMax = r.Int("giftMax", cfg.giftMax, 1, kGiftMaxAmount);
     if (const json* perms = r.Object("commandPermissions")) {
         for (auto it = perms->begin(); it != perms->end(); ++it) {

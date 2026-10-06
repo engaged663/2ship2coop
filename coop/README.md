@@ -24,6 +24,7 @@ they carry, the scene's flags live, its machinery and the ocarina: see "Total sy
 | Common library | `coop/common/` | protocol + network (ENet), nothing from the game. Used by server, bot, tests and game |
 | Server | `coop/server/` → `2ship-coop-server.exe` | console; authority for players, chat, commands, world and clock |
 | Test bot | `coop/tools/CoopBot.cpp` → `2ship-coop-bot.exe` | fake player to test with a single PC |
+| Save converter | `coop/tools/SaveConvert.cpp` → `2ship-coop-convert.exe` | a base-game save (`saves/fileN.json`) into a server's `world.json` + `players/` (drag and drop or command line) |
 | Tests | `coop/tests/` → `coop-tests.exe` | unit + integration (real server on loopback) |
 | Client (game) | `mm/2s2h/Coop/` | connection, chat, other Links, /tp, /gift, menu, playing in the server's world |
 
@@ -48,6 +49,8 @@ they carry, the scene's flags live, its machinery and the ocarina: see "Total sy
 | `WorldOps.*` | world changes: differences, validated apply, JSON; server and game |
 | `Clock.*` | 3-day clock: abs ↔ day/hour, format, rule for following the game |
 | `WorldRules.*` | rules of the original game that the world applies outside it (swords Takkuri stole) |
+| `SaveLayout.*` | the game's save outside the game: constants mirrored from the engine (`static_assert`ed in `FieldTable.cpp`), **`kPlayerFields`** (the schema of each player's own data) and `ApplyCoopBaseline` (the starting state of a co-op world) |
+| `SaveImport.*` | a 2 Ship save JSON (any version, owl or cycle-start part) → world fields, player data, clock and a summary; the "functional for the co-op" minimum; refuses rando/empty saves |
 | `ActorImage.*` | D3: binary stream of the memory of a room's replicated actors: records, parts, limits |
 | `SlotCodec.h` | one `ActorImage` slot on the wire (type + value), for other streams |
 | `EffectImage.*` | effect echo: binary stream `kStreamEffects` (particles with their start data as slots) |
@@ -77,14 +80,19 @@ they carry, the scene's flags live, its machinery and the ocarina: see "Total sy
 | `Commands/*.cpp` | one file per command or group: help, list, pm, tp, gift, kick/ban/unban/banlist, op/deop, say/stop, stats |
 | `World/SharedWorld.h` + `SharedWorld.cpp` | enter, create, leave, forwarding changes, inventories, saving, when the clock runs |
 | `World/SharedWorldCycle.cpp` | Song of Double Time, Inverted, vote, restarts, moon, /settime |
-| `World/WorldStore.*` | the world fields, the copy of the cycle start and `world.json` |
+| `World/WorldStore.*` | the world fields, the copy of the cycle start and `world.json` (lenient when loading: missing fields start empty, resized ones are cut/padded) |
+| `World/WorldImage.*` | a whole saved world (fields, start copy, clock, players): `world.json`'s shape, load/save of a folder, an import as an image |
+| `World/WorldBackups.*` | `backups/<date>[_NN]-<reason>/`: make, list (newest first), resolve a name, prune (manual ones stay) |
+| `World/ServerLock.*` | `server.lock` (the server's PID) next to `world.json` while it runs: the converter never writes over a live server; a second server started there by mistake leaves the live one's lock alone and warns |
+| `World/SharedWorldSave.cpp` | loading, damaged files (set aside → newest backup; unmovable → blocked), backups (start, periodic, before the moon/new cycle/import/restore), `Replace` (import / restore while people play) |
 | `World/WorldClock.*` | the server's clock (speed, stopped, jumps) |
-| `World/PlayerStore.*` | each player's own inventory (`players/<nick>.json`) |
+| `World/PlayerStore.*` | each player's own inventory (`players/<nick>.json`; damaged files set aside, never overwritten) |
 | `World/SotVote.*` | Song of Time vote |
-| `World/JsonFile.*` | read/write JSON on disk without leaving half-written files |
+| `World/JsonFile.*` | read/write JSON on disk without leaving half-written files; `SetAside` (`<file>.bad-<date>`) |
 | `Handlers/WorldHandlers.cpp` | `world_enter/world_leave/world_init/wops/inv/cycle_result` |
 | `Handlers/ClockHandlers.cpp` | `clock_jump/clock_speed/sot_propose` |
 | `Commands/WorldCommands.cpp` | `/tiempo /si /no /settime /mundo /reiniciar` |
+| `Commands/SaveCommands.cpp` | `/backup [lista]` (op), `/restaurar <copia\|ultima>` and `/importar <archivo> [nick] [auto\|buho\|ciclo]` (console) |
 | `World/RoomAuthority.*` | C: who simulates the enemies of each (scene, room): the one who has been there longest and is not busy |
 | `Handlers/ActorHandlers.cpp` | C: `auth` and forwarding the enemy stream, `hit`, `hurt`, `drop` (with their rules) |
 | `Handlers/PropHandlers.cpp` | scenery objects (`prop`, `props`, `item`: what is broken is remembered while someone stays in the scene) |
@@ -93,7 +101,11 @@ they carry, the scene's flags live, its machinery and the ocarina: see "Total sy
 | `Groups.*` | who hears what (teammates, in the scene) and the events/texts of group changes |
 | `Handlers/GroupHandlers.cpp` | invitation expiry; leaving the world or disconnecting = leaving the group at once |
 | `Commands/GroupCommands.cpp` | `/invitar /aceptar /rechazar /grupo /dejargrupo` (and their English names); `tp` to the inviter on accepting |
-| `Handlers/ActivityHandlers.cpp` | `act` (also `result` and a round's result), `act_hud`, `act_reward`, `follow`, `talk` (with `vars`), `cinema` (with `blur`), `title`: validated and sent to the group in the scene or to the whole scene (`scope`) |
+| `Handlers/ActivityHandlers.cpp` | `act` (also `result` and a round's result), `act_hud`, `act_reward`, `follow`, `talk` (with `vars`), `cinema` (with `blur`), `title`: validated and sent to the group (and room) in the scene, to the whole scene (`scope`), or to the room's members wherever they are (a running round's HUD, `room` prizes, trips of the room's activity) |
+| `RoomBook.*` | rules of the activity rooms (lobby, ready check, countdown, rounds, invitations), no network (tested in `TestRoomBook.cpp`) |
+| `Rooms.*` | the rooms' actions (shared by `room_op` and the commands), events and texts, trips to the director, who is in its scene, who hears what an activity shares |
+| `Handlers/RoomHandlers.cpp` | `room_op`; the rooms' clock (presence, countdown, invitations, lobbies that give up, ended rooms that close, the open rooms' list); leaving |
+| `Commands/RoomCommands.cpp` | `/sala` (`/room`) and its sub-commands, `/listo` (`/ready`), `/s` (the room's chat) |
 | `Handlers/EffectHandlers.cpp` | effect echo: validates the packet, stamps the sender and forwards it to their scene (`effects` in `server.json`) |
 | `Mods/ModHost.*` | **mod core**: load and unload, events (`Fire`), timers, commands, data, forced options, commands to the game (`SendOp`) |
 | `Mods/ModEvents.inc` | **one line per mod event** (name, cancelable, description, fields) |
@@ -131,7 +143,8 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Features/RooftopTimer.cpp` | the rooftop countdown is the server's (same for everyone; when it ends the moon falls) |
 | `Features/EndingMode.cpp` | the ending is seen whole and in sync; co-op steps aside; at the end, new cycle |
 | `Group/Group.h` | **map of the groups** in the game; `GroupState.cpp` (group copy and invitations, commands), `InviteWindow.cpp` (Accept/Decline window), `GroupMenu.cpp` (menu section and options) |
-| `Activities/Activities.h` | **map of minigames and quests**; `ActivityTable.cpp` (**one line per minigame/quest**), `Director.cpp` (this game runs one), `Guest.cpp` (a teammate runs one here), `Follow.cpp` (`follow`), `Rewards.cpp` (prizes) |
+| `Activities/Activities.h` | **map of minigames and quests**; `ActivityTable.cpp` (**one line per minigame/quest**), `Director.cpp` (this game runs one: opens its room), `Guest.cpp` (a teammate or room mate runs one), `Follow.cpp` (`follow`), `Rewards.cpp` (prizes), `Bombers.cpp` (the Bombers' hide-and-seek: one count for everyone, its activity hooks) |
+| `Room/Room.h` | **map of the activity rooms** in the game; `RoomState.cpp` (the room's copy, `room_op`, mates = group or room), `RoomHold.cpp` (the director's game waits until everyone is ready: `Coop_PlayHeld`), `RoomWindow.cpp` (the room's window: members, ready, invitations, settings, chat), `RoomMenu.cpp` (menu section "Salas") |
 | `Features/Cinema.h/.cpp` | cutscenes seen with the camera (and music) of whoever directs them: group or scene (bosses); boss titles |
 | `Features/BossArenas.cpp` | boss rooms: whoever simulates the boss directs its cutscenes for everyone and does not give up its rooms |
 | `Features/TalkSync.h/.cpp` | mirror dialogues: a teammate's text in your own box, at the speaker's pace |
@@ -139,8 +152,8 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Features/EffectEcho.cpp` | effect echo: the particles (`EffectSs`) of our Link, of what we simulate, of our hits and of our cutscene are created in the other games (**`kInits` table**: one line per effect type) |
 | `Features/CoopEponaManager.*` | per-player Eponas (owner + copies); the passenger follows the driver on scene change and mounts again |
 | `Actors/CoopEngine.h` | C: the C API that the engine's `[COOP]` changes call |
-| `Actors/ReplicationRules.*` | D3: **which actors are replicated** (ENEMY/BOSS/NPC categories + lists: enemies archived as props, spawners, local ones, minigame objects) and cutscene actors (Cinema mode: ours, except while watching someone else's cutscene) |
-| `Actors/ActorMemory.*`, `ProcessMemory.*`, `Leases.*` | D3: slot-based memory copy (local mask per actor: dynamic collision belongs to each game); NPCs/enemies lent to the nearby player and minigame objects lent to their director |
+| `Actors/ReplicationRules.*` | D3: **which actors are replicated** (ENEMY/BOSS/NPC categories + lists: enemies archived as props, spawners, local ones, minigame objects, **`kPartners`**: props that go with an NPC of their room, in its family: Bomber Jim's balloon) and cutscene actors (Cinema mode: ours, except while watching someone else's cutscene) |
+| `Actors/ActorMemory.*`, `ProcessMemory.*`, `Leases.*` | D3: slot-based memory copy (local mask per actor: dynamic collision belongs to each game; a pointer into a room-list actor nobody replicates travels as `LocalListKey` and the copy points at its own game's: Bomber Jim's balloon, switch `gCoop.Sync.ListPointers`); NPCs/enemies lent to the nearby player and minigame objects lent to their director; a shared actor of ours in its own cutscene keeps its family (asked for as talking) and our rooms (not busy) until it ends: only its update stops it |
 | `Actors/PropSync.*` | pots, grass (also field grass and clumps), crates, rocks and rupees: broken/picked up for everyone; what they drop is seen by everyone (**`kSharedProps` list**) |
 | `Actors/TimeNeverStops.cpp` | in the server's world nothing stops time (pause, ocarina, texts, masks): hooks in z_actor/z_play/z_kankyo |
 | `Actors/LiveMenu.cpp` | **live menu**: the pause menu (and the owl map) is just a layer; Link carries on with a neutral controller, the world is drawn behind it, without silence or change of pace, and it closes by itself if the game needs Link (`ForceClose`). Switch `gCoop.LiveMenu` |
@@ -155,9 +168,10 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Features/Gift.cpp` | pay / receive / refund rupees |
 | `Features/SelfNameTag.cpp` | optional own nick |
 | `Features/DebugBoot.cpp` | quick test: starts in Clock Town with the debug save; field test (`Debug.FieldSelfTest`) |
-| `World/FieldTable.*` | field ↔ save memory (`static_assert`) |
+| `World/FieldTable.*` | field ↔ save memory (`static_assert`), player data ↔ `SaveLayout.h kPlayerFields`, every `SaveLayout.h` constant checked |
+| `World/ImportCheck.cpp` | `gCoop.Debug.FieldSelfTest`: the live save through 2 Ship's JSON and `SaveImport` must equal `FieldTable` |
 | `World/WorldSync.*` | shadow + differences → `wops`; apply those of others |
-| `World/SaveBuilder.*` | build the save in memory, end-of-cycle rules on a copy |
+| `World/SaveBuilder.*` | build the save in memory (a new world = `ApplyCoopBaseline`), end-of-cycle rules on a copy, start at a converted owl save's entrance |
 | `World/WorldSession.*` | enter/leave, restarts, forced CVars, inventory upload, cycle calculation |
 | `World/ClockSync.*` | server clock, songs, moon |
 | `Menu/CoopMenu.*` | "Co-op" tab of the menu (F1) |
@@ -166,6 +180,8 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Sync/Sync.h` | **map of the total sync** (see "Total sync"): `SyncOptions.cpp` (switches), `SfxIds.cpp`, `SoundEcho.cpp` (S1), `CopyCode.cpp` (a copy's own code: silent, its owner's Link, no attacks), `AmbientEcho.cpp` (S2), `PlayerObjects.cpp` (S3, **`kPlayerObjects` list**), `SceneFlags.cpp` + `FlagReload.cpp` (S4), `SceneObjects.cpp` (S5, **`kSceneObjects` list**), `OcarinaEcho.cpp` (S6), `SyncMenu.cpp` |
 
 ### Changes outside these folders (search for `[COOP]`)
+- `mm/src/code/z_play.c` (`Play_UpdateMain`: the world's update waits while `Coop_PlayHeld`, the activity room of
+  this game waits for everyone) and `CoopEngine.h` (`COOP_WORLD_PAUSED` is also true then: the minigame timers pause).
 - `mm/include/tables/actor_table.h`: actor `En_CoopPuppet` (0x2B2).
 - `CMakeLists.txt`: `add_subdirectory(coop)`. `mm/CMakeLists.txt`: links `coop_common`.
 - `mm/src/code/z_sram_NES.c`, `mm/src/overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope_NES.c`: without a file
@@ -214,10 +230,11 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
   `mm/src/code/z_bg_collect.c` (`DynaPolyActor_AttachCarriedActor`: `Coop_OnCarried`).
 
 `server.json`: `language` (`es`, `en`, `zh`, `ru`; see "Languages"), `sharedEnemies`, `sharedProps` (scenery
-objects), `endingForAll` (Moon/Majora/ending for everyone), `groups` (groups), `bossCutscenes` (boss cutscenes
-for the whole scene) and `effects` (effect echo) can be set to `false`; `inviteSeconds` (10..600, 60 by default)
+objects), `endingForAll` (Moon/Majora/ending for everyone), `groups` (groups), `rooms` (activity rooms),
+`bossCutscenes` (boss cutscenes for the whole scene) and `effects` (effect echo) can be set to `false`; `inviteSeconds` (10..600, 60 by default)
 is how long an invitation lasts. Also: `timeSpeed` (speed of the three days, 0.1..10), `voteSeconds` (10..300),
-`saveSeconds` (2..600), `giftMax` (1..999), `commandPermissions` (`{"tp": "op"}`: who uses each command),
+`saveSeconds` (2..600), `backupMinutes` (0..1440, 0 = no periodic backups), `backupKeep` (1..500), `giftMax` (1..999),
+`commandPermissions` (`{"tp": "op"}`: who uses each command),
 `gameSettings` (2 Ship options forced on everyone), `mods` (folders, lists and limits: `docs/mods/README.md`),
 `o2r` (the game mods the players download: see "Game mods (.o2r)") and the six parts of the total sync, `true` by
 default: `sounds`, `ambient`, `playerObjects`, `sceneFlags`, `sceneObjects`, `ocarina` (see "Total sync").
@@ -335,6 +352,18 @@ In Git Bash, arguments starting with `/` are converted to paths: use `MSYS_NO_PA
   are saved in `gCoop.World.RestoreCVars` and come back on leaving, or at startup if the game was closed inside.
 - Limits: `wops` ≤ 30/s, `inv` ≤ 2/s, ≤ 6 KB and ≤ 8 levels of nesting, `world_enter`/`world_leave` ≤ 1 per
   2 s (burst 6); protocol v2.
+- **Saving** (spec `docs/superpowers/specs/2026-10-05-coop-guardado-design.md`, protocol v18): `world.json` version 2
+  (clock `{abs, inv, frozen}`), loaded leniently (another version's file still loads; the warnings go to the log).
+  Backups in `backups/` (see `World/WorldBackups.*`); a damaged file is set aside (`.bad-<date>`) and the newest backup
+  takes its place; if `world.json` can be neither read nor moved, the server is *blocked* (no new world over it).
+  `inv` with `"save": true` is written at once ("Save" in the pause menu, `/unlockall`). The games upload every 2 s
+  and on leaving or closing (`Coop_OnExit` in `DeinitOTR`; `NetClient` sends its queue before the goodbye).
+  `/importar` and `/restaurar` replace the world while it runs (`SharedWorld::Replace`): a backup first, a new cycle
+  number (old `wops`/`inv` are dropped), `world_full` with `reset: "import"`/`"restore"` (each player back to their
+  spot; a converted owl save's player starts at its owl statue: `inv.entrance`). `/unlockall` and `/give` need the
+  target in the world; the game applies the unlock with the engine's rules and checks it with `fields::SelfTest`, and
+  undoes what the first version left in a world (`save::RepairUpgrades` / `RepairQuestItems` in `SaveLayout.h`: Deku
+  sticks and nuts 7, bullet bag 4, Saria's and the Sun's songs).
 
 ## Groups, minigames and quests
 
@@ -402,7 +431,40 @@ the invitation its name). **New effect that must be seen by the others**: one li
 | `cartero`, `cofres`, `carrera_perros`, `mayordomo_deku` | single-player | Turn-based | — | "Your turn" to the next one |
 | `saltos_pescador` | fisherman's jumps | Turn-based | `OBJ_JGAME_LIGHT` (torches) | |
 | `globos_romani` | Romani shooting | Turn-based | — | played in a scene layer of its own (the others are not in it) |
+| `bombers` | the Bombers' hide-and-seek | Shared | — | played all over Clock Town; one count for everyone (`Bombers.cpp`); whoever catches the last one takes the room to Jim |
 | `barca_koume` | Koume's boat shooting | Turn-based | — | the boat belongs to each game (see above) |
+
+## Activity rooms
+
+Spec `docs/superpowers/specs/2026-10-04-coop-salas-actividades-design.md`. Every minigame of the table a game starts
+opens a **room** on the server: whoever started it (the *director*, also its *host*), its group (they come in by
+themselves: the group shares its activities) and whoever the host invites for that activity only. The room has its own
+chat and settings, and the activity starts when **everyone is ready**: meanwhile the director's game waits frozen
+(`Coop_PlayHeld` in `z_play.c`; the minigame timers pause). While it runs, the room shares the activity with its
+members **wherever they are**: the HUD, the results, the prizes and the trips of its activity go by membership, not by
+scene or distance (that is what broke the Bombers' hide-and-seek and any minigame that changes scenes).
+
+- **Where it is played** (from the table): *here* (where its NPC is: a member who gets ready travels to the director,
+  and the room waits until everyone is in its scene), *entrance* (a special entrance: the director waits **before** its
+  transition and everyone makes it together when the room starts: `follow` with `all`), *anywhere* (the Bombers).
+- **Rounds**: when the director's activity ends (`act end`) the room stays *ended* for 2 minutes (results, prizes the
+  NPC gives later, chat); whoever of the room starts the same activity again reopens it as the director of the new
+  round (turn-based minigames: the next one's round), and everyone confirms again.
+- **Settings** (host): `open` (anyone in the world may join: "Salas abiertas"), `travel` (members who get ready go to
+  the director), `rewards` (the activity's prizes go to the room). Host leaving: the next member hosts; the director
+  leaving ends its round.
+- **Commands**: `/sala` (`/room`) shows your room; `/sala invitar <nick>... | grupo | todos`, `aceptar [nick]`,
+  `rechazar [nick]`, `listo [sí|no]`, `salir`, `cerrar`, `quitar <nick>`, `unirse <nick>`, `abierta|viaje|premios sí|no`,
+  `decir <text>` (English: `invite`, `accept`, `decline`, `ready`, `leave`, `close`, `kick`, `join`, `open`, `travel`,
+  `rewards`, `say`); `/listo` (`/ready`) and `/s <text>` (the room's chat).
+- **Protocol v17**: `room_op` (C→S `op`: `open` key, name, mode, place | `ready` | `invite` to/group | `answer` room,
+  accept | `leave` | `kick` who | `close` | `settings` open, travel, rewards | `join` room | `chat` text), `room` (S→C:
+  the room's state for its members; `id` 0 with `reason` = in no room), `room_invite`, `room_invite_end`,
+  `room_chat`, `rooms` (the open rooms); `act_reward` gains `room`, `follow` gains `all`, `tp` gains `roomTrip` (the
+  game retries it 30 s). Limits: `kRoomOpBurst`/`kRoomOpPerSecond`; times `kRoomCountdownMs` (3 s),
+  `kRoomLobbyMs` (10 min), `kRoomLingerMs` (2 min).
+- **Off**: `server.json` `"rooms": false` (as before: groups only); in the game `gCoop.Room.Enabled` (this game opens no
+  rooms) and `gCoop.Room.Hold` (it opens them but does not wait).
 
 ## Mods (Lua scripts and DLL plugins)
 
@@ -432,6 +494,8 @@ South Clock Town, 54784 = North), `Debug.GrantHeartOnEnter` (test: +1 container 
 `Group.Dialogues`, `Group.Cutscenes`, `Group.Minigames`, `Group.Rewards`, `Group.CinemaActors` (follow the cutscene
 actors of whoever you watch), `Group.Turns` ("Your turn" notice) and `Effects` (effect echo: send and receive).
 `LiveMenu` (1 by default): the pause menu pauses nothing; 0 = as before (still image, Link waiting).
+Rooms (1 by default): `Room.Enabled` (open a room when this game starts a minigame), `Room.Hold` (wait for
+everyone's confirmation before it starts).
 `Mods` (1 by default): the game accepts the server mods' commands and options and tells them what happens; 0 =
 ignores them. `World.ModRestoreCVars` (internal): the player's options that a server has forced, to give them back.
 Game mods (.o2r): `O2r.AutoDownload` (0 by default: ask before downloading a server's `.o2r`; 1 = never ask),

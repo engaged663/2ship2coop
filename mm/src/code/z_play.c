@@ -987,7 +987,9 @@ void Play_UpdateMain(PlayState* this) {
 
     Actor_SetMovementScale(this->state.framerateDivisor);
 
-    if (FrameAdvance_Update(&this->frameAdvCtx, &input[1])) {
+    // [COOP] Coop_PlayHeld: this game's activity room waits for everyone's confirmation (Room/RoomHold.cpp): the world
+    // (and a transition it was about to start) waits, drawn as it is
+    if (FrameAdvance_Update(&this->frameAdvCtx, &input[1]) && !Coop_PlayHeld(this)) {
         if ((this->transitionMode == TRANS_MODE_OFF) && (this->transitionTrigger != TRANS_TRIGGER_OFF)) {
             this->transitionMode = TRANS_MODE_SETUP;
         }

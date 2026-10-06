@@ -191,6 +191,26 @@ void Track(Actor* actor, const SpawnCtx& ctx) {
     sVersion++;
 }
 
+// A prop that goes with an NPC of its room (ReplicationRules.cpp kPartners) joins that NPC's family, whichever of the
+// two is created first; with several such NPCs, the one of the lowest key (every game picks the same).
+void BindPartners(TrackedActor& t) {
+    if (!IsListKey(t.key)) {
+        return;
+    }
+    int16_t npc = Rules_PartnerNpc(t.actor->id);
+    for (auto& [actor, tracked] : sTracked) {
+        TrackedActor& o = *tracked;
+        if (&o == &t || o.room != t.room || !IsListKey(o.key) || o.actor->update == nullptr) {
+            continue;
+        }
+        if (npc >= 0 && o.actor->id == npc && (t.rootKey == t.key || o.key < t.rootKey)) {
+            t.rootKey = o.key; // its NPC was here first
+        } else if (Rules_PartnerNpc(o.actor->id) == t.actor->id && (o.rootKey == o.key || t.key < o.rootKey)) {
+            o.rootKey = t.key; // its prop was here first
+        }
+    }
+}
+
 void Untrack(const Actor* actor) {
     auto it = sTracked.find(actor);
     if (it == sTracked.end()) {
@@ -490,6 +510,7 @@ static void InitEnd(Actor* actor) {
         return;
     }
     BuildRegions(*t);
+    BindPartners(*t);
     for (Collider* c : t->colliders) {
         sColliderOwner[c] = t;
     }

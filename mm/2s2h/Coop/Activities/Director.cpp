@@ -1,14 +1,21 @@
 // [COOP] This game runs an activity (spec §3.2, §4). It says what it stands next to ("act here": the invitations and
 // /list show it), when one of the table's minigames starts and ends here ("act start/end"), keeps that minigame's NPC
-// (Leases.cpp asks Director_PinsActorId; ActorSync.cpp keeps its family on our Link), sends its HUD to the group in
-// the scene ("act_hud", shown by Guest.cpp) and takes the mates near it along to the minigame's entrances ("follow").
+// (Leases.cpp asks Director_PinsActorId; ActorSync.cpp keeps its family on our Link), sends its HUD ("act_hud", shown
+// by Guest.cpp) and takes its mates along to the minigame's entrances ("follow").
+// Activity rooms (spec 2026-10-04-coop-salas-actividades §5.3): starting one opens its room (Room/Room.h) and this
+// game waits (Room/RoomHold.cpp) until everyone is ready; into a special entrance it waits before the trip, and the
+// whole room makes it together when the room runs. A minigame played in several scenes (its hooks) runs while its
+// hooks say so, wherever this game goes.
 #include "Activities.h"
 
 #include "2s2h/Coop/Chat/ChatModel.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
+#include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Group/Group.h"
+#include "2s2h/Coop/Host/HostMode.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
+#include "2s2h/Coop/Room/Room.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "common/Protocol.h"
@@ -55,12 +62,30 @@ int sFrames = 0;
 bool sPrevStarting = false;
 int64_t sTalkedToNpcMs = -kTalkStickyMs;
 
+// The trip into a minigame's special entrance that waits for its room: taken back while this game waits (a transition
+// left pending would stop our poses, our actors and our leases: everything waits for a transition to end), and made
+// again exactly the same when the room runs, by the whole room at once.
+struct PendingFollow {
+    bool active = false;
+    uint16_t entrance = 0;
+    uint16_t cs = 0;
+    uint8_t trans = 0;
+    uint8_t nextTrans = 0;
+    int16_t scene = -1;
+    const ActivityDef* def = nullptr;
+};
+PendingFollow sPendingFollow;
+bool sSkipEdge = false; // the trip we made again: not a new start
+
 // The activity whose NPC and props this game keeps: the one it runs, or (just after talking to its NPC) the minigame
 // of this scene. Cada uno: each game runs its own race, so its NPC is only kept around the talk that starts it (a
 // mate that already finished can talk to it for its prize).
 const ActivityDef* Pinned(int16_t scene) {
     if (sRunning != nullptr && sRunning->mode != ActivityMode::EachOwn) {
         return sRunning;
+    }
+    if (sPendingFollow.active) {
+        return sPendingFollow.def; // its NPC waits with us for the room (a mate next to it never takes it meanwhile)
     }
     return Group_NowMs() - sTalkedToNpcMs < kTalkStickyMs ? Activity_MinigameOfScene(scene) : nullptr;
 }
@@ -101,6 +126,30 @@ const ActivityDef* QuestHere(PlayState* play) {
     return nullptr;
 }
 
+// Its room: the group and whoever we invite play it with us once everyone is ready; meanwhile this game waits.
+void OpenRoom(const ActivityDef& def) {
+    Room_Open(def.key, def.name, Activity_ModeName(def.mode), Activity_PlaceName(def));
+    RoomHold_Begin(def.key);
+    SPDLOG_INFO("[Coop] Activity {}: its room opens", def.key);
+}
+
+bool UsesRooms() {
+    return Room_Enabled() && !HostMode_Enabled();
+}
+
+void SendFollow(uint16_t entrance, uint16_t cs, uint8_t trans, const ActivityDef& def, bool all) {
+    json ev = MakeEvent(ev::kFollow);
+    ev["entrance"] = entrance;
+    ev["cs"] = cs;
+    ev["trans"] = trans;
+    ev["key"] = def.key;
+    if (all) {
+        ev["all"] = true; // the whole room goes, wherever it is
+    }
+    NetClient::Get().SendEvent(ev);
+    SPDLOG_INFO("[Coop] {}: the {} comes along to entrance {:#x}", def.key, all ? "room" : "group", entrance);
+}
+
 void Start(PlayState* play, const ActivityDef* def) {
     sRunning = def;
     sRunningScene = play->sceneId;
@@ -109,7 +158,9 @@ void Start(PlayState* play, const ActivityDef* def) {
     sScored = false;
     Send("start", def);
     SPDLOG_INFO("[Coop] Activity {} starts in this game", def->key);
-    if (Group_AnyMateNear(kFollowDist)) {
+    if (UsesRooms() && !Room_DirectsRound(def->key)) {
+        OpenRoom(*def); // (into a special entrance its room ran already: Room_DirectsRound)
+    } else if (!Room_Has() && Group_AnyMateNear(kFollowDist)) {
         Chat_Add(ChatKind::Info, std::string(def->name) + ": tu grupo juega contigo.");
     }
 }
@@ -176,29 +227,82 @@ void SendHud(PlayState* play) {
     NetClient::Get().SendEvent(ev);
 }
 
-// The group comes along when this game goes to one of the minigame's entrances, or out of it while it runs.
+// Into a special entrance with no round of the minigame running yet: its room first (the trip waits for it).
+bool RoomFirst(const ActivityDef& def) {
+    return UsesRooms() && Room_HoldEnabled() && !Room_Running(def.key) && !Guest_Joined() && !Room_GuestOf(def.key);
+}
+
+// The group (or the room) comes along when this game goes to one of the minigame's entrances, or out of it while it
+// runs.
 void CheckFollow(PlayState* play) {
     bool starting = play->transitionTrigger == TRANS_TRIGGER_START;
-    if (starting && !sPrevStarting) {
+    if (starting && !sPrevStarting && sSkipEdge) {
+        sSkipEdge = false; // our waiting trip, made again
+    } else if (starting && !sPrevStarting) {
         if (sRunning != nullptr && sRunning->mode == ActivityMode::EachOwn &&
             !Activity_IsSpecialEntrance(*sRunning, play->nextEntrance)) {
             Director_ReportResult(*sRunning); // our own run is over
         }
         const ActivityDef* def = sRunning != nullptr ? sRunning : Activity_MinigameOfScene(play->sceneId);
         bool special = def != nullptr && Activity_IsSpecialEntrance(*def, play->nextEntrance);
-        // Cada uno: the group comes along to the race's entrance, and each one leaves it when its own run ends
-        if (def != nullptr && def->follow && (special || (sRunning != nullptr && def->mode != ActivityMode::EachOwn)) &&
-            Group_AnyMateNear(kFollowDist)) {
-            json ev = MakeEvent(ev::kFollow);
-            ev["entrance"] = play->nextEntrance;
-            ev["cs"] = gSaveContext.nextCutsceneIndex;
-            ev["trans"] = play->transitionType;
-            ev["key"] = def->key;
-            NetClient::Get().SendEvent(ev);
-            SPDLOG_INFO("[Coop] {}: the group comes along to entrance {:#x}", def->key, play->nextEntrance);
+        if (special && RoomFirst(*def) && play->transitionMode == TRANS_MODE_OFF) {
+            if (!Room_DirectsRound(def->key)) {
+                OpenRoom(*def);
+            }
+            sPendingFollow = PendingFollow{ true,
+                                            play->nextEntrance,
+                                            gSaveContext.nextCutsceneIndex,
+                                            play->transitionType,
+                                            gSaveContext.nextTransitionType,
+                                            play->sceneId,
+                                            def };
+            play->transitionTrigger = TRANS_TRIGGER_OFF; // it waits for the room (SendPendingFollow makes it again)
+            starting = false;
+        } else if (def != nullptr && def->follow &&
+                   (special || (sRunning != nullptr && def->mode != ActivityMode::EachOwn)) &&
+                   (Room_HasMates() || Group_AnyMateNear(kFollowDist))) {
+            // Cada uno: the group comes along to the race's entrance, and each one leaves it when its own run ends.
+            // With a room, its members in our scene (the ones in the minigame) come along (Follow.cpp decides).
+            SendFollow(play->nextEntrance, gSaveContext.nextCutsceneIndex, play->transitionType, *def, false);
         }
     }
     sPrevStarting = starting;
+}
+
+// The waiting trip goes once this game no longer waits, exactly as the minigame asked for it: with the whole room if
+// its round runs (no room: the group near us, as before; the room gone or left: alone). While its room still waits
+// for us it keeps waiting, even on a frame this game is not held (the world rebuilding itself, the ending); if the
+// world moved on meanwhile (another scene, a trip of its own), it is dropped.
+void SendPendingFollow(PlayState* play) {
+    if (!sPendingFollow.active || RoomHold_Active()) {
+        return;
+    }
+    PendingFollow trip = sPendingFollow;
+    const RoomInfo& r = Room_Get();
+    bool roomWaits = r.id != 0 && r.key == trip.def->key && r.director == Session_LocalId() &&
+                     (r.phase == RoomPhase::Lobby || r.phase == RoomPhase::Starting);
+    if (roomWaits && Room_HoldEnabled() && play->sceneId == trip.scene) {
+        return;
+    }
+    sPendingFollow.active = false;
+    if (!WorldSession_Active() || play->sceneId != trip.scene || play->transitionTrigger != TRANS_TRIGGER_OFF ||
+        play->transitionMode != TRANS_MODE_OFF) {
+        return;
+    }
+    play->nextEntrance = trip.entrance;
+    gSaveContext.nextCutsceneIndex = trip.cs;
+    play->transitionType = trip.trans;
+    gSaveContext.nextTransitionType = trip.nextTrans;
+    play->transitionTrigger = TRANS_TRIGGER_START;
+    sSkipEdge = true;
+    const ActivityDef& def = *trip.def;
+    if (Room_Running(def.key) && Room_IsDirector()) {
+        if (Room_HasMates()) {
+            SendFollow(trip.entrance, trip.cs, trip.trans, def, true);
+        }
+    } else if (!Room_Has() && def.follow && Group_AnyMateNear(kFollowDist)) {
+        SendFollow(trip.entrance, trip.cs, trip.trans, def, false);
+    }
 }
 
 void FrameEnd() {
@@ -207,15 +311,36 @@ void FrameEnd() {
         return;
     }
     int64_t now = Group_NowMs();
-    const ActivityDef* here = Activity_MinigameOfScene(play->sceneId);
-    if (here != nullptr && !Guest_Joined() && Signals(play, *here)) {
-        sLastSignalMs = now;
-        if (sRunning != here) {
-            End();
-            Start(play, here);
+    // A minigame played in several scenes runs while its hooks say so, wherever we go
+    if (sRunning != nullptr && Activity_IsGlobal(*sRunning)) {
+        if (sRunning->hooks->active()) {
+            sLastSignalMs = now;
+        } else {
+            End(); // done, or its day is over
         }
-    } else if (sRunning != nullptr && (play->sceneId != sRunningScene || now - sLastSignalMs > kEndAfterMs)) {
-        End();
+    }
+    if (sRunning == nullptr && !Guest_Joined()) {
+        size_t count = 0;
+        const ActivityDef* all = Activity_All(&count);
+        for (size_t i = 0; i < count; i++) {
+            if (Activity_IsGlobal(all[i]) && !Room_GuestOf(all[i].key) && all[i].hooks->startedHere(play)) {
+                Start(play, &all[i]);
+                break;
+            }
+        }
+    }
+    const ActivityDef* here = Activity_MinigameOfScene(play->sceneId);
+    if (sRunning == nullptr || !Activity_IsGlobal(*sRunning)) {
+        // (a room's guest never starts it as its own: Cada uno, its own race of the director's round)
+        if (here != nullptr && !Guest_Joined() && !Room_GuestOf(here->key) && Signals(play, *here)) {
+            sLastSignalMs = now;
+            if (sRunning != here) {
+                End();
+                Start(play, here);
+            }
+        } else if (sRunning != nullptr && (play->sceneId != sRunningScene || now - sLastSignalMs > kEndAfterMs)) {
+            End();
+        }
     }
     if (sRunning != nullptr && gSaveContext.minigameStatus == MINIGAME_STATUS_ACTIVE) {
         sScored = true;
@@ -233,10 +358,13 @@ void FrameEnd() {
             Send(at != nullptr ? "here" : "none", at);
         }
     }
-    if (sRunning != nullptr && ++sFrames % kHudEvery == 0 && Group_AnyMateNear(0.f)) {
+    // (never while this game waits for its room: the HUD is frozen and nobody plays yet)
+    if (sRunning != nullptr && !RoomHold_Active() && ++sFrames % kHudEvery == 0 &&
+        (Room_HasMates() || Group_AnyMateNear(0.f))) {
         SendHud(play);
     }
     CheckFollow(play);
+    SendPendingFollow(play);
 }
 
 void Reset() {
@@ -247,6 +375,8 @@ void Reset() {
     sPrevStarting = false;
     sOwnRuns.clear();
     sResultKey.clear();
+    sPendingFollow = PendingFollow{};
+    sSkipEdge = false;
 }
 
 void RegisterDirector() {
@@ -286,6 +416,13 @@ bool Director_PinsFamily(const Actor* root) {
 int64_t Director_LastOwnRunMs(const std::string& key) {
     auto it = sOwnRuns.find(key);
     return it == sOwnRuns.end() ? 0 : it->second;
+}
+
+void Director_FollowAll(PlayState* play, const ActivityDef& def) {
+    if (play == nullptr || !Room_Has() || Room_Get().key != def.key || !Room_HasMates()) {
+        return;
+    }
+    SendFollow(play->nextEntrance, gSaveContext.nextCutsceneIndex, play->transitionType, def, true);
 }
 
 void Director_ReportResult(const ActivityDef& def) {

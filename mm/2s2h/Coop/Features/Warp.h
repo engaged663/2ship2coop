@@ -16,6 +16,7 @@ struct WarpTarget {
 };
 
 bool Warp_IsValid(const WarpTarget& t);             // a scene the game has, a room, a finite position in range
+bool Warp_IsValidEntrance(uint16_t entrance);       // its scene index names one of the game's entrance tables
 bool Warp_FromJson(const json& j, WarpTarget& out); // {entrance, room, pos[3], rot}: "tp" events, saved spots
 json Warp_ToJson(const WarpTarget& t);
 bool Warp_Current(WarpTarget& out);                 // where Link is now (false outside gameplay)

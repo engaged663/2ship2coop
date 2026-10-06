@@ -55,8 +55,12 @@ s32 Coop_HoldWhilePaused(PlayState* play, Actor* actor);
 // The pause menu of the server's world stops nothing (LiveMenu.cpp). Coop_PauseLive: that menu is open (the owls' map
 // of the Song of Soaring counts; the game over screens do not): the world, Link included, runs and is drawn behind it.
 s32 Coop_PauseLive(PlayState* play);
-// For the engine's "is the game paused?" checks that stop something of the world: paused, and not behind that menu.
-#define COOP_WORLD_PAUSED(play) (IS_PAUSED(&(play)->pauseCtx) && !Coop_PauseLive(play))
+// Activity rooms (Room/RoomHold.cpp): 1 = this game started an activity whose room still waits for everyone's
+// confirmation: Play_UpdateMain skips the world's update (it is drawn, frozen) until the room runs.
+s32 Coop_PlayHeld(PlayState* play);
+// For the engine's "is the game paused?" checks that stop something of the world: paused, and not behind that menu;
+// or held by its activity room (the minigame timers wait as with a pause).
+#define COOP_WORLD_PAUSED(play) ((IS_PAUSED(&(play)->pauseCtx) && !Coop_PauseLive(play)) || Coop_PlayHeld(play))
 // 1 = Link waits even behind the live menu (Coop_HoldWhilePaused asks).
 s32 Coop_LiveMenuHoldsLink(PlayState* play);
 // Play_UpdateMain, once a frame before the world runs: Coop_PauseLive, and keeps track of the menu opening and closing.

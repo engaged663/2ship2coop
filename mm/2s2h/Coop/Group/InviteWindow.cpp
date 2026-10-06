@@ -1,8 +1,10 @@
 // [COOP] The pending invitations at the top of the screen: "Ana te invita a Galería de tiro (45 s)" with Aceptar and
 // Rechazar (the same as /aceptar Ana and /rechazar Ana in the chat).
+// Activity rooms' invitations too: "Ana te invita a su sala: Galería de tiro (45 s)" with Participar and Rechazar.
 #include "Group.h"
 
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Room/Room.h"
 
 #include "2s2h/ShipInit.hpp"
 
@@ -36,8 +38,9 @@ void InviteWindow::Draw() {
     if (!Session_IsConnected()) {
         return;
     }
-    std::vector<GroupInvite> invites = Group_Invites(); // a copy: a click changes the list
-    if (invites.empty()) {
+    std::vector<GroupInvite> invites = Group_Invites();           // a copy: a click changes the list
+    std::vector<RoomInvitation> rooms = Room_Invitations(); // invitations to an activity room
+    if (invites.empty() && rooms.empty()) {
         return;
     }
     ImGuiViewport* vp = ImGui::GetMainViewport();
@@ -68,7 +71,21 @@ void InviteWindow::Draw() {
             }
             ImGui::PopID();
         }
-        ImGui::TextDisabled("(o en el chat: /aceptar, /rechazar)");
+        for (const RoomInvitation& inv : rooms) {
+            int secs = (int)std::max<int64_t>(0, (inv.expiresMs - now + 999) / 1000);
+            ImGui::Text("%s te invita a su sala: %s (%d s)", inv.nick.c_str(), inv.name.c_str(), secs);
+            ImGui::PushID(10000 + (int)inv.room);
+            if (ImGui::Button("Participar")) {
+                Room_Answer(inv.room, true);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Rechazar")) {
+                Room_Answer(inv.room, false);
+            }
+            ImGui::PopID();
+        }
+        ImGui::TextDisabled(rooms.empty() ? "(o en el chat: /aceptar, /rechazar)"
+                                          : "(o en el chat: /aceptar, /rechazar, /sala aceptar, /sala rechazar)");
     }
     ImGui::End();
     ImGui::PopStyleVar(2);

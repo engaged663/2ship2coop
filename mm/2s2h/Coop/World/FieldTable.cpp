@@ -4,6 +4,7 @@
 #include "2s2h/Coop/Sync/Sync.h"
 
 #include "common/Hex.h"
+#include "common/SaveLayout.h"
 #include "common/WorldFields.h"
 #include "common/WorldRules.h"
 
@@ -46,28 +47,70 @@ static_assert(world::kItemSwordGreatFairy == ITEM_SWORD_GREAT_FAIRY && world::kI
                   world::kEquipSwordGilded == EQUIP_VALUE_SWORD_GILDED,
               "WorldRules.h");
 
+// coop/common/SaveLayout.h mirrors these for the save converter and the server (and FieldTable uses them too).
+static_assert(save::kItemNone == ITEM_NONE && save::kItemOcarinaOfTime == ITEM_OCARINA_OF_TIME &&
+                  save::kItemDekuNut == ITEM_DEKU_NUT && save::kItemBottle == ITEM_BOTTLE &&
+                  save::kItemMaskDeku == ITEM_MASK_DEKU,
+              "SaveLayout.h: items");
+static_assert(save::kSlotOcarina == SLOT_OCARINA && save::kSlotDekuNut == SLOT_DEKU_NUT &&
+                  save::kSlotBottle1 == SLOT_BOTTLE_1 && save::kSlotBottle1 + save::kBottleSlots - 1 == SLOT_BOTTLE_6 &&
+                  save::kSlotMaskFirst == SLOT_MASK_POSTMAN &&
+                  save::kSlotMaskFirst + save::kMaskSlots - 1 == SLOT_MASK_FIERCE_DEITY &&
+                  save::kSlotMaskDeku == SLOT_MASK_DEKU && save::kItemFieldSlots == SLOT_BOTTLE_1,
+              "SaveLayout.h: inventory slots");
+static_assert(save::kQuestSongTime == QUEST_SONG_TIME && save::kQuestSongHealing == QUEST_SONG_HEALING &&
+                  save::kQuestPictograph == QUEST_PICTOGRAPH && save::kQuestHeartPieceShift == QUEST_HEART_PIECE_COUNT &&
+                  save::kQuestSongSaria == QUEST_SONG_SARIA && save::kQuestSongSun == QUEST_SONG_SUN,
+              "SaveLayout.h: quest items");
+// The upgrade tables are run-time arrays of the engine: their values are compared in SelfTest
+static_assert(save::kUpgradeCount == UPG_DEKU_NUTS + 1 && save::kUpgradeCount == std::size(gUpgradeShifts) &&
+                  save::kUpgradeCount == std::size(gUpgradeMasks),
+              "SaveLayout.h: upgrades");
+static_assert(save::kLocalWeekEventFlags[0] == WEEKEVENTREG_92_80 &&
+                  save::kLocalWeekEventFlags[1] == PACK_WEEKEVENTREG_FLAG(92, WEEKEVENTREG_HORSE_RACE_STATE_MASK) &&
+                  save::kLocalWeekEventFlags[2] == WEEKEVENTREG_08_01 &&
+                  save::kLocalWeekEventFlags[3] == WEEKEVENTREG_KICKOUT_WAIT &&
+                  save::kLocalWeekEventFlags[4] == WEEKEVENTREG_82_08 &&
+                  save::kLocalWeekEventFlags[5] == WEEKEVENTREG_90_20,
+              "SaveLayout.h: local week events");
+static_assert(save::kBaselineWeekEvents[0] == WEEKEVENTREG_59_04 && save::kBaselineWeekEvents[1] == WEEKEVENTREG_31_04 &&
+                  save::kBaselineWeekEvents[2] == WEEKEVENTREG_ENTERED_EAST_CLOCK_TOWN &&
+                  save::kBaselineWeekEvents[3] == WEEKEVENTREG_ENTERED_WEST_CLOCK_TOWN &&
+                  save::kBaselineWeekEvents[4] == WEEKEVENTREG_ENTERED_NORTH_CLOCK_TOWN &&
+                  save::kWeekClearedWoodfall == WEEKEVENTREG_CLEARED_WOODFALL_TEMPLE &&
+                  save::kWeekClearedSnowhead == WEEKEVENTREG_CLEARED_SNOWHEAD_TEMPLE,
+              "SaveLayout.h: week events");
+static_assert(save::kSceneCount == kScenes && save::kCycleSceneFlagsSize == sizeof(CycleSceneFlags) &&
+                  save::kCycleChest == offsetof(CycleSceneFlags, chest) &&
+                  save::kCycleSwitch0 == offsetof(CycleSceneFlags, switch0) &&
+                  save::kSceneClockTowerInterior == SCENE_INSIDETOWER && save::kSceneOpeningDungeon == SCENE_OPENINGDAN &&
+                  save::kSceneFairyFountain == SCENE_YOUSEI_IZUMI,
+              "SaveLayout.h: scenes");
+static_assert(save::kOwlWarpEntrances[OWL_WARP_GREAT_BAY_COAST] == ENTRANCE(GREAT_BAY_COAST, 11) &&
+                  save::kOwlWarpEntrances[OWL_WARP_ZORA_CAPE] == ENTRANCE(ZORA_CAPE, 6) &&
+                  save::kOwlWarpEntrances[OWL_WARP_SNOWHEAD] == ENTRANCE(SNOWHEAD, 3) &&
+                  save::kOwlWarpEntrances[OWL_WARP_MOUNTAIN_VILLAGE] == ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 8) &&
+                  save::kOwlWarpEntrances[OWL_WARP_CLOCK_TOWN] == ENTRANCE(SOUTH_CLOCK_TOWN, 9) &&
+                  save::kOwlWarpEntrances[OWL_WARP_MILK_ROAD] == ENTRANCE(MILK_ROAD, 4) &&
+                  save::kOwlWarpEntrances[OWL_WARP_WOODFALL] == ENTRANCE(WOODFALL, 4) &&
+                  save::kOwlWarpEntrances[OWL_WARP_SOUTHERN_SWAMP] == ENTRANCE(SOUTHERN_SWAMP_POISONED, 10) &&
+                  save::kOwlWarpEntrances[OWL_WARP_IKANA_CANYON] == ENTRANCE(IKANA_CANYON, 4) &&
+                  save::kOwlWarpEntrances[OWL_WARP_STONE_TOWER] == ENTRANCE(STONE_TOWER, 3) &&
+                  save::kEntranceSwampPoisonedOwl == ENTRANCE(SOUTHERN_SWAMP_POISONED, 10) &&
+                  save::kEntranceSwampClearedOwl == ENTRANCE(SOUTHERN_SWAMP_CLEARED, 10) &&
+                  save::kEntranceMountainWinterOwl == ENTRANCE(MOUNTAIN_VILLAGE_WINTER, 8) &&
+                  save::kEntranceMountainSpringOwl == ENTRANCE(MOUNTAIN_VILLAGE_SPRING, 8),
+              "SaveLayout.h: owl entrances (Sram_OpenSave's sOwlWarpEntrances)");
+static_assert(save::kPlayerFormHuman == PLAYER_FORM_HUMAN && save::kEquipSlotCLeft == EQUIP_SLOT_C_LEFT &&
+                  save::kEquipSlotCDown == EQUIP_SLOT_C_DOWN,
+              "SaveLayout.h: player");
+
 SaveInfo& Info() {
     return gSaveContext.save.saveInfo;
 }
 
-// Engine bits that belong to this game only: "a scene is loaded" (92_80), the state of Gorman's horse race
-// (92 & 7: a value, not progress, so each game runs its own race) and the leftovers the map select also clears when
-// it loads a save (z_select.c).
-constexpr uint16_t kLocalWeekEventFlags[] = {
-    WEEKEVENTREG_92_80, PACK_WEEKEVENTREG_FLAG(92, WEEKEVENTREG_HORSE_RACE_STATE_MASK),
-    WEEKEVENTREG_08_01, WEEKEVENTREG_KICKOUT_WAIT,
-    WEEKEVENTREG_82_08, WEEKEVENTREG_90_20,
-};
-
-uint8_t LocalWeekEventMask(int index) {
-    uint8_t mask = 0;
-    for (uint16_t flag : kLocalWeekEventFlags) {
-        if ((flag >> 8) == index) {
-            mask |= (uint8_t)(flag & 0xFF);
-        }
-    }
-    return mask;
-}
+// Engine bits that belong to this game only (SaveLayout.h kLocalWeekEventFlags).
+using save::LocalWeekEventMask;
 
 void ReadWeekEvents(uint8_t* out) {
     for (int i = 0; i < 100; i++) {
@@ -142,7 +185,7 @@ template <u32 PermanentSceneFlags::*Member> void WritePermanent(const uint8_t* i
 }
 
 // Heart pieces travel in heartQuarters; the pictograph is each player's own photo.
-constexpr uint32_t kLocalQuestBits = 0xF0000000u | (1u << QUEST_PICTOGRAPH);
+constexpr uint32_t kLocalQuestBits = save::kLocalQuestBits;
 
 void ReadQuest(uint8_t* out) {
     uint32_t value = Info().inventory.questItems & ~kLocalQuestBits;
@@ -359,8 +402,9 @@ struct PlayerField {
 #define PLAYER_BYTES(name, lvalue) { name, [] { return (uint8_t*)&(lvalue); }, sizeof(lvalue) }
 #define PLAYER_RANGE(name, first, size) { name, [] { return (uint8_t*)&(first); }, size }
 
-// Everything of a player that the world does not share. Add new entries at the end.
-constexpr PlayerField kPlayerFields[] = {
+// Everything of a player that the world does not share: coop/common/SaveLayout.h kPlayerFields, the same names in the
+// same order and sizes (checked below). Add new entries at the end of both.
+constexpr PlayerField kPlayerAccess[] = {
     PLAYER_BYTES("rupees", gSaveContext.save.saveInfo.playerData.rupees),
     PLAYER_BYTES("health", gSaveContext.save.saveInfo.playerData.health),
     PLAYER_BYTES("magic", gSaveContext.save.saveInfo.playerData.magic),
@@ -384,6 +428,20 @@ constexpr PlayerField kPlayerFields[] = {
 
 #undef PLAYER_BYTES
 #undef PLAYER_RANGE
+
+constexpr bool PlayerTableMatchesSchema() {
+    if (std::size(kPlayerAccess) != save::kPlayerFieldCount) {
+        return false;
+    }
+    for (size_t i = 0; i < save::kPlayerFieldCount; i++) {
+        if (!SameName(kPlayerAccess[i].name, save::kPlayerFields[i].name) ||
+            kPlayerAccess[i].size != save::kPlayerFields[i].size) {
+            return false;
+        }
+    }
+    return true;
+}
+static_assert(PlayerTableMatchesSchema(), "kPlayerAccess must list coop::save::kPlayerFields in order, same sizes");
 
 bool IsButtonItem(uint8_t item) {
     return item == ITEM_NONE || item == ITEM_FD || item < std::size(gItemIcons);
@@ -500,7 +558,7 @@ bool WriteAllJson(const json& fields, std::string* err) {
 
 json ReadPlayer() {
     json out = json::object();
-    for (const PlayerField& f : kPlayerFields) {
+    for (const PlayerField& f : kPlayerAccess) {
         out[f.name] = ToHex(f.memory(), f.size);
     }
     return out;
@@ -511,7 +569,7 @@ void WritePlayer(const json& fields) {
         return;
     }
     std::vector<uint8_t> bytes;
-    for (const PlayerField& f : kPlayerFields) {
+    for (const PlayerField& f : kPlayerAccess) {
         auto it = fields.find(f.name);
         if (it == fields.end() || !it->is_string() || !FromHex(it->get<std::string>(), bytes) ||
             bytes.size() != f.size) {
@@ -626,6 +684,12 @@ void SyncSwordButton() {
 }
 
 std::string SelfTest() {
+    for (int i = 0; i < save::kUpgradeCount; i++) { // SaveLayout.h mirrors gUpgradeShifts and gUpgradeMasks
+        uint32_t mask = ((1u << save::kUpgradeBits[i]) - 1) << save::kUpgradeShifts[i];
+        if (save::kUpgradeShifts[i] != gUpgradeShifts[i] || mask != gUpgradeMasks[i]) {
+            return "SaveLayout.h: la mejora " + std::to_string(i) + " no coincide con gUpgradeShifts/gUpgradeMasks";
+        }
+    }
     json shared = ReadAllJson();
     json player = ReadPlayer();
     std::string err;
@@ -641,7 +705,7 @@ std::string SelfTest() {
         }
     }
     json playerAgain = ReadPlayer();
-    for (const PlayerField& f : kPlayerFields) {
+    for (const PlayerField& f : kPlayerAccess) {
         if (player[f.name] != playerAgain[f.name]) {
             return std::string("el campo del jugador '") + f.name + "' cambia al escribirlo";
         }

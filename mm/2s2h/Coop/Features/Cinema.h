@@ -6,6 +6,7 @@
 //   TalkSync.cpp    their dialogues in our text box (TalkSync.h)
 #include <cstdint>
 
+struct Actor;
 struct PlayState;
 
 namespace coop::client {
@@ -15,6 +16,8 @@ bool Cinema_WatchingFrom(uint8_t player); // ...that player's
 bool Cinema_DirectingScene();             // our camera goes to the whole scene (a boss): our rooms stay ours
 uint8_t Cinema_ActorOwner();   // who drives our cutscene actors: the game whose cutscene we watch, else us
 bool Cinema_DirectingShared(); // our cutscene camera goes to others (group or scene)
+// The actor that started the cutscene this game shows now (nullptr: none, or Link's own: a talk, a door...).
+Actor* Cinema_CutsceneActor();
 
 bool BossArena_Is(int16_t sceneId);
 bool BossArena_RunsBoss(PlayState* play); // in an arena, this game simulates its (living) boss

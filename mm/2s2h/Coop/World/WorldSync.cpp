@@ -203,6 +203,16 @@ void WorldSync_FrameEnd() {
     Send(ops);
 }
 
+void WorldSync_Flush() {
+    if (!sActive) {
+        return;
+    }
+    world::Ops ops;
+    DiffLocal(ops);
+    Send(ops);
+    sLastSendMs = NowMs();
+}
+
 COOP_ON_EVENT(worldSyncWops, ev::kWops, OnWops);
 
 } // namespace coop::client

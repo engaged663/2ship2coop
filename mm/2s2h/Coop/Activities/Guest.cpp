@@ -5,6 +5,9 @@
 //   Turns     a small window shows its time and points; the rest is the original game (our round comes after)
 //   EachOwn   our game runs its own copy (a race we followed it into): nothing to show
 // Everything we changed goes back when it ends ("act end", no "act_hud" for 3 s, another scene, out of the group).
+// Activity rooms (spec 2026-10-04-coop-salas-actividades §5.4): the running round of our room's director counts us in
+// wherever we are; a scene change no longer leaves it (what belongs to the scene is undone and comes back when we are
+// in the director's scene again), and away from it the small window shows its time and points.
 #include "Activities.h"
 
 #include "2s2h/Coop/Actors/ActorRegistry.h"
@@ -12,6 +15,7 @@
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Group/Group.h"
+#include "2s2h/Coop/Room/Room.h"
 #include "2s2h/Coop/World/FieldTable.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
@@ -63,6 +67,7 @@ struct Hud {
 
 uint8_t sDirector = 0;
 const ActivityDef* sDef = nullptr;
+bool sViaRoom = false; // counted in by our room's running round (wherever we are)
 std::string sDirectorNick;
 int16_t sScene = -1;
 Hud sHud;
@@ -184,6 +189,17 @@ void Leave(const char* why) {
     sDef = nullptr;
     sDirector = 0;
     sHaveHud = false;
+    sViaRoom = false;
+}
+
+// The director plays in our scene (a room's round counts us in from anywhere; its place and equipment are only for
+// the ones who are with it).
+bool DirectorHere(PlayState* play) {
+    if (!sViaRoom) {
+        return true; // (a group's minigame: we leave it when we change scene)
+    }
+    const RemotePlayer* p = Session_FindPlayer(sDirector);
+    return play != nullptr && p != nullptr && p->scene == play->sceneId;
 }
 
 void Join(uint8_t from, const ActivityDef* def, PlayState* play) {
@@ -208,6 +224,9 @@ void Join(uint8_t from, const ActivityDef* def, PlayState* play) {
             break;
         case ActivityMode::Turns:
             Chat_Add(ChatKind::Ok, "Miras la ronda de " + sDirectorNick + " en " + name + ".");
+            break;
+        case ActivityMode::Shared:
+            Chat_Add(ChatKind::Ok, "Jugáis " + name + " con " + sDirectorNick + ": el progreso es de todos.");
             break;
     }
 }
@@ -365,7 +384,12 @@ class GuestHudWindow : public Ship::GuiWindow {
 std::shared_ptr<GuestHudWindow> sHudWindow;
 
 void GuestHudWindow::Draw() {
-    if (sDef == nullptr || sDef->mode != ActivityMode::Turns || !sHaveHud) {
+    if (sDef == nullptr || !sHaveHud) {
+        return;
+    }
+    // Por turnos: always; any other mode: only away from the director, if there is a time or points to show
+    bool away = sViaRoom && !DirectorHere(gPlayState) && (sHud.hasTimer || sHud.score > 0);
+    if (sDef->mode != ActivityMode::Turns && !away) {
         return;
     }
     ImGuiViewport* vp = ImGui::GetMainViewport();
@@ -398,12 +422,18 @@ void GuestHudWindow::Draw() {
 void OnActHud(const json& ev) {
     PlayState* play = gPlayState;
     uint8_t from = (uint8_t)GetInt(ev, "from");
-    if (play == nullptr || !WorldSession_Active() || !Group_OptMinigames() || !Group_IsMate(from) ||
-        Director_Running() != nullptr) {
+    if (play == nullptr || !WorldSession_Active() || !Group_OptMinigames() || Director_Running() != nullptr) {
         return;
     }
     const ActivityDef* def = Activity_ByKey(GetString(ev, "key"));
     if (def == nullptr || def->kind != ActivityKind::Minigame) {
+        return;
+    }
+    // The running round of our room, from its director: it counts us in wherever we are
+    const RoomInfo& room = Room_Get();
+    bool viaRoom = Room_IsMate(from) && room.phase == RoomPhase::Running && room.director == from &&
+                   room.key == def->key;
+    if (!viaRoom && !Group_IsMate(from)) {
         return;
     }
     if (sDef != nullptr && from != sDirector) {
@@ -411,10 +441,11 @@ void OnActHud(const json& ev) {
     }
     if (sDef == nullptr) {
         bool pending = sPendingFrom == from && sPendingKey == def->key && Group_NowMs() < sPendingUntilMs;
-        if (!pending && !Group_MateNear(from, kJoinDist)) {
+        if (!viaRoom && !pending && !Group_MateNear(from, kJoinDist)) {
             return;
         }
         Join(from, def, play);
+        sViaRoom = viaRoom;
     }
     sHud = ReadHud(ev);
     sHaveHud = true;
@@ -431,27 +462,36 @@ bool PlayedLately(uint8_t id, const ActivityDef& def) {
     return last != 0 && Group_NowMs() - last < kTurnAgainMs;
 }
 
-// Who plays after `from`: the first member after it (the group's order, around) in this scene who has not played
-// lately (0: nobody left).
+// Who plays after `from`: the first member after it (its room's order, or the group's, around) who has not played
+// lately and is in that scene (scene -1: anywhere) (0: nobody left).
 uint8_t NextInTurn(uint8_t from, const ActivityDef& def, int16_t scene) {
-    const std::vector<GroupMember>& members = Group_Members();
+    std::vector<uint8_t> members;
+    if (Room_Has() && Room_Get().key == def.key) {
+        for (const RoomMemberInfo& m : Room_Get().members) {
+            members.push_back(m.id);
+        }
+    } else {
+        for (const GroupMember& m : Group_Members()) {
+            members.push_back(m.id);
+        }
+    }
     size_t n = members.size();
     size_t start = 0;
     for (size_t i = 0; i < n; i++) {
-        if (members[i].id == from) {
+        if (members[i] == from) {
             start = i;
             break;
         }
     }
     for (size_t k = 1; k < n; k++) {
-        const GroupMember& m = members[(start + k) % n];
-        bool here = m.id == Session_LocalId();
+        uint8_t id = members[(start + k) % n];
+        bool here = id == Session_LocalId() || scene < 0;
         if (!here) {
-            const RemotePlayer* p = Session_FindPlayer(m.id);
+            const RemotePlayer* p = Session_FindPlayer(id);
             here = p != nullptr && p->scene == scene;
         }
-        if (here && !PlayedLately(m.id, def)) {
-            return m.id;
+        if (here && !PlayedLately(id, def)) {
+            return id;
         }
     }
     return 0;
@@ -470,11 +510,13 @@ void OnTurnEnded(uint8_t from, const std::string& nick, const ActivityDef& def, 
     sRounds[{ from, def.key }] = Group_NowMs();
     PlayState* play = gPlayState;
     const RemotePlayer* p = Session_FindPlayer(from);
-    if (play == nullptr || p == nullptr || p->scene != play->sceneId || !Group_OptMinigames() ||
+    // A room's round: its members take turns wherever they are; a group's: the ones in its scene
+    bool roomRound = Room_IsMate(from) && Room_Get().key == def.key;
+    if (play == nullptr || p == nullptr || (!roomRound && p->scene != play->sceneId) || !Group_OptMinigames() ||
         CVarGetInteger("gCoop.Group.Turns", 1) == 0) {
         return;
     }
-    if (NextInTurn(from, def, play->sceneId) == Session_LocalId()) {
+    if (NextInTurn(from, def, roomRound ? -1 : play->sceneId) == Session_LocalId()) {
         Chat_Add(ChatKind::Ok,
                  std::string("Te toca: ") + def.name + ". Habla con quien lo lleva para jugar tu ronda.");
     }
@@ -482,7 +524,7 @@ void OnTurnEnded(uint8_t from, const std::string& nick, const ActivityDef& def, 
 
 void OnAct(const json& ev) {
     uint8_t from = (uint8_t)GetInt(ev, "from");
-    if (!Group_IsMate(from)) {
+    if (!Mates_Is(from)) {
         return;
     }
     std::string state = GetString(ev, "state");
@@ -535,15 +577,24 @@ void FrameEnd() {
     if (sDef == nullptr) {
         return;
     }
-    if (!WorldSession_Active() || play->sceneId != sScene || !Group_IsMate(sDirector) || !Group_OptMinigames() ||
-        Group_NowMs() - sHud.atMs > kLostMs) {
+    bool lost = Group_NowMs() - sHud.atMs > kLostMs;
+    if (sViaRoom) {
+        // Our room's round: until it is over or we are out of the room, wherever we go
+        const RoomInfo& room = Room_Get();
+        bool still = room.director == sDirector && room.key == sDef->key && room.phase == RoomPhase::Running;
+        if (!WorldSession_Active() || !still || !Group_OptMinigames() || lost) {
+            Leave("gone");
+            return;
+        }
+    } else if (!WorldSession_Active() || play->sceneId != sScene || !Group_IsMate(sDirector) ||
+               !Group_OptMinigames() || lost) {
         Leave("gone");
         return;
     }
     if (!sHaveHud) {
         return;
     }
-    if (sDef->mode == ActivityMode::Together) {
+    if (sDef->mode == ActivityMode::Together && DirectorHere(play)) {
         ApplyTogether(play);
     }
 }
@@ -552,6 +603,7 @@ void Reset() {
     sDef = nullptr;
     sDirector = 0;
     sHaveHud = false;
+    sViaRoom = false;
     sPendingFrom = 0;
     sOwnRunKey.clear();
     sPrevStarting = false;
@@ -564,9 +616,11 @@ void RegisterGuest() {
     COND_HOOK(OnPlayDestroy, true, []() {
         if (sDef != nullptr) {
             Undo(nullptr); // the scene took its state along; a new one may rejoin
-            sDef = nullptr;
-            sDirector = 0;
-            sHaveHud = false;
+            if (!sViaRoom) {
+                sDef = nullptr; // (our room's round goes on: it applies again in the director's scene)
+                sDirector = 0;
+                sHaveHud = false;
+            }
         }
     });
     if (sHudWindow == nullptr) {

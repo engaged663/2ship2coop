@@ -39,6 +39,8 @@ ImVec4 ColorFor(ChatKind kind) {
             return ImVec4(1.0f, 0.45f, 0.45f, 1.0f);
         case ChatKind::Presence:
             return ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
+        case ChatKind::Room:
+            return ImVec4(0.45f, 0.9f, 0.95f, 1.0f);
         case ChatKind::Chat:
         default:
             return ImVec4(1.0f, 1.0f, 1.0f, 1.0f);

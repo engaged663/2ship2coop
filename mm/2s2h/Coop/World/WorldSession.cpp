@@ -41,7 +41,7 @@ namespace coop::client {
 
 namespace {
 
-constexpr int kUploadEveryMs = 5000; // own data goes to the server this often (if it changed) and when leaving
+constexpr int kUploadEveryMs = 2000; // own data goes to the server this often (if it changed) and when leaving
 constexpr int kSettleWaitMs = 10000; // a new world waits at most this long for a dialog, a cutscene, a scene change
                                      // or the new-day screen to end (the pause menu, as long as it stays open)
 
@@ -196,7 +196,8 @@ void RecoverCVars() {
     InitForcedEnhancements();
 }
 
-void Upload(bool force) {
+// save: the server writes it to disk at once ("Save" in the pause menu, /unlockall).
+void Upload(bool force, bool save = false) {
     json inv = { { "v", 1 }, { "fields", fields::ReadPlayer() } };
     if (sHaveSpot) {
         inv["loc"] = Warp_ToJson(sSpot);
@@ -209,6 +210,9 @@ void Upload(bool force) {
     json ev = MakeEvent(ev::kInv);
     ev["inv"] = std::move(inv);
     ev["cycle"] = sCycle;
+    if (save) {
+        ev["save"] = true;
+    }
     NetClient::Get().SendEvent(ev);
 }
 
@@ -289,10 +293,19 @@ void BuildNow() {
     SaveBuilder_LoadPlayer(inv);
     SaveBuilder_SetClock(ClockSync_ServerJson());
     WarpTarget spot;
-    // A reset (Song of Time, moon) starts at the foot of the clock tower, like the original
-    sHaveSpot = GetString(sBuild, "reset").empty() && Warp_FromJson(Member(inv, "loc"), spot);
+    // A new cycle (Song of Time, moon) starts at the foot of the clock tower, like the original; entering, an imported
+    // save and a restored backup put each player back where they were.
+    std::string reset = GetString(sBuild, "reset");
+    bool ownPlace = reset.empty() || reset == "import" || reset == "restore";
+    sHaveSpot = ownPlace && Warp_FromJson(Member(inv, "loc"), spot);
     sSpot = spot;
-    SaveBuilder_PrepareStart(sHaveSpot ? &spot : nullptr, Session_LocalNick());
+    // A converted base-game owl save starts at its owl statue (coop/common/SaveImport.h), until its first upload
+    uint16_t entrance = kNoStartEntrance;
+    const json& owl = Member(inv, "entrance");
+    if (ownPlace && !sHaveSpot && owl.is_number_integer() && owl.get<int64_t>() >= 0 && owl.get<int64_t>() < 0xFFFF) {
+        entrance = (uint16_t)owl.get<int64_t>();
+    }
+    SaveBuilder_PrepareStart(sHaveSpot ? &spot : nullptr, Session_LocalNick(), entrance);
     WorldSync_TakeShadow();
     sStale = GetBool(sBuild, "stale");
     sLastUpload.clear();
@@ -545,6 +558,23 @@ void WorldSession_RequestLeave() {
     LeaveWorld("Has salido de la partida del servidor.", true);
 }
 
+void WorldSession_UploadNow(bool save) {
+    if (!WorldSession_Active() || !Session_IsConnected()) {
+        return;
+    }
+    if (save) {
+        WorldSync_Flush(); // the world's changes arrive first: the server's save covers them too
+    }
+    Upload(true, save);
+    sLastUploadMs = NowMs();
+}
+
+void WorldSession_OnExit() {
+    // The scene is still alive (the main loop stops without destroying it): its last changes and this player's data
+    // reach the server, then world_leave, before NetClient says goodbye (CoopInit.cpp Coop_OnExit).
+    LeaveWorld("", false);
+}
+
 void WorldSession_SetEndingCVars(bool ending) {
     if (ending == sEndingCVars) {
         return;
@@ -622,6 +652,16 @@ void WorldSession_FrameEnd() {
         sLastUploadMs = now;
         Upload(false);
     }
+}
+
+// "Save" in the pause menu while playing in the server's world (z_kaleido_scope_NES.c): there is no file behind this
+// save; the server keeps the world all the time, so this game's own data goes there and to its disk at once.
+extern "C" void Coop_OnPauseSave() {
+    if (!WorldSession_Active()) {
+        return;
+    }
+    WorldSession_UploadNow(true);
+    Chat_Add(ChatKind::Ok, "Partida guardada en el servidor.");
 }
 
 COOP_ON_EVENT(worldSessionFull, ev::kWorldFull, OnWorldFull);

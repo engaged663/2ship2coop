@@ -9,6 +9,8 @@ void WorldSync_Hold();                // a new world arrived: stop, and drop wha
 void WorldSync_TakeShadow();          // the save now holds the synced world (right after building it)
 void WorldSync_SetActive(bool active); // true: merge what was queued and start syncing; false: send the last changes
 bool WorldSync_Active();
-void WorldSync_FrameEnd();            // CoopInit.cpp, end of every frame
+void WorldSync_FrameEnd();
+// This game's world changes to the server now, without waiting for the next send (before an upload it saves at once).
+void WorldSync_Flush();            // CoopInit.cpp, end of every frame
 
 } // namespace coop::client

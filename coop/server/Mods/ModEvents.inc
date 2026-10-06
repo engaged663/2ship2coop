@@ -60,8 +60,8 @@ X(VoteStart, "vote_start", true,
   "player:int Player id|nick:string Their nick")
 X(VoteEnd, "vote_end", false, "The Song of Time vote has ended.", "passed:bool It passed")
 X(CycleReset, "cycle_reset", false, "A new three-day cycle has started.",
-  "cycle:int Number of the new cycle|reason:string `sot` (vote), `moon` (the moon fell), `restart` (command) or "
-  "`ending` (end of the game)")
+  "cycle:int Number of the new cycle|reason:string `sot` (vote), `moon` (the moon fell), `restart` (command), "
+  "`ending` (end of the game), `import` (a converted base-game save, /importar) or `restore` (a backup, /restaurar)")
 X(MoonCrash, "moon_crash", false, "The clock has reached the end of the third day: the moon falls.",
   "cycle:int Cycle that ends")
 X(GroupChange, "group_change", false, "A group has changed members or has been disbanded (no members).",

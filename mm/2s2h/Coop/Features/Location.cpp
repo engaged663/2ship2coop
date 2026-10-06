@@ -1,11 +1,13 @@
 // Tells the server which scene/room we are in ("loc"): used for /list, the player list and /tp, and whether the
 // original game stops time there (the shared clock waits while someone is in such a scene, e.g. the Moon).
+#include "2s2h/Coop/Actors/Leases.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Features/Cinema.h"
 #include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
+#include "2s2h/Coop/Room/Room.h"
 
 #include "common/PlayerState.h"
 #include "common/Protocol.h"
@@ -31,10 +33,16 @@ bool sLastBusy = false;
 // In a cutscene: the enemies we simulate would freeze for everyone, so the server hands our rooms to someone else
 // meanwhile (sub-project C). The pause menu, texts and the ocarina stop nothing in the server's world. A boss's room
 // is the exception (its cutscenes run in the game that runs it, and it must never change hands in the middle), and so
-// is a cutscene of ours the whole scene is watching (a miniboss's).
+// is a cutscene of ours the whole scene is watching (a miniboss's), and the cutscene of any shared actor we simulate
+// (only its own update ends it: Bomber Jim's was left running in both games when he changed hands in the middle).
+// A game frozen while its activity room waits for everyone (Room/RoomHold.cpp) is busy too: what it simulates would
+// stand still for the others.
 bool Busy() {
+    if (coop::client::RoomHold_Active()) {
+        return true;
+    }
     return Player_InCsMode(gPlayState) && !coop::client::BossArena_Is(gPlayState->sceneId) &&
-           !coop::client::Cinema_DirectingScene();
+           !coop::client::Cinema_DirectingScene() && !coop::client::Leases_HoldsCutscene();
 }
 
 void Reset() {

@@ -1,15 +1,21 @@
-// Activities, shared dialogues and cutscenes (spec 2026-09-30-coop-grupos-actividades §3-§9). The games do the work;
-// the server checks the fields and passes each event to the ones who take part:
-//   act          what a player does (here / start / end / none): kept for /list and invitations; start/end to its group
-//   act_hud      the HUD of the game that runs a minigame, to its group in its scene (10 times a second)
-//   act_reward   a prize to copy, to its group in its scene
-//   follow       a game goes to another entrance and takes along who watches it or plays with it
-//   talk, cinema, title   a dialogue, a cutscene's camera, a boss's title card: to the group in the scene
-//                ("scope": "group", the default) or to everyone in the scene ("scope": "scene": bosses; off with
+// Activities, shared dialogues and cutscenes (spec 2026-09-30-coop-grupos-actividades §3-§9; activity rooms: spec
+// 2026-10-04-coop-salas-actividades §3). The games do the work; the server checks the fields and passes each event to
+// the ones who take part:
+//   act          what a player does (here / start / end / none): kept for /list and invitations; start/end/result to
+//                its group and its room (an "end" of the round it directs ends that round, Rooms.cpp)
+//   act_hud      the HUD of the game that runs a minigame: to its room's members wherever they are when it directs a
+//                running round; otherwise to its group in its scene (10 times a second)
+//   act_reward   a prize to copy: "room" to its room's members wherever they are (if the room shares prizes);
+//                otherwise to its group in its scene
+//   follow       a game goes to another entrance and takes along who watches it or plays with it: with its room's
+//                activity key, to its room's members wherever they are (each game decides whether it goes)
+//   talk, cinema, title   a dialogue, a cutscene's camera, a boss's title card: to its group and room mates in the
+//                scene ("scope": "group", the default) or to everyone in the scene ("scope": "scene": bosses; off with
 //                server.json "bossCutscenes": false)
 #include "server/Groups.h"
 #include "server/Mods/ModHost.h"
 #include "server/Registry.h"
+#include "server/Rooms.h"
 #include "server/Server.h"
 
 #include "common/PlayerState.h"
@@ -54,17 +60,8 @@ bool FiniteVec(const json& ev, const char* key, size_t size, double limit) {
     return true;
 }
 
-// 1..kMaxActivityKey characters of [a-z0-9_]: they name a line of the games' table (ActivityTable.cpp).
 bool ValidKey(const std::string& key) {
-    if (key.empty() || key.size() > (size_t)kMaxActivityKey) {
-        return false;
-    }
-    for (char ch : key) {
-        if (!((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_')) {
-            return false;
-        }
-    }
-    return true;
+    return Groups_ValidActivityKey(key);
 }
 
 // "group" (the default) or "scene"; anything else is invalid.
@@ -95,7 +92,7 @@ std::vector<RemoteClient*> Audience(Server& server, const RemoteClient& from, co
         }
         return out;
     }
-    return Groups_MatesInScene(server, from);
+    return Rooms_PartyInScene(server, from);
 }
 
 void Relay(Server& server, const RemoteClient& from, json ev, const std::vector<RemoteClient*>& to) {
@@ -165,8 +162,9 @@ void OnAct(Server& server, RemoteClient& client, const json& ev) {
         out["nick"] = client.nick;
         out["won"] = won;
         out["cs"] = GetInt(ev, "cs");
-        Relay(server, client, out, Groups_Mates(server, client));
+        Relay(server, client, out, Rooms_PartyAll(server, client));
         TellMods(server, client, "result", key, name, 0, GetInt(ev, "cs"), won);
+        Rooms_OnAct(server, client, "result", key, -1, GetInt(ev, "cs") > 0 ? GetInt(ev, "cs") : -1, won ? 1 : 0);
         return;
     }
     std::string oldKey = client.activityKey;
@@ -202,9 +200,14 @@ void OnAct(Server& server, RemoteClient& client, const json& ev) {
             out["score"] = GetInt(ev, "score");
             out["cs"] = GetInt(ev, "cs");
         }
-        Relay(server, client, out, Groups_Mates(server, client));
+        Relay(server, client, out, Rooms_PartyAll(server, client));
         TellMods(server, client, started ? "start" : "end", whatKey, whatName, started ? 0 : GetInt(ev, "score"),
                  started ? 0 : GetInt(ev, "cs"), false);
+    }
+    if (state == "end") { // the round it directs is over; its result stays in the room
+        int64_t score = GetInt(ev, "score");
+        int64_t cs = GetInt(ev, "cs");
+        Rooms_OnAct(server, client, "end", key, score > 0 ? score : -1, cs > 0 ? cs : -1, -1);
     }
     // The leader's activity names its group (menus): the members hear it.
     const Group* g = server.Groups().GroupOf(client.id);
@@ -242,7 +245,9 @@ void OnActHud(Server& server, RemoteClient& client, const json& ev) {
         server.NoteInvalid(client, Tr(Msg::InvActHud));
         return;
     }
-    Relay(server, client, ev, Groups_MatesInScene(server, client));
+    // The round it directs: its room wherever they are; otherwise its group in its scene
+    Relay(server, client, ev,
+          Rooms_Running(server, client) != nullptr ? Rooms_Mates(server, client) : Groups_MatesInScene(server, client));
 }
 
 void OnActReward(Server& server, RemoteClient& client, const json& ev) {
@@ -251,11 +256,14 @@ void OnActReward(Server& server, RemoteClient& client, const json& ev) {
     }
     bool gi = ev.contains("gi");
     bool rupees = ev.contains("rupees");
-    if (gi == rupees || (gi && !IntIn(ev, "gi", 1, 0xFF)) || (rupees && !IntIn(ev, "rupees", 1, kMaxRewardRupees))) {
+    if (gi == rupees || (gi && !IntIn(ev, "gi", 1, 0xFF)) || (rupees && !IntIn(ev, "rupees", 1, kMaxRewardRupees)) ||
+        !OptionalBool(ev, "room")) {
         server.NoteInvalid(client, Tr(Msg::InvReward));
         return;
     }
-    std::vector<RemoteClient*> mates = Groups_MatesInScene(server, client);
+    bool room = GetBool(ev, "room"); // the prize of a room's activity: its members wherever they are
+    std::vector<RemoteClient*> mates =
+        room ? Rooms_RewardMates(server, client) : Groups_MatesInScene(server, client);
     if (mates.empty()) {
         return;
     }
@@ -269,6 +277,9 @@ void OnActReward(Server& server, RemoteClient& client, const json& ev) {
         what = "rupees=" + std::to_string(GetInt(ev, "rupees"));
     }
     out["nick"] = client.nick;
+    if (room) {
+        out["room"] = true;
+    }
     server.Log().Info(Tr(Msg::LogReward, { client.nick, what }));
     Relay(server, client, out, mates);
 }
@@ -281,11 +292,13 @@ void OnFollow(Server& server, RemoteClient& client, const json& ev) {
     }
     std::string key = GetString(ev, "key");
     if (!scopeOk || !IntIn(ev, "entrance", 0, 0xFFFF) || !IntIn(ev, "cs", 0, 0xFFFF) || !IntIn(ev, "trans", 0, 255) ||
-        (!key.empty() && !ValidKey(key))) {
+        (!key.empty() && !ValidKey(key)) || !OptionalBool(ev, "all")) {
         server.NoteInvalid(client, Tr(Msg::InvFollow));
         return;
     }
-    Relay(server, client, ev, Audience(server, client, scope));
+    // A trip of its room's activity goes to the room wherever they are (each game decides whether it goes)
+    std::vector<RemoteClient*> room = Rooms_FollowMates(server, client, key);
+    Relay(server, client, ev, !room.empty() ? room : Audience(server, client, scope));
 }
 
 void OnTalk(Server& server, RemoteClient& client, const json& ev) {

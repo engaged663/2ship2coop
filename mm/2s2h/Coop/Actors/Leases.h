@@ -13,5 +13,8 @@ bool Leases_IsRemote(const TrackedActor& t);
 bool Leases_HoldAny();                  // we simulate some lent NPC
 bool Leases_LentToMe(const TrackedActor& t); // lent to us (not ours as the room's owner)
 void Leases_Tick();                     // once per frame: ask for the NPCs next to us, give back the far ones
+// A cutscene of a shared actor we simulate is running here (or just ended): only its own update ends it, so its
+// family stays ours meanwhile (held as if we talked to it), and our rooms too (Features/Location.cpp: not busy).
+bool Leases_HoldsCutscene();
 
 } // namespace coop::client

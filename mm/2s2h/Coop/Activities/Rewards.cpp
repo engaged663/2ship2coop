@@ -3,7 +3,8 @@
 // minigame gives outside a GetItem (sent every half second). The mates' games give them what is each player's own
 // (rupees, bottle contents, ammo, hearts) and show its text; what the world shares (masks, heart pieces, upgrades...)
 // is already theirs through the world (B): only its text. Nothing is copied twice (a heart piece would raise
-// everyone's life) and nothing bought.
+// everyone's life) and nothing bought. Activity rooms: while our room's activity runs (or just ended) and it shares
+// its prizes, they go to its members wherever they are ("room": true); otherwise to the group near us, as before.
 #include "Activities.h"
 
 #include "2s2h/Coop/Actors/ActorRegistry.h"
@@ -12,6 +13,7 @@
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Group/Group.h"
+#include "2s2h/Coop/Room/Room.h"
 #include "2s2h/Coop/World/FieldTable.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
@@ -104,8 +106,24 @@ Actor* TalkingTo(PlayState* play) {
     return link != nullptr ? link->talkActor : nullptr;
 }
 
-bool ShouldShare(PlayState* play, Actor* giver) {
-    if (sSuppress > 0 || !WorldSession_Active() || !Group_Has() || !Group_AnyMateNear(kShareDist)) {
+// Our room's activity runs or just ended and its host shares the prizes: its members get them wherever they are.
+bool RoomShares() {
+    const RoomInfo& r = Room_Get();
+    return Room_HasMates() && r.rewards && (r.phase == RoomPhase::Running || r.phase == RoomPhase::Ended);
+}
+
+// *room: it goes to our room (otherwise to the group near us).
+bool ShouldShare(PlayState* play, Actor* giver, bool* room) {
+    *room = false;
+    if (sSuppress > 0 || !WorldSession_Active()) {
+        return false;
+    }
+    // The prizes of our room's activity (we run it or play it in the room): its members, wherever they are
+    if ((Director_Recent() != nullptr || Guest_Activity() != nullptr) && RoomShares()) {
+        *room = true;
+        return true;
+    }
+    if (!Group_Has() || !Group_AnyMateNear(kShareDist)) {
         return false;
     }
     if (Director_Recent() != nullptr) {
@@ -120,6 +138,9 @@ bool ShouldShare(PlayState* play, Actor* giver) {
 void SendRupees() {
     json ev = MakeEvent(ev::kActReward);
     ev["rupees"] = std::min(sPendingRupees, kMaxRewardRupees);
+    if (RoomShares()) {
+        ev["room"] = true;
+    }
     NetClient::Get().SendEvent(ev);
     sPendingRupees = 0;
     sRupeesSinceMs = 0;
@@ -180,8 +201,10 @@ bool TextBoxFree(PlayState* play) {
 void OnReward(const json& ev) {
     PlayState* play = gPlayState;
     uint8_t from = (uint8_t)GetInt(ev, "from");
-    if (play == nullptr || !WorldSession_Active() || !Group_OptRewards() || !Group_IsMate(from) ||
-        !(Guest_Director() == from || Group_MateNear(from, kReceiveDist))) {
+    // A room's prize comes from a member wherever it is; a group's from a mate near us (or the director we play with)
+    bool viaRoom = GetBool(ev, "room") && Room_IsMate(from);
+    bool viaGroup = Group_IsMate(from) && (Guest_Director() == from || Group_MateNear(from, kReceiveDist));
+    if (play == nullptr || !WorldSession_Active() || !Group_OptRewards() || !(viaRoom || viaGroup)) {
         return;
     }
     std::string nick = GetString(ev, "nick");
@@ -286,12 +309,16 @@ using namespace coop::client;
 
 extern "C" void Coop_OnGetItem(PlayState* play, s32 getItemId, Actor* giver) {
     sInGetItem = true;
+    bool room = false;
     if (play == nullptr || getItemId <= GI_NONE || getItemId >= GI_MAX || Classify(getItemId) == GiClass::Never ||
-        !ShouldShare(play, giver)) {
+        !ShouldShare(play, giver, &room)) {
         return;
     }
     json ev = MakeEvent(ev::kActReward);
     ev["gi"] = getItemId;
+    if (room) {
+        ev["room"] = true;
+    }
     NetClient::Get().SendEvent(ev);
 }
 
@@ -309,8 +336,8 @@ extern "C" void Coop_OnRupeesChanged(s16 rupeeChange) {
         sPaidTo = TalkingTo(play);
         return;
     }
-    if (sInGetItem || sSuppress > 0 || Director_Recent() == nullptr || !Group_Has() ||
-        !Group_AnyMateNear(kShareDist)) {
+    if (sInGetItem || sSuppress > 0 || Director_Recent() == nullptr ||
+        !(RoomShares() || (Group_Has() && Group_AnyMateNear(kShareDist)))) {
         return;
     }
     if (sPendingRupees == 0) {

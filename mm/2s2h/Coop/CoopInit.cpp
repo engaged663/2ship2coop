@@ -2,6 +2,7 @@
 // location...) registers its own hooks with RegisterShipInitFunc. Map of the module: coop/README.md.
 #include "2s2h/Coop/Actors/ActorSync.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
+#include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/O2r/O2r.h"
 #include "2s2h/Coop/World/ClockSync.h"
@@ -36,3 +37,11 @@ static void RegisterCoop() {
 }
 
 static RegisterShipInitFunc sCoopInit(RegisterCoop);
+
+// The game is closing (BenPort.cpp DeinitOTR, before anything is torn down): whoever plays in the server's world leaves
+// it properly, so the last world changes and their own data reach the server, which hears the goodbye at once instead
+// of waiting for the connection to time out.
+extern "C" void Coop_OnExit() {
+    coop::client::WorldSession_OnExit();
+    coop::client::NetClient::Get().Disconnect();
+}
