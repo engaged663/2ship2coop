@@ -6,7 +6,9 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 18; // v18: saving (world_full reset "import"/"restore", inv "save",
+constexpr uint32_t kProtocolVersion = 19; // v19: shared drops (item, item_take, item_gone, item_rest, items;
+                                          // welcome sync "drops");
+                                          // v18: saving (world_full reset "import"/"restore", inv "save",
                                           // /unlockall only in the world, inv "entrance" of converted saves);
                                           // v17: activity rooms (room_op, room, room_invite, room_chat, rooms),
                                           // room prizes and trips (act_reward/follow/tp "room", "all");
@@ -77,6 +79,11 @@ constexpr int kDropPerSecond = 10;        // ...and sustained rate
 constexpr int kPropBurst = 200;            // prop/item events per player: burst...
 constexpr int kPropPerSecond = 100;        // ...and sustained rate (a spin attack in a field of grass)
 constexpr size_t kMaxPropsPerScene = 4000; // what the server remembers as gone per occupied scene
+// Shared drops (docs/superpowers/specs/2026-10-07-coop-drops-compartidos-design.md)
+constexpr size_t kMaxItemsPerStage = 300;       // items lying in one stage that the server keeps for latecomers
+constexpr size_t kMaxTakenItemsPerStage = 4000; // keys taken in one stage it remembers (the oldest are forgotten)
+constexpr int kItemBurst = 200;                 // item, item_take, item_rest, items per player: burst...
+constexpr int kItemPerSecond = 100;             // ...and sustained rate (a spin attack in a field of grass)
 // The end of the game (EndingHandlers.cpp)
 constexpr int kEndingBurst = 80;          // ending, ending_sync, cinema, rooftop events per player: burst...
 constexpr int kEndingPerSecond = 40;      // ...and sustained rate (the cinema camera goes 20 times a second)
@@ -206,12 +213,21 @@ inline constexpr const char* kUnlockAll = "unlock_all"; // S->C nick: give this 
 inline constexpr const char* kGive = "give";            // S->C nick, amount: rupees to the wallet, the rest to the bank
 // Shared props and the ending (PropSync.cpp, Ending.cpp)
 inline constexpr const char* kProp = "prop";     // C->S scene, key, child: gone (child -1 a prop of the room's list,
-                                                 // 0..15 a grass group's grass, -2 field grass, -3 a shared item,
+                                                 // 0..15 a grass group's grass, -2 field grass,
                                                  // -4 grass that grows back was cut: not remembered);
                                                  // S->C + from
 inline constexpr const char* kProps = "props";   // C->S scene (just arrived); S->C scene, list [[key, child]...]
-inline constexpr const char* kItem = "item";     // C->S scene, key, id, params, pos[3]: an item a prop dropped
-                                                 // (everyone sees it, the first to pick it up gets it); S->C + from
+// Shared drops (Sync/SharedDrops.cpp, Handlers/ItemHandlers.cpp)
+inline constexpr const char* kItem = "item";          // C->S scene, key, id, params, pos[3] (+ a collectible: vy,
+                                                      // speed, grav, scale, yaw, phase, timer, act): an item fell
+                                                      // here (common/ItemState.h); S->C + from
+inline constexpr const char* kItemTake = "item_take"; // C->S scene, key, after (taken already: fairies); S->C scene,
+                                                      // key, ok (yours / someone was first)
+inline constexpr const char* kItemGone = "item_gone"; // S->C scene, key, from: someone took it
+inline constexpr const char* kItemRest = "item_rest"; // C->S scene, key, pos[3] (where its dropper's came to lie);
+                                                      // S->C + from
+inline constexpr const char* kItems = "items";        // C->S scene, layer (just arrived); S->C scene, list [item +
+                                                      // age, rest], taken [keys of list items and twins]
 // The end of the game, together (Ending.cpp, EndingMode.cpp, RooftopTimer.cpp, MajoraCinema.cpp)
 inline constexpr const char* kEnding = "ending"; // C->S stage (1 the Clock Tower's rooftop, 2 Majora's lair,
                                                  // 3 Majora defeated, 4 the ending); S->C + from, nick

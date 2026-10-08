@@ -39,10 +39,24 @@ s32 Coop_OnSfx(u16 sfxId, Vec3f* pos, u8 token, f32* freqScale, f32* volume, s8*
 void Coop_OnWorldSfx(PlayState* play, Vec3f* worldPos, u32 duration, u16 sfxId, u32 eachFrame, s32 begin);
 void Coop_FlaggedAudio(s32 begin);
 // Item_DropCollectibleRandom (fn 0) / Item_DropCollectible (fn 1) while a shared enemy of this game updates:
-// every other game in the scene drops its own.
+// every other game in the scene drops its own (only with gCoop.Sync.Drops off: on, the item itself is shared).
 void Coop_OnDrop(PlayState* play, Vec3f* pos, s32 params, s32 fn);
 // 1 = the actor updating now must drop nothing (grass cut because another player cut it; PropSync.cpp).
 s32 Coop_DropSuppressed(void);
+// Drops compartidos (Sync/SharedDrops.cpp). In EnItem00_Update: Coop_ItemPrepare before the "does Link touch it" check
+// (an item the server gave us goes to Link's feet) and Coop_ItemTake before giving it (1 = not now: we asked the server
+// who is first; always 1 in the server's own game). Coop_FairyTaken: a shared fairy heals us or goes into a bottle, a
+// stray fairy is collected (gone for the others). Coop_ItemSwayYaw: the line a falling heart sways along (the same in
+// every game for a shared one). Coop_KeepHeartDrops: 1 = a heart stays a heart even with our health full (another
+// player is in the scene). EnItem00_CoopGetAction/SetAction (z_en_item00.c): what an item does as a number (0 lying,
+// 1 thrown out of what broke, 2 bouncing; -1 anything else).
+void Coop_ItemPrepare(Actor* actor);
+s32 Coop_ItemTake(Actor* actor);
+void Coop_FairyTaken(Actor* actor);
+s16 Coop_ItemSwayYaw(Actor* actor);
+s32 Coop_KeepHeartDrops(void);
+s32 EnItem00_CoopGetAction(EnItem00* item);
+void EnItem00_CoopSetAction(EnItem00* item, s32 action);
 
 // Time never stops in the server's world (TimeNeverStops.cpp). Coop_InWorld: playing in it.
 s32 Coop_InWorld(void);

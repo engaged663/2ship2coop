@@ -53,7 +53,8 @@ copyrighted assets.
 command), `gameSettings` (2 Ship
 options forced on everyone in the server's world), `mods` (below), `o2r` (the game mods the players download) and the
 total sync's parts (all `true` by default): `sounds`, `ambient` (music and quakes), `playerObjects`, `sceneFlags`,
-`sceneObjects` (platforms, lifts, switches, blocks) and `ocarina`.
+`sceneObjects` (platforms, lifts, switches, blocks), `ocarina` and `drops` (everything that falls — rupees,
+hearts, ammo, fairies — is one item for everyone: the first one to touch it gets it).
 
 To try it alone: `2ship-coop-bot.exe --target YourNick --mode mirror` makes a fake player.
 

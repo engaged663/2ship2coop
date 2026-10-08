@@ -1,10 +1,10 @@
-// [COOP] Shared props: what one player breaks, cuts or picks up (pots, grass, crates, barrels, rocks, rupees lying in
-// the room) is gone for everyone in the scene. Every game keeps simulating its own props; only their disappearance
+// [COOP] Shared props: what one player breaks, cuts or picks up (pots, grass, crates, barrels, rocks, invisible
+// rupees) is gone for everyone in the scene. Every game keeps simulating its own props; only their disappearance
 // travels ("prop" events). Keys: a prop of the room's list is (room << 16 | its index in the list); the grass of a
 // group (Obj_Mure) is the group's key + the grass number; the field grass of Obj_Grass (no actors: elements of one
 // manager) is a hash of its position. The server remembers what is gone while somebody stays in the scene and tells
 // the ones who arrive ("props"); when the scene empties everything grows back, as after leaving it in the original.
-// What a prop drops when it breaks is shown to every game ("item"); the first one to pick it up gets it.
+// What a prop drops is a shared item (Sync/SharedDrops.cpp): every game sees it, the first one to take it gets it.
 // A prop is "broken" when it removes itself during its own update (a room unloading also removes actors: not shared).
 // Grass (En_Kusa) is the exception: cut grass stays as a stub (some grows back), so its "cut" flag is watched instead,
 // and the other games cut theirs the same way (a hit on its collider: stub, leaves and sound) without its drop.
@@ -48,7 +48,7 @@ namespace {
 
 constexpr int kChildSingle = -1; // a prop of the room's list
 constexpr int kChildGrass = -2;  // an element of the field grass (Obj_Grass)
-constexpr int kChildItem = -3;   // an item a prop dropped
+constexpr int kChildRetired = -3; // v18's "item a prop dropped": items are Sync/SharedDrops.cpp's now
 constexpr int kChildRecut = -4;  // grass that grows back was cut (never remembered: it grows back anyway)
 constexpr uint8_t kMureChildDead = 1; // OBJMURE_CHILD_STATE_DEAD (private to z_obj_mure.c)
 
@@ -64,7 +64,8 @@ const SharedProp kSharedProps[] = {
     { ACTOR_OBJ_TARU, NA_SE_EV_WOODBOX_BREAK },    { ACTOR_EN_ISHI, NA_SE_EV_ROCK_BROKEN },
     { ACTOR_OBJ_BOMBIWA, NA_SE_EV_WALL_BROKEN },   { ACTOR_OBJ_HAMISHI, NA_SE_EV_WALL_BROKEN },
     { ACTOR_OBJ_HUGEBOMBIWA, NA_SE_EV_WALL_BROKEN }, { ACTOR_OBJ_SNOWBALL, NA_SE_EV_WALL_BROKEN },
-    { ACTOR_OBJ_SNOWBALL2, NA_SE_EV_WALL_BROKEN }, { ACTOR_EN_ITEM00, 0 },
+    { ACTOR_OBJ_SNOWBALL2, NA_SE_EV_WALL_BROKEN },
+    { ACTOR_EN_INVISIBLE_RUPPE, 0 }, // whoever touches it gets its rupee: gone for the rest
 };
 
 const SharedProp* PropOf(int16_t id) {
@@ -99,12 +100,9 @@ struct Mure {
 std::map<uint32_t, Actor*> sSingles;           // key -> prop of the room's list (loaded now)
 std::map<const Actor*, uint32_t> sSingleKeys;  // actor -> key (a lifted pot leaves its room)
 std::map<uint32_t, Mure> sMures;               // key -> grass group
-std::map<uint32_t, Actor*> sItems;             // key -> shared item (ours or a copy)
-std::map<const Actor*, uint32_t> sItemKeys;
 std::set<std::pair<uint32_t, int>> sGone;      // (key, child) gone in this scene
 std::set<uint32_t> sGrassKnown;                // field grass we know is gone
 int16_t sAskedScene = -1;                      // the scene whose list we asked for
-uint32_t sItemSeq = 0;
 bool sApplying = false; // removing or creating what another game said: never sent back
 std::set<const Actor*> sCutting;          // grass we cut because another game did: no drop, not sent back
 std::map<const Actor*, bool> sKusaWasCut; // grass of the room's list: its cut flag last frame
@@ -117,8 +115,6 @@ void Forget() {
     sSingles.clear();
     sSingleKeys.clear();
     sMures.clear();
-    sItems.clear();
-    sItemKeys.clear();
     sGone.clear();
     sGrassKnown.clear();
     sCutting.clear();
@@ -169,11 +165,6 @@ void Apply(uint32_t key, int child) {
             } else {
                 Remove(it->second, true);
             }
-        }
-    } else if (child == kChildItem) {
-        auto it = sItems.find(key);
-        if (it != sItems.end() && it->second->update != nullptr) {
-            Remove(it->second, false);
         }
     } else if (child == kChildGrass) {
         sGrassKnown.insert(key); // FrameEnd removes it from the manager
@@ -241,8 +232,6 @@ void OnActorKill(Actor* actor) {
         if (sGone.insert({ it->second, kChildSingle }).second) {
             SendGone(it->second, kChildSingle);
         }
-    } else if (auto item = sItemKeys.find(actor); item != sItemKeys.end()) {
-        SendGone(item->second, kChildItem);
     }
 }
 
@@ -253,10 +242,6 @@ void OnActorDestroy(Actor* actor) {
             sSingles.erase(single);
         }
         sSingleKeys.erase(it);
-    }
-    if (auto it = sItemKeys.find(actor); it != sItemKeys.end()) {
-        sItems.erase(it->second);
-        sItemKeys.erase(it);
     }
     sCutting.erase(actor);
     sKusaWasCut.erase(actor);
@@ -346,7 +331,7 @@ void FrameEnd() {
 }
 
 bool ReadEntry(int64_t k, int64_t c, uint32_t& key, int& child) {
-    if (k < 0 || k > 0xFFFFFFFFll || c < kChildRecut || c >= OBJMURE_MAX_SPAWNS) {
+    if (k < 0 || k > 0xFFFFFFFFll || c < kChildRecut || c >= OBJMURE_MAX_SPAWNS || c == kChildRetired) {
         return false;
     }
     key = (uint32_t)k;
@@ -362,7 +347,7 @@ void OnProp(const json& ev) {
         return;
     }
     SPDLOG_INFO("[Coop] Prop gone in player {}'s game: key {:#x} child {}", GetInt(ev, "from"), key, child);
-    if (child == kChildItem || child == kChildRecut) {
+    if (child == kChildRecut) {
         Apply(key, child); // never remembered
     } else {
         Note(key, child);
@@ -379,38 +364,9 @@ void OnProps(const json& ev) {
         uint32_t key;
         int child;
         if (e.is_array() && e.size() == 2 && e[0].is_number_integer() && e[1].is_number_integer() &&
-            ReadEntry(e[0].get<int64_t>(), e[1].get<int64_t>(), key, child) && child != kChildItem &&
-            child != kChildRecut) {
+            ReadEntry(e[0].get<int64_t>(), e[1].get<int64_t>(), key, child) && child != kChildRecut) {
             Note(key, child);
         }
-    }
-}
-
-// An item another game's prop dropped: ours to see and to pick up.
-void OnItem(const json& ev) {
-    auto pos = ev.find("pos");
-    int64_t key = GetInt(ev, "key", -1);
-    if (!Active() || GetInt(ev, "scene", -1) != gPlayState->sceneId || GetInt(ev, "id", -1) != ACTOR_EN_ITEM00 ||
-        key < 0 || key > 0xFFFFFFFFll || pos == ev.end() || !pos->is_array() || pos->size() != 3) {
-        return;
-    }
-    f32 p[3];
-    for (int i = 0; i < 3; i++) {
-        if (!(*pos)[i].is_number() || !std::isfinite((*pos)[i].get<double>())) {
-            return;
-        }
-        p[i] = (f32)(*pos)[i].get<double>();
-    }
-    // Fixed items never carry a collectible flag across games (0x7F00: the flag of a unique pickup; LiveFlags.cpp).
-    s32 params = (s32)(GetInt(ev, "params") & ~0x7F00);
-    sApplying = true;
-    Actor* item = Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_ITEM00, p[0], p[1], p[2], 0, 0, 0, params);
-    sApplying = false;
-    SPDLOG_INFO("[Coop] Item dropped in player {}'s game: key {:#x} params {:#x} ({})", GetInt(ev, "from"),
-                (uint32_t)key, params, item != nullptr ? "shown" : "not created");
-    if (item != nullptr) {
-        sItems[(uint32_t)key] = item;
-        sItemKeys[item] = (uint32_t)key;
     }
 }
 
@@ -428,31 +384,8 @@ bool PropSync_IsShared(int16_t actorId) {
     return PropOf(actorId) != nullptr;
 }
 
-void PropSync_OnSpawned(Actor* actor) {
-    if (sApplying || !Active() || actor->id != ACTOR_EN_ITEM00 || gPlayState->transitionTrigger != TRANS_TRIGGER_OFF) {
-        return;
-    }
-    Actor* from = ActorSync_AnyUpdating();
-    if (from == nullptr || from == actor || (from->id != ACTOR_OBJ_GRASS && PropOf(from->id) == nullptr) ||
-        from->id == ACTOR_EN_ITEM00) {
-        return; // only what a prop drops (enemies: DropSync.cpp gives every player their own)
-    }
-    uint32_t key = 0x80000000u | ((uint32_t)(Session_LocalId() & 0x3F) << 24) | (++sItemSeq & 0xFFFFFF);
-    sItems[key] = actor;
-    sItemKeys[actor] = key;
-    json ev = MakeEvent(ev::kItem);
-    ev["scene"] = gPlayState->sceneId;
-    ev["key"] = key;
-    ev["id"] = actor->id;
-    ev["params"] = actor->params;
-    ev["pos"] = { actor->world.pos.x, actor->world.pos.y, actor->world.pos.z };
-    NetClient::Get().SendEvent(ev);
-    SPDLOG_INFO("[Coop] Item dropped here: key {:#x} params {:#x}", key, (uint16_t)actor->params);
-}
-
 COOP_ON_EVENT(propEvent, coop::ev::kProp, OnProp);
 COOP_ON_EVENT(propsEvent, coop::ev::kProps, OnProps);
-COOP_ON_EVENT(itemEvent, coop::ev::kItem, OnItem);
 COOP_ON_LOST(propLost, [](const std::string&) { Forget(); });
 static RegisterShipInitFunc sPropSyncInit(RegisterPropSync);
 

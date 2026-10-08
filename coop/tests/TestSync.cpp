@@ -216,6 +216,7 @@ TEST_CASE(WelcomeCarriesTheSyncSwitches) {
     CHECK(sync["sounds"] == false && sync["ocarina"] == false);
     CHECK(sync["ambient"] == true && sync["playerObjects"] == true && sync["sceneFlags"] == true &&
           sync["sceneObjects"] == true);
+    CHECK(sync["drops"] == true);
 }
 
 TEST_CASE(StagesAreSeparated) {

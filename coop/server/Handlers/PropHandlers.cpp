@@ -2,7 +2,7 @@
 // breaks, cuts or picks up is gone for everyone in the scene. The games say what went ("prop"); the server passes
 // it on to the scene and remembers it while a player stays in the scene, so whoever arrives later gets the list
 // ("props"). When the last player leaves the scene everything grows back, as when leaving it in the original game.
-// Items a prop dropped ("item") are shown to the whole scene: the first one to pick one up gets it.
+// What a prop drops is a shared item (Handlers/ItemHandlers.cpp).
 // server.json: "sharedProps": false turns it off.
 #include "server/Registry.h"
 #include "server/Server.h"
@@ -20,7 +20,7 @@ namespace coop::server {
 
 namespace {
 
-constexpr int kChildSharedItem = -3; // a dropped item: never remembered (items are not sent to latecomers)
+constexpr int kChildRetired = -3;    // v18's shared item: items are Handlers/ItemHandlers.cpp's now (invalid)
 constexpr int kChildRecut = -4;      // grass that grows back was cut: never remembered
 constexpr int kChildMin = -4;
 constexpr int kChildMax = 15; // a grass group has at most 16 grass
@@ -40,19 +40,6 @@ bool IntIn(const json& ev, const char* key, int64_t min, int64_t max) {
     return v >= min && v <= max;
 }
 
-bool FinitePos(const json& ev) {
-    auto it = ev.find("pos");
-    if (it == ev.end() || !it->is_array() || it->size() != 3) {
-        return false;
-    }
-    for (const json& v : *it) {
-        if (!v.is_number() || !std::isfinite(v.get<double>()) || std::fabs(v.get<double>()) > pose_limits::kWorldLimit) {
-            return false;
-        }
-    }
-    return true;
-}
-
 // Everyone else in the same scene and layer who plays in the world (the server's own games have no props to break).
 void SendToStage(Server& server, const RemoteClient& from, const json& ev) {
     for (RemoteClient* other : server.Players().Welcomed()) {
@@ -66,7 +53,8 @@ void OnProp(Server& server, RemoteClient& client, const json& ev) {
     if (!TakesProps(server, client) || !client.propBudget.Take(server.NowMs())) {
         return;
     }
-    if (!IntIn(ev, "scene", 0, 0x7FFF) || !IntIn(ev, "key", 0, 0xFFFFFFFFll) || !IntIn(ev, "child", kChildMin, kChildMax)) {
+    if (!IntIn(ev, "scene", 0, 0x7FFF) || !IntIn(ev, "key", 0, 0xFFFFFFFFll) || !IntIn(ev, "child", kChildMin, kChildMax) ||
+        GetInt(ev, "child") == kChildRetired) {
         server.NoteInvalid(client, Tr(Msg::InvPropObject));
         return;
     }
@@ -76,7 +64,7 @@ void OnProp(Server& server, RemoteClient& client, const json& ev) {
     }
     int64_t key = GetInt(ev, "key");
     int child = (int)GetInt(ev, "child");
-    if (child != kChildSharedItem && child != kChildRecut) {
+    if (child != kChildRecut) {
         auto& gone = sGone[StageOf(client)];
         if (gone.size() >= kMaxPropsPerScene || !gone.insert({ key, child }).second) {
             return; // already gone (two players broke it at once): the others know
@@ -112,26 +100,6 @@ void OnProps(Server& server, RemoteClient& client, const json& ev) {
     server.SendEvent(client, out);
 }
 
-void OnItem(Server& server, RemoteClient& client, const json& ev) {
-    if (!TakesProps(server, client) || !client.propBudget.Take(server.NowMs())) {
-        return;
-    }
-    if (!IntIn(ev, "scene", 0, 0x7FFF) || !IntIn(ev, "key", 0, 0xFFFFFFFFll) || !IntIn(ev, "id", 0, kMaxActorId) ||
-        !IntIn(ev, "params", -0x8000, 0xFFFF) || !FinitePos(ev)) {
-        server.NoteInvalid(client, Tr(Msg::InvDrop));
-        return;
-    }
-    int16_t scene = (int16_t)GetInt(ev, "scene");
-    if (scene != client.scene) {
-        return;
-    }
-    json out = ev;
-    out["from"] = client.id;
-    SendToStage(server, client, out);
-    server.Log().Info("Objeto soltado por " + client.nick + ": escena " + std::to_string(scene) + ", clave " +
-                      std::to_string(GetInt(ev, "key")));
-}
-
 // A scene nobody plays in any more grows back.
 void TickProps(Server& server) {
     for (auto it = sGone.begin(); it != sGone.end();) {
@@ -147,7 +115,6 @@ void TickProps(Server& server) {
 
 COOP_SERVER_EVENT(propGone, ev::kProp, true, OnProp);
 COOP_SERVER_EVENT(propList, ev::kProps, true, OnProps);
-COOP_SERVER_EVENT(propItem, ev::kItem, true, OnItem);
 COOP_SERVER_ON_TICK(propTick, TickProps);
 
 } // namespace coop::server

@@ -1,6 +1,8 @@
 // [COOP] See LiveFlags.h. Editable table: which actor shows which flag, and how to read it from the actor.
 #include "LiveFlags.h"
 
+#include "2s2h/Coop/Sync/Sync.h"
+
 #include <spdlog/spdlog.h>
 
 extern "C" {
@@ -80,8 +82,10 @@ void LiveFlags_OnRemoteFlag(LiveFlagType type, int flag) {
         }
         for (int cat = 0; cat < ACTORCAT_MAX; cat++) {
             for (Actor* a = gPlayState->actorCtx.actorLists[cat].first; a != nullptr; a = a->next) {
+                // A shared item is removed one by one by Sync/SharedDrops.cpp ("item_gone"): its flag may be shared by
+                // others still lying there (all the rupees of a formation, the three hearts of a pot)
                 if (a->id != entry.actorId || a->update == nullptr || entry.flagOf(a) != flag ||
-                    (player != nullptr && player->heldActor == a)) {
+                    (a->id == ACTOR_EN_ITEM00 && SharedDrops_Tracks(a)) || (player != nullptr && player->heldActor == a)) {
                     continue;
                 }
                 SPDLOG_INFO("[Coop] Someone else took actor {:#x} (flag {} of type {}): removed", (uint16_t)a->id, flag,

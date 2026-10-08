@@ -153,6 +153,10 @@ bool CopyCode_InCopyInit() {
     return sCopyInits > 0;
 }
 
+bool CopyCode_Running() {
+    return sCopyDepth > 0;
+}
+
 static RegisterShipInitFunc sCopyCodeInit(RegisterCopyCode);
 
 } // namespace coop::client

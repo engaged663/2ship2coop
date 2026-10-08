@@ -16,9 +16,11 @@ namespace {
 constexpr size_t kParts = (size_t)SyncPart::Count;
 constexpr std::array<const char*, kParts> kCVars = { "gCoop.Sync.Sounds",        "gCoop.Sync.Ambient",
                                                      "gCoop.Sync.PlayerObjects", "gCoop.Sync.SceneFlags",
-                                                     "gCoop.Sync.SceneObjects",  "gCoop.Sync.Ocarina" };
+                                                     "gCoop.Sync.SceneObjects",  "gCoop.Sync.Ocarina",
+                                                     "gCoop.Sync.Drops" };
 constexpr std::array<const char*, kParts> kKeys = { "sounds",     "ambient",      "playerObjects",
-                                                    "sceneFlags", "sceneObjects", "ocarina" };
+                                                    "sceneFlags", "sceneObjects", "ocarina",
+                                                    "drops" };
 constexpr std::array<const char*, kParts> kNames = {
     "Sonidos de los demás Links y de lo que simulan sus juegos",
     "Música y temblores de jefes, minijefes y eventos",
@@ -26,8 +28,9 @@ constexpr std::array<const char*, kParts> kNames = {
     "Banderas de la escena en vivo (interruptores, cofres, salas)",
     "Maquinaria de la escena (plataformas, ascensores, interruptores, bloques)",
     "Ocarina de los demás (sus notas y sus canciones)",
+    "Objetos que caen (corazones, rupias, hadas...): los mismos para todos, el primero que llega se los queda",
 };
-std::array<bool, kParts> sServer = { true, true, true, true, true, true };
+std::array<bool, kParts> sServer = { true, true, true, true, true, true, true };
 
 void OnWelcome(const json& ev) {
     auto sync = ev.find("sync");

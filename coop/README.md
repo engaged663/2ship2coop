@@ -60,6 +60,7 @@ they carry, the scene's flags live, its machinery and the ocarina: see "Total sy
 | `SoundEntry.*` | total sync: one sound on the wire (id, where: slot or world position, freq/volume/reverb/token) and bounded lists |
 | `SceneFlags.*` | total sync: the loaded scene's 11 flag words, their changes (`Op`), JSON and which ones are temporary |
 | `Ambient.*` | total sync: the music orders and quakes of `ambient` and their checks (`SeqCmdAllowed`) |
+| `ItemState.*` | shared drops: one item on the wire (key, actor, params, position, how it moves), its checks and its keys (unique / room list / twin) |
 
 ### `coop/server/`
 | File | Responsibility |
@@ -95,7 +96,8 @@ they carry, the scene's flags live, its machinery and the ocarina: see "Total sy
 | `Commands/SaveCommands.cpp` | `/backup [lista]` (op), `/restaurar <copia\|ultima>` and `/importar <archivo> [nick] [auto\|buho\|ciclo]` (console) |
 | `World/RoomAuthority.*` | C: who simulates the enemies of each (scene, room): the one who has been there longest and is not busy |
 | `Handlers/ActorHandlers.cpp` | C: `auth` and forwarding the enemy stream, `hit`, `hurt`, `drop` (with their rules) |
-| `Handlers/PropHandlers.cpp` | scenery objects (`prop`, `props`, `item`: what is broken is remembered while someone stays in the scene) |
+| `Handlers/PropHandlers.cpp` | scenery objects (`prop`, `props`: what is broken is remembered while someone stays in the scene) |
+| `Handlers/ItemHandlers.cpp` + `ItemBook.*` | shared drops: `item`, `item_take` (the first one gets it), `item_gone`, `item_rest`, `items` (what lies in a stage, for latecomers) |
 | `Handlers/EndingHandlers.cpp` | the ending: stages (`ending`), tower countdown (`rooftop`), sync (`ending_sync`) and new cycle at the end (`ending_done`) |
 | `GroupBook.*` | rules for groups and invitations, no network (tested in `TestGroups.cpp`) |
 | `Groups.*` | who hears what (teammates, in the scene) and the events/texts of group changes |
@@ -154,14 +156,14 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Actors/CoopEngine.h` | C: the C API that the engine's `[COOP]` changes call |
 | `Actors/ReplicationRules.*` | D3: **which actors are replicated** (ENEMY/BOSS/NPC categories + lists: enemies archived as props, spawners, local ones, minigame objects, **`kPartners`**: props that go with an NPC of their room, in its family: Bomber Jim's balloon) and cutscene actors (Cinema mode: ours, except while watching someone else's cutscene) |
 | `Actors/ActorMemory.*`, `ProcessMemory.*`, `Leases.*` | D3: slot-based memory copy (local mask per actor: dynamic collision belongs to each game; a pointer into a room-list actor nobody replicates travels as `LocalListKey` and the copy points at its own game's: Bomber Jim's balloon, switch `gCoop.Sync.ListPointers`); NPCs/enemies lent to the nearby player and minigame objects lent to their director; a shared actor of ours in its own cutscene keeps its family (asked for as talking) and our rooms (not busy) until it ends: only its update stops it |
-| `Actors/PropSync.*` | pots, grass (also field grass and clumps), crates, rocks and rupees: broken/picked up for everyone; what they drop is seen by everyone (**`kSharedProps` list**) |
+| `Actors/PropSync.*` | pots, grass (also field grass and clumps), crates, rocks and invisible rupees: broken/picked up for everyone (**`kSharedProps` list**); what they drop is a shared item (`Sync/SharedDrops.cpp`) |
 | `Actors/TimeNeverStops.cpp` | in the server's world nothing stops time (pause, ocarina, texts, masks): hooks in z_actor/z_play/z_kankyo |
 | `Actors/LiveMenu.cpp` | **live menu**: the pause menu (and the owl map) is just a layer; Link carries on with a neutral controller, the world is drawn behind it, without silence or change of pace, and it closes by itself if the game needs Link (`ForceClose`). Switch `gCoop.LiveMenu` |
 | `Actors/ActorRegistry.*` | C: the scene's shared enemies, their key, skeleton and collisions |
 | `Actors/Authority.*` | C: the `auth` table in the game |
 | `Actors/ActorSync.*` | C: the authority transmits; the others apply replicas; target = the nearest Link |
 | `Actors/HitSync.*` | C: hits on replicas (`hit`) and from enemies to other players (`hurt`), injected into the collisions |
-| `Actors/DropSync.cpp` | C: each game drops its own objects when a shared enemy dies |
+| `Actors/DropSync.cpp` | C: each game drops its own objects when a shared enemy dies (only with `gCoop.Sync.Drops` off) |
 | `Actors/LiveFlags.*` | C: instantly removes unique objects someone else picked up (tokens, fairies, heart pieces) |
 | `Features/Teleport.cpp` | applies `tp`: move within the same room or travel with the respawn system |
 | `Features/Warp.*` | respawn warp: /tp and entering the world |
@@ -177,7 +179,7 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Menu/CoopMenu.*` | "Co-op" tab of the menu (F1) |
 | `Mods/Mods.h` | **map of mods in the game**; `GameOps.cpp` (**one line per command** in `kOps`: when it can run and what it does), `ModSettings.cpp` (forced options and their restoration), `GameEvents.cpp` (`gev`, `stat`), `GameIdsCheck.cpp` (`static_assert` of `GameIds.inc`). Switch `gCoop.Mods` |
 | `O2r/O2r.h` | **map of the server's game mods (.o2r)**; `O2rSync.cpp` (on `welcome`: what is missing, the question, the download to `coop_mods/`, ready), `O2rLoader.cpp` (adds the archives at the frame's safe point and clears the caches; "Enable Mods" while in the world), `O2rWindow.cpp` (window at the top and the menu section) |
-| `Sync/Sync.h` | **map of the total sync** (see "Total sync"): `SyncOptions.cpp` (switches), `SfxIds.cpp`, `SoundEcho.cpp` (S1), `CopyCode.cpp` (a copy's own code: silent, its owner's Link, no attacks), `AmbientEcho.cpp` (S2), `PlayerObjects.cpp` (S3, **`kPlayerObjects` list**), `SceneFlags.cpp` + `FlagReload.cpp` (S4), `SceneObjects.cpp` (S5, **`kSceneObjects` list**), `OcarinaEcho.cpp` (S6), `SyncMenu.cpp` |
+| `Sync/Sync.h` | **map of the total sync** (see "Total sync"): `SyncOptions.cpp` (switches), `SfxIds.cpp`, `SoundEcho.cpp` (S1), `CopyCode.cpp` (a copy's own code: silent, its owner's Link, no attacks), `AmbientEcho.cpp` (S2), `PlayerObjects.cpp` (S3, **`kPlayerObjects` list**), `SceneFlags.cpp` + `FlagReload.cpp` (S4), `SceneObjects.cpp` (S5, **`kSceneObjects` list**), `OcarinaEcho.cpp` (S6), `DropRules.cpp` + `SharedDrops.cpp` (shared drops, **`kTwinSpawners` list**), `SyncMenu.cpp` |
 
 ### Changes outside these folders (search for `[COOP]`)
 - `mm/src/code/z_play.c` (`Play_UpdateMain`: the world's update waits while `Coop_PlayHeld`, the activity room of
@@ -191,6 +193,9 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 - `mm/src/code/z_message.c` + `GameInteractor_VanillaBehavior.h`: `VB_SONG_OF_DOUBLE_TIME_SET_TIME` (the "yes" of the
   Song of Double Time does not change the local time: the server moves it for everyone).
 - `mm/src/code/z_actor.c`, `z_collision_check.c`, `z_skelanime.c`, `z_en_item00.c`: replica hooks (C/D3).
+- Shared drops: `z_en_item00.c` (`Coop_ItemPrepare`/`Coop_ItemTake` in `EnItem00_Update`, `Coop_ItemSwayYaw`,
+  `Coop_KeepHeartDrops`, `EnItem00_CoopGetAction/SetAction`), `ovl_En_Elf/z_en_elf.c` and `ovl_En_Elforg/z_en_elforg.c`
+  (`Coop_FairyTaken`).
 - `mm/src/code/z_actor.c`, `z_play.c`, `z_kankyo.c`: time does not stop in the world (`TimeNeverStops.cpp`).
 - Live menu (`LiveMenu.cpp`, spec `2026-10-01-coop-menu-en-vivo-design.md`): `z_play.c` (`Play_UpdateMain`: world and
   camera with a neutral controller, forced close, menu steps; `Play_Update`: the notebook does not stop the world;
@@ -237,7 +242,8 @@ is how long an invitation lasts. Also: `timeSpeed` (speed of the three days, 0.1
 `commandPermissions` (`{"tp": "op"}`: who uses each command),
 `gameSettings` (2 Ship options forced on everyone), `mods` (folders, lists and limits: `docs/mods/README.md`),
 `o2r` (the game mods the players download: see "Game mods (.o2r)") and the six parts of the total sync, `true` by
-default: `sounds`, `ambient`, `playerObjects`, `sceneFlags`, `sceneObjects`, `ocarina` (see "Total sync").
+default: `sounds`, `ambient`, `playerObjects`, `sceneFlags`, `sceneObjects`, `ocarina` (see "Total sync"), and
+`drops` (see "Shared drops").
 
 ## Recipes (what gets modified most)
 
@@ -563,6 +569,30 @@ a game CVar (`gCoop.Sync.*`, 1 by default) and a `server.json` option (`true` by
   attack's charge, a bomb's fuse; never 0x400); new event `song` (`kSongBurst`, `kSongPerSecond`, `kMaxSong`); a game
   checks its own pose with the server's decoder before sending it.
 - Test lists (in Spanish): `coop_pruebas/LEEME_SYNC.md`, `coop_pruebas/LEEME_ARREGLOS_V16.md`.
+
+## Shared drops
+
+Spec `docs/superpowers/specs/2026-10-07-coop-drops-compartidos-design.md`, plan
+`docs/superpowers/plans/2026-10-07-coop-drops-compartidos.md`. Everything that falls in the server's world (`EN_ITEM00`:
+rupees, hearts, magic, ammo, keys; `EN_ELF` fairies of type 2 and 7; `EN_ELFORG` collectible stray fairies), whoever
+drops it (props, grass, enemies, bosses, NPCs, the scene), is **one item for the whole stage**:
+
+- The game where it appears announces it at the end of that frame with how it moves (`item`: position, `vy`, `speed`,
+  `grav`, `scale`, `yaw`, `phase`, `timer`, `act`); the others create the same item (without its collectible flag at
+  creation, given back afterwards) and it flies the same way; the heart's sway uses `world.rot.y`. When it lies still its
+  dropper sends `item_rest` and the copies snap there.
+- Touching one asks the server (`item_take`); it is hidden meanwhile; `ok` → given as always; the others get `item_gone`.
+  Fairies are used at once and send `item_take` with `after`. Hosts announce but never take.
+- Keys (`common/ItemState.h`): unique `1|player|counter`, room list `01|room|index` (only who takes it is shared),
+  twins `00|hash`: `Obj_Mure3` (rupee formations, by number) and `Obj_Swprize` (switch prizes, in order) drop in every
+  game at once (`kTwinSpawners` in `Sync/DropRules.cpp`): the server keeps the first, each game keeps one per key.
+- The server (`ItemBook`) keeps per stage the live items (for `items` on arrival, with `age` and the rest position) and
+  the taken keys; it forgets a stage when it empties. `LiveFlags` leaves shared items alone (`item_gone` removes them one
+  by one: a formation's rupees share one flag).
+- With another player in the scene a heart is never turned into a green rupee (`Coop_KeepHeartDrops`).
+- Switch: `gCoop.Sync.Drops` / `server.json` `drops` (off = each game its own enemy drops, as before). Menu: "Ver los
+  objetos que caen cerca". Protocol v19 (`item`, `item_take`, `item_gone`, `item_rest`, `items`; `prop` child -3 is
+  invalid now). Limits: `kItemBurst/PerSecond`, `kMaxItemsPerStage`, `kMaxTakenItemsPerStage`.
 
 ## Server security
 - Malformed or unknown packets are logged (cleaned, only the first 3) and at 50 the client is kicked.

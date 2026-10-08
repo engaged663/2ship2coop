@@ -88,6 +88,43 @@ void DrawNearby() {
     }
 }
 
+void DrawNearbyItems() {
+    if (!ImGui::CollapsingHeader("Ver los objetos que caen cerca (corazones, rupias, hadas)")) {
+        return;
+    }
+    if (!WorldSession_Active()) {
+        ImGui::TextColored(kGray, "Solo dentro de la partida del servidor.");
+        return;
+    }
+    std::vector<SharedDropRow> rows = SharedDrops_Nearby(1500.f);
+    if (rows.empty()) {
+        ImGui::TextColored(kGray, "Ningún objeto compartido a menos de 1500 unidades.");
+        return;
+    }
+    if (ImGui::BeginTable("coopSyncItems", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("Objeto");
+        ImGui::TableSetupColumn("Clave");
+        ImGui::TableSetupColumn("Cayó en");
+        ImGui::TableSetupColumn("Estado");
+        ImGui::TableSetupColumn("Distancia");
+        ImGui::TableHeadersRow();
+        for (const SharedDropRow& r : rows) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", SceneObjects_ActorName(r.actorId));
+            ImGui::TableNextColumn();
+            ImGui::Text("%08X", r.key);
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", r.mine ? "tu juego" : "otro juego");
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", r.claim == 0 ? "en el suelo" : (r.claim == 1 ? "pidiéndolo" : "tuyo"));
+            ImGui::TableNextColumn();
+            ImGui::Text("%.0f", r.dist);
+        }
+        ImGui::EndTable();
+    }
+}
+
 } // namespace
 
 void SyncMenu_Draw() {
@@ -127,6 +164,7 @@ void SyncMenu_Draw() {
                                    "Actores que cada juego tendrá a su aire aunque estén en una lista. Se aplica al "
                                    "recargar la escena."));
     DrawNearby();
+    DrawNearbyItems();
 }
 
 } // namespace coop::client

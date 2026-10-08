@@ -1054,3 +1054,9 @@ X(CvBackup, "Copia de seguridad de lo que había: {0}", "Backup of what was ther
 X(CvBadArg, "Argumento desconocido: {0}", "Unknown argument: {0}", "未知参数:{0}", "Неизвестный аргумент: {0}")
 X(CvNoFile, "No se puede leer {0}: {1}", "Cannot read {0}: {1}", "无法读取 {0}:{1}", "Не удаётся прочитать {0}: {1}")
 X(CvFailed, "No se pudo escribir: {0}", "Could not write: {0}", "无法写入:{0}", "Не удалось записать: {0}")
+
+// ---- Shared drops (Handlers/ItemHandlers.cpp) ----
+X(LogItemDropped, "Objeto soltado por {0}: escena {1}, clave {2}", "Item dropped by {0}: scene {1}, key {2}",
+  "{0} 掉落了物品:场景 {1},键 {2}", "{0} уронил предмет: сцена {1}, ключ {2}")
+X(LogItemTaken, "{0} cogió el objeto {2} de la escena {1}", "{0} picked up item {2} in scene {1}",
+  "{0} 拾取了场景 {1} 的物品 {2}", "{0} подобрал предмет {2} в сцене {1}")

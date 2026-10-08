@@ -8,7 +8,6 @@
 #include "Authority.h"
 #include "CoopEngine.h"
 #include "Leases.h"
-#include "PropSync.h"
 
 #include "2s2h/Coop/Sync/Sync.h"
 
@@ -390,7 +389,10 @@ extern "C" void Coop_OnActorSpawned(Actor* actor) {
     if (!WorldSession_InWorld() || gPlayState == nullptr || sEchoing || EndingMode_Active()) {
         return;
     }
-    PropSync_OnSpawned(actor); // an item a pot drops is seen by everyone
+    if (!sExpecting && SharedDrops_OnSpawned(actor)) { // what falls is one item for everyone (Sync/SharedDrops.cpp)
+        sSpawnCtx[actor] = SpawnCtx{};                  // never replicated nor echoed
+        return;
+    }
     if (sExpecting) { // the copy of another game's runtime actor (ActorSync.cpp)
         sExpecting = false;
         sSpawnCtx[actor] = sExpected;

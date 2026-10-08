@@ -5,6 +5,7 @@
  */
 
 #include "z_en_elforg.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/BenGui/CosmeticEditor.h"
 
@@ -470,6 +471,7 @@ void EnElforg_FreeFloating(EnElforg* this, PlayState* play) {
 
     if (!Player_InCsMode(play)) {
         if ((this->actor.xzDistToPlayer < 30.0f) && (scaledYDistance < 12.0f) && (scaledYDistance > -68.0f)) {
+            Coop_FairyTaken(&this->actor); // [COOP] a shared stray fairy: gone for the others (Sync/SharedDrops.cpp)
             EnElforg_SetupFairyCollected(this, play);
             Health_ChangeBy(play, 0x30);
 

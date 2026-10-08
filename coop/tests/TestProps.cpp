@@ -78,17 +78,13 @@ TEST_CASE(PropsGrowBackWhenTheSceneEmpties) {
     CHECK(AskProps(sc.s, *sc.a)["list"].empty());
 }
 
-TEST_CASE(DroppedItemShownToTheScene) {
+TEST_CASE(ItemsAreNoLongerProps) {
     Scene sc;
-    json item = { { "t", "item" }, { "scene", kScene }, { "key", 0x81000001ll }, { "id", 0xE },
-                  { "params", 0x1 },  { "pos", Arr(1.0, 2.0, 3.0) } };
-    sc.a->Send(item);
-    auto got = sc.b->WaitFor("item", sc.s);
-    CHECK(got.has_value());
-    CHECK_EQ(GetInt(*got, "from"), (int64_t)sc.a->id);
-    sc.a->Send(Prop(0x81000001ll, -3)); // picked up: gone for everyone, never remembered
-    CHECK(sc.b->WaitFor("prop", sc.s).has_value());
-    CHECK(AskProps(sc.s, *sc.b)["list"].empty());
+    server::RemoteClient* alice = sc.s.server->Players().ById(sc.a->id);
+    uint32_t before = alice->invalidMessages;
+    sc.a->Send(Prop(0x81000001ll, -3)); // v18's "a shared item": items are Handlers/ItemHandlers.cpp's now
+    CHECK(!sc.b->WaitFor("prop", sc.s, 150).has_value());
+    CHECK(alice->invalidMessages > before);
 }
 
 TEST_CASE(RegrowingGrassCutIsRelayedEveryTime) {

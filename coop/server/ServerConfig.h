@@ -61,6 +61,7 @@ struct ServerConfig {
     bool sceneFlags = true;    // the scene's flags live ("sflag", "sflags")
     bool sceneObjects = true;  // the scene's machinery (platforms, lifts...) is the same for everyone
     bool ocarina = true;       // the notes of the others' ocarina (in the pose)
+    bool drops = true;         // what falls is one item for its whole stage (Handlers/ItemHandlers.cpp)
     // Mods and what the owner tunes (docs/superpowers/specs/2026-10-02-coop-mods-api-design.md §4)
     double timeSpeed = 1.0;    // how fast the three days pass (kMinTimeSpeed..kMaxTimeSpeed); 1 = the original game
     int giftMax = kGiftMaxAmount; // rupees of one /gift (1..kGiftMaxAmount)

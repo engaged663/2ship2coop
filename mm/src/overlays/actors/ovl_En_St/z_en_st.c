@@ -934,6 +934,24 @@ void func_808A7478(Actor* thisx, PlayState* play) {
     s32 bodyPartIndex;
     s32 count;
 
+    // [COOP] A copy of another game's Skulltula: its skeleton is set up by an update action (func_808A6A78) the copy
+    // never runs, and the skeleton pointer (a loaded resource) does not travel. Set it up here, as that action does.
+    if (this->skelAnime.skeleton == NULL) {
+        if (!Object_IsLoaded(&play->objectCtx, this->actor.objectSlot)) {
+            return;
+        }
+        SkelAnime_Init(play, &this->skelAnime, &object_st_Skel_005298, NULL, this->jointTable, this->morphTable,
+                       OBJECT_ST_LIMB_MAX);
+        if (this->skelAnime.animation == NULL) { // only the pointer: the frames and speed come from its owner
+            AnimationHeader* anim = sAnimationInfo[ENST_ANIM_0].animation;
+
+            if (ResourceMgr_OTRSigCheck(anim) != 0) {
+                anim = ResourceMgr_LoadAnimByName(anim);
+            }
+            this->skelAnime.animation = anim;
+        }
+    }
+
     if (!(this->unk_18C & 0x20)) {
         OPEN_DISPS(play->state.gfxCtx);
 

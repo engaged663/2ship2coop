@@ -11,6 +11,9 @@
 //   FlagReload.cpp    S4: what read a flag only when it was created is created again when another player changes it
 //   SceneObjects.cpp  S5: the machinery that is the same for everyone (kSceneObjects: ADD A LINE); who touches it runs it
 //   OcarinaEcho.cpp   S6: the notes of the others' ocarina, and the songs they play right ("song")
+//   DropRules.cpp     Drops: which created actors are shared items, and the twins' spawners (kTwinSpawners: ADD A LINE)
+//   SharedDrops.cpp   Drops: what falls is one item for everyone; the first one to take it gets it
+//                     (spec docs/superpowers/specs/2026-10-07-coop-drops-compartidos-design.md)
 //   SyncMenu.cpp      the menu section and the list of what is synced nearby
 // The puppets' sword trail lives in Puppet/PuppetActor.cpp.
 #include "common/SoundEntry.h"
@@ -26,7 +29,7 @@ namespace coop::client {
 
 struct TrackedActor;
 
-enum class SyncPart : uint8_t { Sounds, Ambient, PlayerObjects, SceneFlags, SceneObjects, Ocarina, Count };
+enum class SyncPart : uint8_t { Sounds, Ambient, PlayerObjects, SceneFlags, SceneObjects, Ocarina, Drops, Count };
 
 // SyncOptions.cpp
 bool Sync_On(SyncPart part);           // playing in the server's world, its CVar on and the server allows it
@@ -47,6 +50,7 @@ void SoundEcho_SilenceEnd();
 void CopyCode_Begin(Actor* actor, bool init); // around an Init, a Draw or a Destroy (always paired with End)
 void CopyCode_End();
 bool CopyCode_InCopyInit();                                     // the Init of a copy we are creating runs now
+bool CopyCode_Running();                                        // a copy's own code (Init, Draw, Destroy) runs now
 void CopyCode_NoteDyingCopy(const Actor* actor, uint8_t owner); // ActorRegistry.cpp: untracked before its Destroy
 
 // PlayerObjects.cpp
@@ -74,6 +78,30 @@ bool SceneObjects_ForcedLocal(int16_t actorId); // gCoop.Sync.Local: never repli
 TouchPolicy SceneObjects_Policy(int16_t actorId);
 bool SceneObjects_Touched(const Actor* actor, float distToLink); // our Link or one of our actors touches it now
 const char* SceneObjects_ActorName(int16_t actorId);             // GameIds.inc name ("OBJ_RAILLIFT"), "?" if none
+
+// DropRules.cpp (Drops compartidos): what SharedDrops_OnSpawned does with an actor just created (before its Init);
+// spawner = the actor whose update runs now (nullptr: none).
+enum class DropKind : uint8_t {
+    None,     // not a shared item
+    ListItem, // an item of the room's list: every game has it, only who takes it is shared
+    Dropped,  // it fell here: announced, the others create the same item
+};
+DropKind DropRules_Classify(const Actor* actor, const Actor* spawner);
+bool DropRules_IsTwinSpawner(int16_t actorId);
+// The key of an item a twin spawner made (the same in every game), 0 if it is not one of its own.
+uint32_t DropRules_TwinKey(const Actor* item, Actor* spawner, uint32_t spawnerSeq);
+
+// SharedDrops.cpp
+bool SharedDrops_OnSpawned(Actor* actor);    // ActorRegistry.cpp: true = a shared item (never replicated nor echoed)
+bool SharedDrops_Tracks(const Actor* actor); // one of our shared items (LiveFlags.cpp leaves it to us)
+struct SharedDropRow {
+    uint32_t key;
+    int16_t actorId;
+    bool mine;     // it fell in our game
+    uint8_t claim; // 0 nobody asked for it here, 1 we asked the server, 2 ours
+    float dist;
+};
+std::vector<SharedDropRow> SharedDrops_Nearby(float maxDist); // the menu's list, nearest first
 
 // SyncMenu.cpp
 void SyncMenu_Draw();

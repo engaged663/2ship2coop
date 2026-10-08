@@ -5,6 +5,7 @@
  */
 
 #include "z_en_elf.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include "2s2h/BenGui/CosmeticEditor.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -660,6 +661,7 @@ void func_8088DD34(EnElf* this, PlayState* play) {
     func_8088D8D0(this, &this->unk_224);
     func_8088D9BC(this, play);
     if (Actor_HasParent(&this->actor, play)) {
+        Coop_FairyTaken(&this->actor); // [COOP] caught in a bottle: gone for the others (Sync/SharedDrops.cpp)
         if (this->fairyFlags & 0x400) {
             Flags_SetCollectible(play, this->collectibleFlag);
         }
@@ -678,6 +680,7 @@ void func_8088DD34(EnElf* this, PlayState* play) {
 
     if ((this->fairyFlags & 0x1000) && (heightDiff > 0.0f) && (heightDiff < 60.0f) &&
         !func_8088C804(&this->actor.world.pos, &playerActor->world.pos, 10.0f)) {
+        Coop_FairyTaken(&this->actor); // [COOP] it heals us: gone for the others
         Health_ChangeBy(play, 0x80);
         if (this->fairyFlags & 0x200) {
             Magic_Add(play, MAGIC_FILL_TO_CAPACITY);

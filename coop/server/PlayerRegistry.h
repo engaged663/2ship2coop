@@ -66,7 +66,8 @@ struct RemoteClient {
     TokenBucket actorBudget{ kActorStreamBurst, kActorStreamPerSecond };
     TokenBucket hitBudget{ kHitBurst, kHitPerSecond };
     TokenBucket dropBudget{ kDropBurst, kDropPerSecond };
-    TokenBucket propBudget{ kPropBurst, kPropPerSecond }; // pots, grass, items (PropHandlers.cpp)
+    TokenBucket propBudget{ kPropBurst, kPropPerSecond }; // pots, grass (PropHandlers.cpp)
+    TokenBucket itemBudget{ kItemBurst, kItemPerSecond }; // shared drops (ItemHandlers.cpp)
     TokenBucket endingBudget{ kEndingBurst, kEndingPerSecond }; // the end of the game (EndingHandlers.cpp)
     std::string authSent;     // the last "auth" it got (serialized): only changes are sent
     // Full replication (sub-project D3)

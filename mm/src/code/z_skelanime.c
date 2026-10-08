@@ -726,7 +726,7 @@ Gfx* SkelAnime_Draw(PlayState* play, void** skeleton, Vec3s* jointTable, Overrid
     Vec3s rot;
 
     if (skeleton == NULL) {
-        return NULL;
+        return gfx; // [COOP] was NULL: the caller's display list pointer became NULL and its next command wrote to 0
     }
 
     Matrix_Push();
@@ -838,7 +838,7 @@ Gfx* SkelAnime_DrawFlex(PlayState* play, void** skeleton, Vec3s* jointTable, s32
     Mtx* mtx;
 
     if (skeleton == NULL) {
-        return NULL;
+        return gfx; // [COOP] was NULL: the caller's display list pointer became NULL and its next command wrote to 0
     }
 
     mtx = GRAPH_ALLOC(play->state.gfxCtx, dListCount * sizeof(Mtx));

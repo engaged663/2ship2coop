@@ -419,9 +419,9 @@ void func_800A6780(EnItem00* this, PlayState* play) {
             }
             this->actor.home.rot.z += TRUNCF_BINANG((this->actor.velocity.y + 3.0f) * 1000.0f);
             this->actor.world.pos.x +=
-                (Math_CosS(this->actor.yawTowardsPlayer) * (-3.0f * Math_CosS(this->actor.home.rot.z)));
+                (Math_CosS(Coop_ItemSwayYaw(&this->actor)) * (-3.0f * Math_CosS(this->actor.home.rot.z))); // [COOP]
             this->actor.world.pos.z +=
-                (Math_SinS(this->actor.yawTowardsPlayer) * (-3.0f * Math_CosS(this->actor.home.rot.z)));
+                (Math_SinS(Coop_ItemSwayYaw(&this->actor)) * (-3.0f * Math_CosS(this->actor.home.rot.z))); // [COOP]
         }
     }
 
@@ -489,6 +489,31 @@ void func_800A6A40(EnItem00* this, PlayState* play) {
     }
 }
 
+// [COOP] Sync/SharedDrops.cpp: what an item does, as a number that travels (0 lying, 1 thrown out of what broke,
+// 2 bouncing; -1 anything else: collected, waiting for its object).
+s32 EnItem00_CoopGetAction(EnItem00* this) {
+    if (this->actionFunc == func_800A640C) {
+        return 0;
+    }
+    if (this->actionFunc == func_800A6780) {
+        return 1;
+    }
+    if (this->actionFunc == func_800A6650) {
+        return 2;
+    }
+    return -1;
+}
+
+void EnItem00_CoopSetAction(EnItem00* this, s32 action) {
+    if (action == 1) {
+        this->actionFunc = func_800A6780;
+    } else if (action == 2) {
+        this->actionFunc = func_800A6650;
+    } else {
+        this->actionFunc = func_800A640C;
+    }
+}
+
 void EnItem00_Update(Actor* thisx, PlayState* play) {
     EnItem00* this = (EnItem00*)thisx;
     s32 pad;
@@ -535,6 +560,8 @@ void EnItem00_Update(Actor* thisx, PlayState* play) {
         return;
     }
 
+    Coop_ItemPrepare(&this->actor); // [COOP] a shared item the server gave us: at Link's feet (Sync/SharedDrops.cpp)
+
     if (!((sp38 != 0) && (this->actor.xzDistToPlayer <= 60.0f) && (this->actor.playerHeightRel >= -100.0f) &&
           (this->actor.playerHeightRel <= 100.0f)) &&
         !((sp38 == 0) && (this->actor.xzDistToPlayer <= 30.0f) && (this->actor.playerHeightRel >= -50.0f) &&
@@ -549,6 +576,10 @@ void EnItem00_Update(Actor* thisx, PlayState* play) {
     }
 
     if (play->gameOverCtx.state != GAMEOVER_INACTIVE) {
+        return;
+    }
+
+    if (Coop_ItemTake(&this->actor)) { // [COOP] a shared item: the first one to touch it gets it, the server says who
         return;
     }
 
@@ -909,8 +940,9 @@ s16 func_800A7650(s16 dropId) {
     }
 
     if (dropId == ITEM00_RECOVERY_HEART) {
-        if (((void)0, gSaveContext.save.saveInfo.playerData.healthCapacity) ==
-            ((void)0, gSaveContext.save.saveInfo.playerData.health)) {
+        if ((((void)0, gSaveContext.save.saveInfo.playerData.healthCapacity) ==
+             ((void)0, gSaveContext.save.saveInfo.playerData.health)) &&
+            !Coop_KeepHeartDrops()) { // [COOP] another player here may need it (Sync/SharedDrops.cpp)
             return ITEM00_RUPEE_GREEN;
         }
     }
