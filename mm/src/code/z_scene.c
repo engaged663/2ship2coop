@@ -1,5 +1,6 @@
 #include "global.h"
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <libultraship/log/luslog.h> // [COOP]
 #include "GameInteractor/GameInteractor.h"
 
 /**
@@ -16,6 +17,18 @@
  */
 s32 Object_SpawnPersistent(ObjectContext* objectCtx, s16 id) {
     size_t size;
+
+    // [COOP] Never past the last slot: the PlayState follows the slots (the room number, the transition trigger...).
+    if (objectCtx->numEntries >= ARRAY_COUNT(objectCtx->slots)) {
+        LUSLOG_ERROR("Object_SpawnPersistent: no free slot for object 0x%X", id);
+        return objectCtx->mainKeepSlot;
+    }
+    // [COOP] Asked for while a room's objects are loaded (En_Horse_Init does when Epona's object is missing), every
+    // one of them stays for good and a later room's list may not fit (Scene_CommandObjectList leaves out the rest).
+    if (objectCtx->numEntries != objectCtx->numPersistentEntries) {
+        LUSLOG_WARN("Object_SpawnPersistent: object 0x%X made %d room objects persistent", id,
+                    objectCtx->numEntries - objectCtx->numPersistentEntries);
+    }
 
     objectCtx->slots[objectCtx->numEntries].id = id;
     size = gObjectTable[id].vromEnd - gObjectTable[id].vromStart;

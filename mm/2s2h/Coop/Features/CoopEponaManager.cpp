@@ -422,7 +422,28 @@ void TryRejoin(PlayState* play) {
     sRejoin = {};
 }
 
+// The other players' horses (EnsureProxy) need Epona's graphics in every scene of the world. They are made persistent
+// when the scene asks for its first room, before that room loads its objects: Object_SpawnPersistent makes persistent
+// every object already in the list, so asked for during play it kept the room's objects for good and the next room's
+// list ran past the 35 object slots, into the PlayState that follows them (the room number, the transition trigger:
+// in the Southern Swamp, room "4" and a trip to entrance 0, the Mayor's Residence). Persistent from the start, Epona's
+// object takes one slot and the rooms keep theirs: 32 of 35 at most in the whole game.
+void LoadHorseObject() {
+    PlayState* play = gPlayState;
+    if (play == nullptr || !WorldSession_InWorld() || EndingMode_Active()) {
+        return;
+    }
+    ObjectContext* objects = &play->objectCtx;
+    if (objects->numEntries != objects->numPersistentEntries) {
+        return; // a room's objects are loaded already: only the scene's setup may add persistent ones
+    }
+    if (Object_GetSlot(objects, OBJECT_HORSE_LINK_CHILD) <= OBJECT_SLOT_NONE) {
+        Object_SpawnPersistent(objects, OBJECT_HORSE_LINK_CHILD);
+    }
+}
+
 void RegisterManager() {
+    COND_HOOK(OnRoomInit, true, [](s8 sceneId, s8 roomNum) { LoadHorseObject(); });
     COND_HOOK(OnGameStateMainStart, true, []() { CoopEpona_FrameStart(gPlayState); });
     COND_HOOK(OnGameStateMainFinish, true, []() { CoopEpona_FrameEnd(gPlayState); });
     COND_HOOK(OnPlayDestroy, true, CoopEpona_OnPlayDestroy);
@@ -469,10 +490,7 @@ void CoopEpona_FrameStart(PlayState* play) {
         }
         sScene = play->sceneId;
     }
-    int slot = Object_GetSlot(&play->objectCtx, OBJECT_HORSE_LINK_CHILD);
-    if (slot <= OBJECT_SLOT_NONE) {
-        Object_SpawnPersistent(&play->objectCtx, OBJECT_HORSE_LINK_CHILD);
-    }
+    // Epona's graphics are loaded as the scene sets up (LoadHorseObject), never here: see there why
     for (auto& [key, proxy] : sHorses) {
         if (proxy.remote) {
             EnsureProxy(play, proxy);

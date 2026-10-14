@@ -3,6 +3,7 @@
 #include <ship/resource/type/Blob.h>
 #include <memory>
 #include <cassert>
+#include <spdlog/spdlog.h>
 #include <ship/utils/StringHelper.h>
 #include <fast/resource/type/DisplayList.h>
 #include <libultraship/bridge/resourcebridge.h>
@@ -178,6 +179,16 @@ void Scene_CommandObjectList(PlayState* play, SOH::ISceneCommand* cmd) {
 
     // Continuing from the last index, add the remaining object ids from the command object list
     for (; k < objList->objects.size(); i++, k++) {
+        // [COOP] Never past the last slot: the PlayState that follows the slots (the room number, the transition
+        // trigger...) is what got overwritten when the list did not fit, and the game travelled to entrance 0. The
+        // objects left out are missing (what needs them is not created) and it is logged.
+        if (i >= ARRAY_COUNT(play->objectCtx.slots)) {
+            SPDLOG_ERROR("Scene {} room {}: {} objects do not fit in the {} object slots ({} persistent): {} left out",
+                         (int)play->sceneId, (int)play->roomCtx.curRoom.num, objList->objects.size(),
+                         (int)ARRAY_COUNT(play->objectCtx.slots), (int)play->objectCtx.numPersistentEntries,
+                         objList->objects.size() - k);
+            break;
+        }
         play->objectCtx.slots[i].id = -objList->objects[k];
     }
 
