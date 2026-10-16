@@ -122,5 +122,8 @@ bool ActorRegistry_Adopt(Actor* actor, uint32_t key, uint8_t owner);
 // so the others make a copy of it. Its key, 0 if it is tracked already.
 uint32_t ActorRegistry_AdoptAsCopy(Actor* actor, uint8_t owner);
 void ActorRegistry_ReleaseAdopted(Actor* actor);
+// Sync/FlagReload.cpp creates a cutscene actor of ours again (a flag it read in its Init changed): the old one stops
+// being tracked at once, so the new one (same list entry) takes its key.
+void ActorRegistry_Untrack(const Actor* actor);
 
 } // namespace coop::client

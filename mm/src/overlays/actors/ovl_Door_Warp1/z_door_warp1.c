@@ -519,6 +519,17 @@ void func_808B9B30(DoorWarp1* this, PlayState* play) {
     }
 }
 
+// [COOP] Another player of the shared world took this lair's remains: this warp offers none (as after a repeat fight)
+// and their floating mask goes. Offering them again gave GI_REMAINS_ODOLWA - 1 (a get item with nothing), the player
+// was free at once and the Giants' Chamber skip's queued "transition" ran and crashed.
+static void DoorWarp1_DropTakenRemains(DoorWarp1* this) {
+    this->unk_202 = 0;
+    if (this->unk_1A0 != NULL) {
+        Actor_Kill(&this->unk_1A0->actor);
+        this->unk_1A0 = NULL;
+    }
+}
+
 void func_808B9BE8(DoorWarp1* this, PlayState* play) {
     Actor_PlaySfx(&this->dyna.actor, NA_SE_EV_WARP_HOLE - SFX_FLAG);
     Math_SmoothStepToF(&this->unk_1B0, 255.0f, 0.2f, 2.0f, 0.1f);
@@ -541,6 +552,7 @@ void func_808B9BE8(DoorWarp1* this, PlayState* play) {
         this->unk_202 = 1;
         DoorWarp1_SetupAction(this, func_808B9CE8);
     } else {
+        DoorWarp1_DropTakenRemains(this); // [COOP] taken while the warp rose (nothing to drop in a single game)
         DoorWarp1_SetupAction(this, func_808B9F10);
     }
 }
@@ -552,6 +564,11 @@ void func_808B9CE8(DoorWarp1* this, PlayState* play) {
     }
 
     if (!Actor_HasParent(&this->dyna.actor, play)) {
+        if (func_808B849C(this, play) == 0) { // [COOP] another player took them meanwhile
+            DoorWarp1_DropTakenRemains(this);
+            DoorWarp1_SetupAction(this, func_808B9F10);
+            return;
+        }
         Actor_OfferGetItem(&this->dyna.actor, play, (GI_REMAINS_ODOLWA - 1) + func_808B849C(this, play), 30.0f, 80.0f);
         return;
     }

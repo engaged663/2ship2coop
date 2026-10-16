@@ -42,6 +42,14 @@ extern EnKnight* sWideKnightInstance;
 // Set by enemy actors to control the camera override hooks
 static bool skipSetCamera = false;
 
+// [COOP] The camera is blocked only while one of those enemies' update really runs. A co-op copy's update is cancelled
+// (Coop/Actors/ActorSync.cpp) after this hook ran, so OnActorUpdate never cleared the flag: every later
+// Play_SetCameraAtEye/Fov of that game was ignored for good (after a Gekko fight in co-op the camera of a watched boss
+// cutscene stayed at the room's origin, under the floor). And it never outlives the frame it was set in.
+static void BlockCameraWhileUpdating(Actor* actor, bool* should) {
+    skipSetCamera = *should;
+}
+
 // Used to prevent player from rotating to face defeated Pirate Fighter
 static s16 shapeRotY = 0;
 static s16 worldRotY = 0;
@@ -256,19 +264,22 @@ void RegisterSkipEnemyCutscenes() {
     });
 
     // Camera control pair functions. Enable skipSetCamera before running the actor's update func, then disable it after
-    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_PAMETFROG, CVAR, [](Actor* actor, bool* should) { skipSetCamera = true; });
+    // (only when that update really runs, and never past the frame: BlockCameraWhileUpdating)
+    COND_HOOK(OnGameStateMainStart, CVAR, []() { skipSetCamera = false; });
+
+    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_PAMETFROG, CVAR, BlockCameraWhileUpdating);
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_PAMETFROG, CVAR, [](Actor* actor) { skipSetCamera = false; });
 
-    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_EGOL, CVAR, [](Actor* actor, bool* should) { skipSetCamera = true; });
+    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_EGOL, CVAR, BlockCameraWhileUpdating);
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_EGOL, CVAR, [](Actor* actor) { skipSetCamera = false; });
 
     // OnActorUpdate hook already exists for handling other Gomess behavior, including disabling the camera skip.
-    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_DEATH, CVAR, [](Actor* actor, bool* should) { skipSetCamera = true; });
+    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_DEATH, CVAR, BlockCameraWhileUpdating);
 
-    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_BIGSLIME, CVAR, [](Actor* actor, bool* should) { skipSetCamera = true; });
+    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_BIGSLIME, CVAR, BlockCameraWhileUpdating);
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_BIGSLIME, CVAR, [](Actor* actor) { skipSetCamera = false; });
 
-    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_IK, CVAR, [](Actor* actor, bool* should) { skipSetCamera = true; });
+    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_IK, CVAR, BlockCameraWhileUpdating);
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_IK, CVAR, [](Actor* actor) { skipSetCamera = false; });
 
     // Prevent enemies from locking player for skipped cutscenes

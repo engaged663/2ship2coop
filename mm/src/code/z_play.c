@@ -41,6 +41,7 @@ u8 sMotionBlurStatus;
 #include "overlays/gamestates/ovl_file_choose/z_file_select.h"
 #include "debug.h"
 #include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
+#include <libultraship/log/luslog.h>    // [COOP]
 #include "BenPort.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
@@ -380,12 +381,17 @@ void Play_SetupTransition(PlayState* this, s32 transitionType) {
                 break;
 
             default:
-                fbdemoType = -1;
-                _dbg_hungup("../z_play.c", 1420);
+                // [COOP] An unknown type left the transition without functions and Play_UpdateTransition called a null
+                // init (a queued event's "transition" of type 31 in Odolwa's lair): a fade takes its place
+                LUSLOG_ERROR("Play_SetupTransition: unknown transition type %d, fading instead", transitionType);
+                transitionType = TRANS_TYPE_FADE_BLACK;
+                fbdemoType = FBDEMO_FADE;
+                break;
         }
     } else {
-        fbdemoType = -1;
-        _dbg_hungup("../z_play.c", 1423);
+        LUSLOG_ERROR("Play_SetupTransition: unknown transition type %d, fading instead", transitionType); // [COOP]
+        transitionType = TRANS_TYPE_FADE_BLACK;
+        fbdemoType = FBDEMO_FADE;
     }
 
     transitionCtx->transitionType = transitionType;
@@ -671,6 +677,12 @@ void Play_UpdateTransition(PlayState* this) {
             s32 transFadeDuration;
             u32 color;
 
+            if (this->transitionCtx.init == NULL) {
+                // [COOP] Never a null call (a transition nobody set up): a fade instead
+                LUSLOG_ERROR("Play_UpdateTransition: transition type %d was not set up, fading instead",
+                             this->transitionType);
+                Play_SetupTransition(this, TRANS_TYPE_FADE_BLACK);
+            }
             this->transitionCtx.init(&this->transitionCtx.instanceData);
 
             if (this->transitionCtx.transitionType & (TRANS_TYPE_WIPE3 | TRANS_TYPE_WIPE4)) {

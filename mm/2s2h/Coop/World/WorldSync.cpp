@@ -7,6 +7,7 @@
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
+#include "2s2h/Coop/Sync/Sync.h"
 
 #include "common/Protocol.h"
 #include "common/WorldOps.h"
@@ -87,6 +88,19 @@ void Send(const world::Ops& ops) {
     flush();
 }
 
+// The world's events another player changed: what read them when it was created is created again
+// (Sync/FlagReload.cpp: the Woodfall temple raised in another game).
+void NoteWorldEvents(const std::vector<uint8_t>& before, const std::vector<uint8_t>& after) {
+    for (size_t i = 0; i < before.size() && i < after.size(); i++) {
+        uint8_t diff = before[i] ^ after[i];
+        for (int bit = 1; diff != 0 && bit < 0x100; bit <<= 1) {
+            if (diff & bit) {
+                FlagReload_OnRemoteChange(kFlagWorldEvent, (int)((i << 8) | bit));
+            }
+        }
+    }
+}
+
 // Another player's changes (or the server's corrections): read, merge and write each touched field.
 void Merge(const json& ev) {
     world::Ops ops;
@@ -97,12 +111,17 @@ void Merge(const json& ev) {
     DiffLocal(local);
     Send(local);
 
+    static const int kWeekEvents = world::FindField("weekEventReg");
     std::array<std::vector<uint8_t>, world::kFieldCount> live;
+    std::array<std::vector<uint8_t>, world::kFieldCount> before; // the world's events before this merge
     std::array<bool, world::kFieldCount> touched{};
-    auto field = [&live, &touched](uint16_t f) -> uint8_t* {
+    auto field = [&live, &before, &touched](uint16_t f) -> uint8_t* {
         if (!touched[f]) {
             live[f].resize(world::kFields[f].size);
             fields::Read(f, live[f].data());
+            if ((int)f == kWeekEvents) {
+                before[f] = live[f];
+            }
             touched[f] = true;
         }
         return live[f].data();
@@ -128,6 +147,9 @@ void Merge(const json& ev) {
         if (touched[f]) {
             fields::Write((int)f, live[f].data());
             fields::Read((int)f, sShadow[f].data()); // what the save really took (items are checked, hearts clamped)
+            if ((int)f == kWeekEvents) {
+                NoteWorldEvents(before[f], sShadow[f]);
+            }
         }
     }
 }

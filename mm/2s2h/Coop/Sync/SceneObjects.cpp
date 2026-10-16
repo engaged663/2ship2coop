@@ -27,6 +27,9 @@
 extern "C" {
 #include "functions.h"
 #include "variables.h"
+#include "overlays/actors/ovl_Obj_Danpeilift/z_obj_danpeilift.h"
+#include "overlays/actors/ovl_Obj_Raillift/z_obj_raillift.h"
+#include "overlays/actors/ovl_Obj_Rotlift/z_obj_rotlift.h"
 }
 
 namespace coop::client {
@@ -65,6 +68,62 @@ const SceneObject kSceneObjects[] = {
     { ACTOR_BG_KIN2_SHELF, TouchPolicy::Near },      // the Spider House's shelves
     { ACTOR_BG_DBLUE_MOVEBG, TouchPolicy::Near },    // Great Bay Temple's pushed pieces
     { ACTOR_BG_IKANA_BLOCK, TouchPolicy::Near },     // Ikana's push blocks
+};
+
+// Machinery whose children are each game's own (the Deku flowers on a lift: never replicated, one launches from them).
+// Its own update moves them, and a copy's update never runs: the platform moved with its owner's memory and the flower
+// stayed hanging in the air where it was made. A copy carries them here the same way. ADD A LINE: { id, how }.
+void CarryOnTop(Actor* lift, f32 yOffset) {
+    Actor* child = lift->child;
+    if (child != nullptr && child->update != nullptr) {
+        child->world.pos.x = lift->world.pos.x;
+        child->world.pos.y = lift->world.pos.y + yOffset;
+        child->world.pos.z = lift->world.pos.z;
+    }
+}
+
+void CarryRaillift(Actor* lift) { // z_obj_raillift.c: ObjRaillift_Update
+    if (OBJRAILLIFT_GET_TYPE(lift) == DEKU_FLOWER_PLATFORM) {
+        CarryOnTop(lift, lift->shape.yOffset * lift->scale.y);
+    }
+}
+
+void CarryDanpeilift(Actor* lift) { // z_obj_danpeilift.c: ObjDanpeilift_Update
+    if (OBJDANPEILIFT_GET_TYPE(lift) == 1) {
+        CarryOnTop(lift, lift->shape.yOffset * lift->scale.y);
+    }
+}
+
+void CarryLupygamelift(Actor* lift) { // z_obj_lupygamelift.c: the Deku playground's platforms
+    CarryOnTop(lift, 0.0f);
+}
+
+void CarryRotlift(Actor* lift) { // z_obj_rotlift.c: ObjRotlift_MoveDekuFlowers
+    if (OBJROTLIFT_GET_TYPE(lift) != OBJROTLIFT_TYPE_PLATFORMS) {
+        return;
+    }
+    f32 offset = 300.0f;
+    for (ObjEtcetera* flower : ((ObjRotlift*)lift)->dekuFlowers) {
+        if (flower != nullptr && flower->dyna.actor.update != nullptr) {
+            flower->dyna.actor.world.pos.x = lift->world.pos.x + offset * Math_SinS(lift->shape.rot.y);
+            flower->dyna.actor.world.pos.y = lift->world.pos.y + 380.0f * lift->scale.y;
+            flower->dyna.actor.world.pos.z = lift->world.pos.z + offset * Math_CosS(lift->shape.rot.y);
+            flower->dyna.actor.shape.rot.y = lift->shape.rot.y;
+        }
+        offset -= 600.0f;
+    }
+}
+
+struct Carrier {
+    int16_t id;
+    void (*carry)(Actor* lift);
+};
+
+const Carrier kCarriers[] = {
+    { ACTOR_OBJ_RAILLIFT, CarryRaillift },         // platforms on rails with a Deku flower (Woodfall Temple)
+    { ACTOR_OBJ_DANPEILIFT, CarryDanpeilift },     // (its flower type: the same code as the rail one)
+    { ACTOR_OBJ_LUPYGAMELIFT, CarryLupygamelift }, // the Deku playground's platforms (a minigame's props)
+    { ACTOR_OBJ_ROTLIFT, CarryRotlift },           // rotating platforms with two flowers (Woodfall Temple)
 };
 
 constexpr float kNearDist = 150.f;
@@ -224,6 +283,15 @@ bool SceneObjects_Touched(const Actor* actor, float distToLink) {
     }
     auto it = sTouchedUntil.find(actor);
     return it != sTouchedUntil.end() && it->second >= NowMs();
+}
+
+void SceneObjects_CarryChildren(Actor* copy) {
+    for (const Carrier& c : kCarriers) {
+        if (c.id == copy->id) {
+            c.carry(copy);
+            return;
+        }
+    }
 }
 
 const char* SceneObjects_ActorName(int16_t actorId) {

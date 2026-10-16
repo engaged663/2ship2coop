@@ -31,4 +31,8 @@ int16_t Rules_PartnerNpc(int16_t propId);
 bool Rules_IsCutsceneActor(int16_t actorId);
 bool Rules_CinemaActorsOn();
 
+// Leftovers.cpp (kLeftovers): its simulator removed this copy (it died there): this game makes what it leaves behind
+// (a Mad Scrub's Deku flower). arrival: the first list of what its simulator has removed it (it died before we came).
+void Leftovers_OnCopyRemoved(Actor* copy, bool arrival);
+
 } // namespace coop::client

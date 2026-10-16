@@ -14,43 +14,55 @@ extern "C" {
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 /*
+ * At the point of transition, the previous scene's information is lost, but we need it to set the proper Giants flags.
+ * The target of the skip waits here until the Giants' Chamber transition uses it.
+ * [COOP] It used to wait in the GameInteractor event queue as a GIEventTransition whose transitionType was the scene id
+ * (and whose trigger was never set): that queue runs a transition for real as soon as the player is free, and a
+ * co-op player who touched remains another player had already taken was free at once: "transition type 31" crashed
+ * in Play_UpdateTransition.
+ */
+struct PendingGiantsSkip {
+    bool active = false;
+    u16 entrance = 0;
+    u16 cutsceneIndex = 0;
+    SceneId sceneId = SCENE_MAX;
+};
+static PendingGiantsSkip sPendingGiantsSkip;
+
+/*
  * Utility function made common so that rando actor behavior can access it while also doing other things. Mimics the
  * flags and transitions set by func_808BA10C in z_door_warp1.c.
  */
 void HandleGiantsCutsceneSkip() {
-    GIEventTransition transition;
+    PendingGiantsSkip pending;
     switch (gPlayState->sceneId) {
         case SCENE_MITURIN_BS: // Odolwa's Lair
             SET_WEEKEVENTREG(WEEKEVENTREG_CLEARED_WOODFALL_TEMPLE);
             SET_WEEKEVENTREG(WEEKEVENTREG_ENTERED_WOODFALL_TEMPLE_PRISON);
-            transition.entrance = ENTRANCE(WOODFALL_TEMPLE, 1);
-            transition.cutsceneIndex = 0;
+            pending.entrance = ENTRANCE(WOODFALL_TEMPLE, 1);
+            pending.cutsceneIndex = 0;
             break;
         case SCENE_HAKUGIN_BS: // Goht's Lair
             SET_WEEKEVENTREG(WEEKEVENTREG_CLEARED_SNOWHEAD_TEMPLE);
-            transition.entrance = ENTRANCE(MOUNTAIN_VILLAGE_SPRING, 7);
-            transition.cutsceneIndex = 0;
+            pending.entrance = ENTRANCE(MOUNTAIN_VILLAGE_SPRING, 7);
+            pending.cutsceneIndex = 0;
             break;
         case SCENE_SEA_BS: // Gyorg's Lair
             SET_WEEKEVENTREG(WEEKEVENTREG_CLEARED_GREAT_BAY_TEMPLE);
-            transition.entrance = ENTRANCE(ZORA_CAPE, 9);
-            transition.cutsceneIndex = 0xFFF0;
+            pending.entrance = ENTRANCE(ZORA_CAPE, 9);
+            pending.cutsceneIndex = 0xFFF0;
             break;
         case SCENE_INISIE_BS: // Twinmold's Lair
             SET_WEEKEVENTREG(WEEKEVENTREG_CLEARED_STONE_TOWER_TEMPLE);
-            transition.entrance = ENTRANCE(IKANA_CANYON, 15);
-            transition.cutsceneIndex = 0xFFF2;
+            pending.entrance = ENTRANCE(IKANA_CANYON, 15);
+            pending.cutsceneIndex = 0xFFF2;
             break;
+        default:
+            return; // not a boss lair: nothing to skip to
     }
-
-    /*
-     * At the point of transition, the previous scene's information is lost, but we need it to set the proper Giants
-     * flags. Here, we store the target transition information so that we can circumvent the Giants' Chamber cutscene.
-     * We're not actually using the queued transition normally, but using its values to alter a Giants' Chamber
-     * transition.
-     */
-    transition.transitionType = gPlayState->sceneId;
-    GameInteractor::Instance->events.emplace_back(transition);
+    pending.active = true;
+    pending.sceneId = (SceneId)gPlayState->sceneId;
+    sPendingGiantsSkip = pending;
 }
 
 // Only reached if the cutscene is skipped
@@ -129,20 +141,16 @@ void RegisterSkipGiantsChamber() {
     COND_VB_SHOULD(VB_PLAY_TRANSITION_CS, CVAR || IS_RANDO, {
         if (gSaveContext.save.entrance == ENTRANCE(GIANTS_CHAMBER, 0)) {
             /*
-             * The warp gate processing silently queues up an event transition with information for the particular
-             * area the player is in (Woodfall, Great Bay, etc.). This is necessary because the previous scene's
-             * information is lost during a transition, and we want to skip the Giants' Chamber that we are otherwise
-             * about to go to. We quietly use the queued transition to modify the transition in progress. The queued
-             * transition must then be erased from the event queue, otherwise it will repeat once.
+             * The warp gate processing silently stores the information for the particular area the player is in
+             * (Woodfall, Great Bay, etc.). This is necessary because the previous scene's information is lost during a
+             * transition, and we want to skip the Giants' Chamber that we are otherwise about to go to. It is used once.
              */
-            auto it = std::find_if(GameInteractor::Instance->events.begin(), GameInteractor::Instance->events.end(),
-                                   [](const GIEvent& v) { return std::holds_alternative<GIEventTransition>(v); });
-            if (it != GameInteractor::Instance->events.end()) {
-                GIEventTransition transition = std::get<GIEventTransition>(*it);
-                gSaveContext.save.entrance = transition.entrance;
-                gSaveContext.save.cutsceneIndex = transition.cutsceneIndex;
-                GameInteractor::Instance->events.erase(it);
-                handleGiantsCheck((SceneId)transition.transitionType);
+            if (sPendingGiantsSkip.active) {
+                PendingGiantsSkip pending = sPendingGiantsSkip;
+                sPendingGiantsSkip.active = false;
+                gSaveContext.save.entrance = pending.entrance;
+                gSaveContext.save.cutsceneIndex = pending.cutsceneIndex;
+                handleGiantsCheck(pending.sceneId);
             }
         } else if (gSaveContext.save.entrance == ENTRANCE(WOODFALL, 0) && gSaveContext.save.cutsceneIndex == 0xFFF0) {
             // Odolwa's Lair repeat warps go straight to the Woodfall clear cutscene. Skip that too.

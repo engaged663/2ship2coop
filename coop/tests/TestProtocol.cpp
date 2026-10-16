@@ -4,6 +4,8 @@
 #include "common/PlayerState.h"
 #include "common/Protocol.h"
 
+#include <limits>
+
 TEST_CASE(PlayerStateRoundTrip) {
     coop::PlayerState s;
     s.seq = 7;
@@ -130,6 +132,32 @@ TEST_CASE(PlayerStateV15RejectsImpossibleValues) {
     coop::PlayerState d;
     CHECK(coop::DecodePlayerState(bytes.data(), bytes.size(), d));
     CHECK_EQ(d.sounds.size(), (size_t)coop::sound_limits::kPerPose);
+}
+
+// v20: a held item's draw scales travel (without the Deku stick's length a puppet's stick was invisible)
+TEST_CASE(PlayerStateV20HeldItemScales) {
+    coop::PlayerState s;
+    s.unk_B08 = 0.75f;
+    s.unk_B0C = -0.5f;
+    auto bytes = coop::EncodePlayerState(s);
+    CHECK_EQ(bytes.size(), coop::PlayerStateWireSize());
+    coop::PlayerState d;
+    CHECK(coop::DecodePlayerState(bytes.data(), bytes.size(), d));
+    CHECK(coop::SanitizePlayerState(d));
+    CHECK_EQ(d.unk_B08, 0.75f);
+    CHECK_EQ(d.unk_B0C, -0.5f);
+    auto sane = [](float b08, float b0c) {
+        coop::PlayerState p;
+        p.unk_B08 = b08;
+        p.unk_B0C = b0c;
+        return coop::SanitizePlayerState(p);
+    };
+    const float k = coop::pose_limits::kHeldItemScale;
+    CHECK(sane(k, -k));
+    CHECK(!sane(k + 1.f, 0.f));
+    CHECK(!sane(0.f, -k - 1.f));
+    CHECK(!sane(std::numeric_limits<float>::quiet_NaN(), 0.f));
+    CHECK(!sane(0.f, std::numeric_limits<float>::infinity()));
 }
 
 TEST_CASE(EventParseValidates) {

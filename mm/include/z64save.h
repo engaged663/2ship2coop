@@ -1676,8 +1676,18 @@ typedef enum {
 #define WEEKEVENTREG(index) (gSaveContext.save.saveInfo.weekEventReg[(index)])
 #define GET_WEEKEVENTREG(index) ((void)0, WEEKEVENTREG(index))
 
-#define CHECK_WEEKEVENTREG(flag) (WEEKEVENTREG((flag) >> 8) & ((flag) & 0xFF))
-#define CHECK_WEEKEVENTREG_ALT(flag) (GET_WEEKEVENTREG((flag) >> 8) & ((flag) & 0xFF))
+// [COOP] Who reads which world event, and when (2s2h/Coop/Sync/FlagReload.cpp): what an actor read in its Init is
+// created again when another player changes it (the Woodfall temple another player raised). Nothing outside the
+// server's world, nor outside an actor's Init or update.
+#ifdef __cplusplus
+extern "C" {
+#endif
+void Coop_OnWeekEventRead(s32 flag);
+#ifdef __cplusplus
+}
+#endif
+#define CHECK_WEEKEVENTREG(flag) (Coop_OnWeekEventRead(flag), (WEEKEVENTREG((flag) >> 8) & ((flag) & 0xFF)))
+#define CHECK_WEEKEVENTREG_ALT(flag) (Coop_OnWeekEventRead(flag), (GET_WEEKEVENTREG((flag) >> 8) & ((flag) & 0xFF)))
 // #region 2S2H Originally these flags were all set with macros, for the port we want them to be in functions so we can hook into them
 #define SET_WEEKEVENTREG(flag) (Flags_SetWeekEventReg(flag))
 #define CLEAR_WEEKEVENTREG(flag) (Flags_ClearWeekEventReg(flag))

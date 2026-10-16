@@ -1294,6 +1294,9 @@ s32 SubS_ActorPathing_Update(PlayState* play, ActorPathing* actorPath, ActorPath
     s32 shouldSetNextPoint;
     s32 reupdate;
 
+    if (actorPath->points == NULL) {
+        return false; // [COOP] a path never set up in this game (a copy that became ours): never read through null
+    }
     actorPath->computePointInfoFunc = computePointInfoFunc;
     actorPath->updateActorInfoFunc = updateActorInfoFunc;
     actorPath->moveFunc = moveFunc;

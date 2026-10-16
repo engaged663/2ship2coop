@@ -60,6 +60,13 @@ coop::Vec3s16 ToVec(const Vec3s& v) {
     return { v.x, v.y, v.z };
 }
 
+// A held item's draw scale (coop::pose_limits::kHeldItemScale): the engine also keeps other things there (a spin's
+// charge, a Goron roll's speed, Goht's knockback of -5), so it is bounded before it goes (never a refused pose).
+float HeldItemScale(f32 v) {
+    constexpr float k = coop::pose_limits::kHeldItemScale;
+    return std::isfinite(v) ? std::clamp(v, -k, k) : 0.f;
+}
+
 bool Readable(const std::vector<uint8_t>& bytes) {
     coop::PlayerState check;
     return coop::DecodePlayerState(bytes.data(), bytes.size(), check) && coop::SanitizePlayerState(check);
@@ -141,6 +148,8 @@ void PoseCapture_Tick() {
     s.actionVar1 = player->av1.actionVar1;
     s.unk_B8E = player->unk_B8E;
     s.unk_B62 = player->unk_B62;
+    s.unk_B08 = HeldItemScale(player->unk_B08); // the bow's string
+    s.unk_B0C = HeldItemScale(player->unk_B0C); // the Deku stick's length
 
     const PlayerAnimationFrame* frame = (const PlayerAnimationFrame*)player->skelAnime.jointTable;
     for (int i = 0; i < coop::kPoseJoints; i++) {

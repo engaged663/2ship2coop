@@ -130,8 +130,12 @@ void OnActors(const uint8_t* data, size_t size) {
     }
 }
 
-void KillCopy(TrackedActor& t) {
+// arrival: removed by the first list of what its simulator has (it was gone before we came)
+void KillCopy(TrackedActor& t, bool arrival) {
     t.actor->dropFlag = 0; // its simulator already dropped its items (DropSync.cpp)
+    if (t.owner == 0 && !t.cinema) {
+        Leftovers_OnCopyRemoved(t.actor, arrival); // what it leaves behind is each game's own (Leftovers.cpp)
+    }
     Actor_Kill(t.actor);
 }
 
@@ -220,7 +224,7 @@ void DispatchFrame(int8_t room, uint8_t sender, Frame& f, Stream& st) {
     for (uint32_t key : f.gone) {
         TrackedActor* t = ActorRegistry_Find(key);
         if (t != nullptr && t->room == room && t->actor->update != nullptr && Leases_Owner(*t) == sender) {
-            KillCopy(*t);
+            KillCopy(*t, false);
         }
         sCreateTried[key] = now + 60000; // never created again from a late packet
     }
@@ -257,8 +261,10 @@ void DispatchFrame(int8_t room, uint8_t sender, Frame& f, Stream& st) {
                                        (IsListKey(t->key) && t->rootKey != t->key));
             // What a cutscene made at run time waits longer: its lists stop a moment before we stop watching
             bool patient = npc || t->cinema;
-            if ((first && !patient) || ++t->missedAlive >= (npc ? 8 : (t->cinema ? 4 : 2))) {
-                KillCopy(*t);
+            if (first && !patient) {
+                KillCopy(*t, !t->runtime); // a list actor its simulator no longer has: it died before we came
+            } else if (++t->missedAlive >= (npc ? 8 : (t->cinema ? 4 : 2))) {
+                KillCopy(*t, false);
             }
         }
     }
@@ -310,6 +316,7 @@ void ApplyPending(TrackedActor& t) {
         }
         t.pendingDyna = -1;
     }
+    SceneObjects_CarryChildren(t.actor); // a lift's own Deku flowers go with it (Sync/SceneObjects.cpp kCarriers)
 }
 
 // Copies never run their own logic. Every replicated actor (ours too) first gets the hits of the last frame.

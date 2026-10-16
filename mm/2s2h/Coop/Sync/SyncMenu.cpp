@@ -140,9 +140,10 @@ void SyncMenu_Draw() {
         }
     }
     UIWidgets::CVarCheckbox(
-        "Recrear objetos que otro jugador cambia (paredes, rocas, bloques)", "gCoop.Sync.FlagReload",
+        "Recrear objetos que otro jugador cambia (paredes, rocas, bloques, templos)", "gCoop.Sync.FlagReload",
         UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
-            "Un objeto que solo mira su bandera al crearse se crea de nuevo cuando otro jugador la cambia."));
+            "Un objeto que solo mira su bandera al crearse se crea de nuevo cuando otro jugador la cambia. También los "
+            "eventos del mundo: el templo de Woodfall aparece cuando otro jugador toca la Sonata."));
     UIWidgets::CVarCheckbox(
         "Las copias miran los objetos de tu juego (el globo de Jim)", "gCoop.Sync.ListPointers",
         UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(

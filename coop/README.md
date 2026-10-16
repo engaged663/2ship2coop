@@ -155,7 +155,8 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Features/CoopEponaManager.*` | per-player Eponas (owner + copies); the passenger follows the driver on scene change and mounts again |
 | `Actors/CoopEngine.h` | C: the C API that the engine's `[COOP]` changes call |
 | `Actors/ReplicationRules.*` | D3: **which actors are replicated** (ENEMY/BOSS/NPC categories + lists: enemies archived as props, spawners, local ones, minigame objects, **`kPartners`**: props that go with an NPC of their room, in its family: Bomber Jim's balloon) and cutscene actors (Cinema mode: ours, except while watching someone else's cutscene) |
-| `Actors/ActorMemory.*`, `ProcessMemory.*`, `Leases.*` | D3: slot-based memory copy (local mask per actor: dynamic collision belongs to each game; a pointer into a room-list actor nobody replicates travels as `LocalListKey` and the copy points at its own game's: Bomber Jim's balloon, switch `gCoop.Sync.ListPointers`); NPCs/enemies lent to the nearby player and minigame objects lent to their director; a shared actor of ours in its own cutscene keeps its family (asked for as talking) and our rooms (not busy) until it ends: only its update stops it |
+| `Actors/ActorMemory.*`, `ProcessMemory.*`, `Leases.*` | D3: slot-based memory copy (local mask per actor: dynamic collision belongs to each game; a pointer into a room-list actor nobody replicates travels as `LocalListKey` and the copy points at its own game's: Bomber Jim's balloon, switch `gCoop.Sync.ListPointers`; a pointer into a scene path or into its points travels as a `Scene` slot: the Deku Butler's race); NPCs/enemies lent to the nearby player and minigame objects lent to their director; a shared actor of ours in its own cutscene keeps its family (asked for as talking) and our rooms (not busy) until it ends: only its update stops it |
+| `Actors/Leftovers.cpp` | what a replicated actor leaves behind when it dies in its simulator's game, made by each game for itself (**`kLeftovers` list**: a Mad Scrub's Deku flower, a Gold Skulltula's token for a late comer) |
 | `Actors/PropSync.*` | pots, grass (also field grass and clumps), crates, rocks and invisible rupees: broken/picked up for everyone (**`kSharedProps` list**); what they drop is a shared item (`Sync/SharedDrops.cpp`) |
 | `Actors/TimeNeverStops.cpp` | in the server's world nothing stops time (pause, ocarina, texts, masks): hooks in z_actor/z_play/z_kankyo |
 | `Actors/LiveMenu.cpp` | **live menu**: the pause menu (and the owl map) is just a layer; Link carries on with a neutral controller, the world is drawn behind it, without silence or change of pace, and it closes by itself if the game needs Link (`ForceClose`). Switch `gCoop.LiveMenu` |
@@ -179,7 +180,7 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Menu/CoopMenu.*` | "Co-op" tab of the menu (F1) |
 | `Mods/Mods.h` | **map of mods in the game**; `GameOps.cpp` (**one line per command** in `kOps`: when it can run and what it does), `ModSettings.cpp` (forced options and their restoration), `GameEvents.cpp` (`gev`, `stat`), `GameIdsCheck.cpp` (`static_assert` of `GameIds.inc`). Switch `gCoop.Mods` |
 | `O2r/O2r.h` | **map of the server's game mods (.o2r)**; `O2rSync.cpp` (on `welcome`: what is missing, the question, the download to `coop_mods/`, ready), `O2rLoader.cpp` (adds the archives at the frame's safe point and clears the caches; "Enable Mods" while in the world), `O2rWindow.cpp` (window at the top and the menu section) |
-| `Sync/Sync.h` | **map of the total sync** (see "Total sync"): `SyncOptions.cpp` (switches), `SfxIds.cpp`, `SoundEcho.cpp` (S1), `CopyCode.cpp` (a copy's own code: silent, its owner's Link, no attacks), `AmbientEcho.cpp` (S2), `PlayerObjects.cpp` (S3, **`kPlayerObjects` list**), `SceneFlags.cpp` + `FlagReload.cpp` (S4), `SceneObjects.cpp` (S5, **`kSceneObjects` list**), `OcarinaEcho.cpp` (S6), `DropRules.cpp` + `SharedDrops.cpp` (shared drops, **`kTwinSpawners` list**), `SyncMenu.cpp` |
+| `Sync/Sync.h` | **map of the total sync** (see "Total sync"): `SyncOptions.cpp` (switches), `SfxIds.cpp`, `SoundEcho.cpp` (S1), `CopyCode.cpp` (a copy's own code: silent, its owner's Link, no attacks), `AmbientEcho.cpp` (S2), `PlayerObjects.cpp` (S3, **`kPlayerObjects` list**), `SceneFlags.cpp` + `FlagReload.cpp` (S4; also the world's events, `weekEventReg`: what read one when created is created again, and list actors that killed themselves in their Init come back: the Woodfall temple another player raised), `SceneObjects.cpp` (S5, **`kSceneObjects` list**; **`kCarriers`**: a copy of a lift carries its own Deku flowers), `OcarinaEcho.cpp` (S6), `DropRules.cpp` + `SharedDrops.cpp` (shared drops, **`kTwinSpawners` list**), `SyncMenu.cpp` |
 
 ### Changes outside these folders (search for `[COOP]`)
 - `mm/src/code/z_play.c` (`Play_UpdateMain`: the world's update waits while `Coop_PlayHeld`, the activity room of
@@ -233,6 +234,13 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
   longer calls `Coop_OnActorSfx`), `mm/src/code/z_collision_check.c` (`CollisionCheck_SetAT/SetAT_SAC`:
   `Coop_BlockAT`), `mm/src/code/z_effect_soft_sprite.c` (`Coop_OnEffectSpawn` may refuse) and
   `mm/src/code/z_bg_collect.c` (`DynaPolyActor_AttachCarriedActor`: `Coop_OnCarried`).
+- Alpha-0.5.3 fixes: `mm/include/z64save.h` (`CHECK_WEEKEVENTREG` calls `Coop_OnWeekEventRead`: Sync/FlagReload.cpp),
+  `mm/src/code/z_play.c` (`Play_SetupTransition`/`Play_UpdateTransition`: an unknown transition type fades instead of
+  calling a null `init`), `mm/src/code/z_sub_s.c` (`SubS_ActorPathing_Update`: no path, no reading),
+  `ovl_Door_Warp1/z_door_warp1.c` (remains another player took: the boss warp just takes you out),
+  `Enhancements/Cutscenes/StoryCutscenes/SkipGiantsChamber.cpp` (the skip's target waits in a static, never as a queued
+  GI transition) and `Enhancements/Cutscenes/SkipEnemyCutscenes.cpp` (the camera is blocked only while those enemies'
+  update really runs: a copy's is cancelled).
 
 `server.json`: `language` (`es`, `en`, `zh`, `ru`; see "Languages"), `sharedEnemies`, `sharedProps` (scenery
 objects), `endingForAll` (Moon/Majora/ending for everyone), `groups` (groups), `rooms` (activity rooms),
@@ -568,7 +576,10 @@ a game CVar (`gCoop.Sync.*`, 1 by default) and a `server.json` option (`true` by
   with or without its 0x800 bit (the engine plays continuous sounds as `NA_SE_... - SFX_FLAG`: a Goron's roll, a spin
   attack's charge, a bomb's fuse; never 0x400); new event `song` (`kSongBurst`, `kSongPerSecond`, `kMaxSong`); a game
   checks its own pose with the server's decoder before sending it.
-- Test lists (in Spanish): `coop_pruebas/LEEME_SYNC.md`, `coop_pruebas/LEEME_ARREGLOS_V16.md`.
+- **Protocol v20** (Alpha-0.5.3 fixes): the pose ends with `unk_B08`/`unk_B0C` (the bow's string, the Deku stick's
+  length: a puppet's stick was invisible); a `Scene` slot may point into a path's points (`kScenePointsBit`, Slot.h).
+- Test lists (in Spanish): `coop_pruebas/LEEME_SYNC.md`, `coop_pruebas/LEEME_ARREGLOS_V16.md`,
+  `coop_pruebas/LEEME_ARREGLOS_0_5_3.md`.
 
 ## Shared drops
 

@@ -378,3 +378,28 @@ TEST_CASE(LocalListKeys) {
     CHECK_EQ(d.size(), (size_t)1);
     CHECK(SlotsOf(d, 2).at(0).second == (Slot{ SlotKind::Actor, ActorRefValue(k, 0, 0x24) }));
 }
+
+// A pointer into the points of one of the scene's paths (the Deku Butler racing along his path) travels as a Scene slot
+// with bit 31: its path and byte offset. A plain Scene value (a Path*) stays its path's index.
+TEST_CASE(ScenePointsSlots) {
+    uint16_t path = 0;
+    uint16_t offset = 0;
+    uint32_t v = ScenePointsValue(5, 0x12);
+    CHECK_EQ(v, 0x80050012u);
+    CHECK(ParseScenePoints(v, path, offset));
+    CHECK_EQ(path, (uint16_t)5);
+    CHECK_EQ(offset, (uint16_t)0x12);
+    CHECK(ParseScenePoints(ScenePointsValue(kMaxScenePath, 0xFFFF), path, offset));
+    CHECK_EQ(path, kMaxScenePath);
+    CHECK_EQ(offset, (uint16_t)0xFFFF);
+    CHECK_EQ(ScenePointsValue(kMaxScenePath + 1, 0), 0u); // no such path index: nothing
+    CHECK(!ParseScenePoints(3, path, offset));            // a Path*: its index
+    CHECK(!ParseScenePoints(0x180050012ull, path, offset));
+    // It travels in a Scene slot's 4 bytes.
+    ActorImagePacket f = Frame();
+    f.records = { Rec(2, { Span(0, 108, { { SlotKind::Scene, v }, { SlotKind::Scene, 1 } }) }) };
+    auto d = DecodeAll(EncodeActorImage(f));
+    CHECK_EQ(d.size(), (size_t)1);
+    CHECK(SlotsOf(d, 2).at(0).second == (Slot{ SlotKind::Scene, v }));
+    CHECK(SlotsOf(d, 2).at(1).second == (Slot{ SlotKind::Scene, 1 }));
+}

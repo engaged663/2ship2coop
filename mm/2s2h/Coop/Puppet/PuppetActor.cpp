@@ -81,6 +81,8 @@ void ApplyState(EnCoopPuppet* self, const coop::PlayerState& st, PlayState* play
     p->av1.actionVar1 = st.actionVar1;
     p->unk_B8E = st.unk_B8E;
     p->unk_B62 = st.unk_B62;
+    p->unk_B08 = st.unk_B08; // the bow's string
+    p->unk_B0C = st.unk_B0C; // the Deku stick's length (0 drew it with no length: invisible)
     bool trail = coop::client::Sync_On(coop::client::SyncPart::PlayerObjects);
     p->meleeWeaponState = trail ? st.meleeWeaponState : 0;
     p->meleeWeaponAnimation = (PlayerMeleeWeaponAnimation)st.meleeWeaponAnimation;

@@ -4,8 +4,8 @@ An online co-op mod for [2 Ship 2 Harkinian](README.md): up to 4 players share o
 three-day clock, the same unique items and quest flags, the same enemies, props and NPCs — through a small
 dedicated server.
 
-> **Status:** work in progress. The server and protocol (v18) are covered by an automated test suite
-> (460+ tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
+> **Status:** work in progress. The server and protocol (v20) are covered by an automated test suite
+> (490+ tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
 > Bug reports are welcome.
 
 You need your own legally obtained copy of the game, exactly as for 2 Ship itself. This repository contains no

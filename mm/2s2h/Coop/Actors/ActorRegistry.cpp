@@ -380,12 +380,17 @@ void ActorRegistry_ReleaseAdopted(Actor* actor) {
     }
 }
 
+void ActorRegistry_Untrack(const Actor* actor) {
+    Untrack(actor);
+}
+
 } // namespace coop::client
 
 using namespace coop;
 using namespace coop::client;
 
 extern "C" void Coop_OnActorSpawned(Actor* actor) {
+    FlagReload_NoteSpawn(); // the actor whose Init runs now made something (Sync/FlagReload.cpp)
     if (!WorldSession_InWorld() || gPlayState == nullptr || sEchoing || EndingMode_Active()) {
         return;
     }
@@ -494,7 +499,7 @@ static void InitEnd(Actor* actor);
 
 extern "C" void Coop_ActorInitEnd(Actor* actor) {
     CopyCode_End();
-    FlagReload_InitEnd();
+    FlagReload_InitEnd(actor); // before InitEnd: an actor that killed itself is still tracked here
     InitEnd(actor);
 }
 

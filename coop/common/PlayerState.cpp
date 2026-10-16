@@ -49,7 +49,7 @@ template <class IO> bool VisitFields(IO& io, PlayerState& s) {
     }
     return ok && io.S16(s.appearance) && io.U8(s.layer) && io.S8(s.meleeWeaponState) &&
            io.U8(s.meleeWeaponAnimation) && io.U8(s.ocarinaInstrument) && io.U8(s.ocarinaPitch) &&
-           io.U16(s.ocarinaBend) && io.S8(s.ocarinaVibrato);
+           io.U16(s.ocarinaBend) && io.S8(s.ocarinaVibrato) && io.F32(s.unk_B08) && io.F32(s.unk_B0C);
 }
 
 } // namespace
@@ -68,7 +68,8 @@ bool SanitizePlayerState(PlayerState& s) {
     bool v15 = s.layer <= kMaxLayer && s.meleeWeaponState >= -1 && s.meleeWeaponState <= 1 &&
                s.meleeWeaponAnimation < kMeleeAnimations && s.ocarinaInstrument < kOcarinaInstruments &&
                (s.ocarinaPitch < kOcarinaPitches || s.ocarinaPitch == 0xFF);
-    if (!inRange || !plausible || !v15) {
+    bool v20 = finite(s.unk_B08, kHeldItemScale) && finite(s.unk_B0C, kHeldItemScale);
+    if (!inRange || !plausible || !v15 || !v20) {
         return false;
     }
     s.stateFlags1 &= kStateFlags1;

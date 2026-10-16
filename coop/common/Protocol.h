@@ -6,7 +6,9 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 19; // v19: shared drops (item, item_take, item_gone, item_rest, items;
+constexpr uint32_t kProtocolVersion = 20; // v20: the pose ends with unk_B08/unk_B0C (bow string, Deku stick);
+                                          // a Scene slot may point into a path's points (Slot.h);
+                                          // v19: shared drops (item, item_take, item_gone, item_rest, items;
                                           // welcome sync "drops");
                                           // v18: saving (world_full reset "import"/"restore", inv "save",
                                           // /unlockall only in the world, inv "entrance" of converted saves);

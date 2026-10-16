@@ -62,6 +62,9 @@ struct PlayerState {
     uint8_t ocarinaPitch = 0xFF;    // the note held (OCARINA_PITCH_*; 0xFF: none)
     uint16_t ocarinaBend = 4096;    // its pitch bend, ×1/4096
     int8_t ocarinaVibrato = 0;
+    // v20: what a held item's draw scales by (without them a puppet's Deku stick had no length: invisible)
+    float unk_B08 = 0.f;            // the bow's string, stretched while aiming
+    float unk_B0C = 0.f;            // the Deku stick's length (1: whole, less while it burns)
     std::vector<SoundEntry> sounds; // what the sender's Link sounded this frame (≤ sound_limits::kPerPose)
 };
 
@@ -87,6 +90,7 @@ constexpr uint8_t kMaxLayer = 16;           // gSaveContext.sceneLayer: (cutscen
 constexpr uint8_t kMeleeAnimations = 34;    // PLAYER_MWA_MAX
 constexpr uint8_t kOcarinaInstruments = 17; // OCARINA_INSTRUMENT_AMPLIFIED_GUITAR + 1
 constexpr uint8_t kOcarinaPitches = 16;     // OCARINA_PITCH_EFLAT5 + 1 (0xFF: none)
+constexpr float kHeldItemScale = 4.f;       // unk_B08 / unk_B0C: a draw scale (0..1, the bow's -0.5 for the stick)
 } // namespace pose_limits
 
 // False when a value is impossible (enum out of range, non-finite or absurd float): drop the packet.

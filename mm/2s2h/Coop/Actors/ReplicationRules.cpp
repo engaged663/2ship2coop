@@ -30,7 +30,8 @@ bool NeverReplicated(int16_t id) {
         ACTOR_EN_SDA,     // the player's dynamic shadow (category BOSS): each game draws its own Link's
         ACTOR_ITEM_INBOX, ACTOR_OBJ_DORA, ACTOR_OBJ_KENDO_KANBAN, // fixtures filed as NPC
         ACTOR_EN_JS, // the Moon's children: the masks given to them are each player's own (masksGivenOnMoon)
-        ACTOR_OBJ_ETCETERA, // Deku flowers: who launches from one needs their own (also on a replicated lift)
+        ACTOR_OBJ_ETCETERA, // Deku flowers: who launches from one needs their own (also on a replicated lift, whose
+                            // copy carries them: SceneObjects.cpp kCarriers; a dead Mad Scrub's: Leftovers.cpp)
     });
 }
 

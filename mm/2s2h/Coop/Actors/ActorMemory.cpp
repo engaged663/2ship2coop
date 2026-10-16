@@ -84,7 +84,8 @@ struct Range {
 };
 
 // The scene's path list: a run of 8-byte Path entries starting at setupPathList. The same scene in every game of
-// the world lays it out the same, so a Path* travels as its index in that run.
+// the world lays it out the same, so a Path* travels as its index in that run, and a pointer into a path's points
+// (what an actor walking it keeps: SubS ActorPathing, a lift's pathPoints) as that index and a byte offset (Slot.h).
 struct ScenePaths {
     const Path* base = nullptr;
     size_t count = 0;
@@ -107,20 +108,44 @@ struct ScenePaths {
         base = gPlayState->setupPathList;
     }
 
-    bool Index(const void* p, uint64_t& index) const {
-        if (base == nullptr || p < base) {
-            return false;
-        }
-        uintptr_t off = (uintptr_t)p - (uintptr_t)base;
-        if (off >= count * sizeof(Path)) {
-            return false;
-        }
-        index = off / sizeof(Path);
-        return true;
+    static const uint8_t* Points(const Path* p) {
+        return (const uint8_t*)Lib_SegmentedToVirtual(p->points);
     }
 
-    const Path* At(uint64_t index) const {
-        return base != nullptr && index < count ? base + index : nullptr;
+    bool Value(const void* p, uint64_t& value) const {
+        if (base == nullptr || p == nullptr) {
+            return false;
+        }
+        uintptr_t a = (uintptr_t)p;
+        uintptr_t start = (uintptr_t)base;
+        if (a >= start && a < start + count * sizeof(Path)) {
+            value = (a - start) / sizeof(Path);
+            return true;
+        }
+        for (size_t i = 0; i < count && i <= kMaxScenePath; i++) {
+            const uint8_t* points = Points(base + i);
+            size_t bytes = (size_t)base[i].count * sizeof(Vec3s);
+            if (points != nullptr && a >= (uintptr_t)points && a < (uintptr_t)points + bytes) {
+                value = ScenePointsValue((uint16_t)i, (uint16_t)(a - (uintptr_t)points));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    uint8_t* Resolve(uint64_t value) const {
+        uint16_t index = 0;
+        uint16_t offset = 0;
+        if (base == nullptr) {
+            return nullptr;
+        }
+        if (ParseScenePoints(value, index, offset)) {
+            const uint8_t* points = index < count ? Points(base + index) : nullptr;
+            return (points != nullptr && offset < (size_t)base[index].count * sizeof(Vec3s))
+                       ? (uint8_t*)points + offset
+                       : nullptr;
+        }
+        return value < count ? (uint8_t*)(base + value) : nullptr;
     }
 };
 
@@ -164,7 +189,7 @@ class GameResolver : public PointerResolver {
         return false;
     }
     bool SceneOffset(uint64_t a, uint64_t& off) const override {
-        return sPaths.Index((const void*)a, off);
+        return sPaths.Value((const void*)a, off);
     }
     bool IsMapped(uint64_t a) const override {
         return ProcessMemory_IsMapped(a);
@@ -245,10 +270,8 @@ uint8_t* Resolve(const Slot& s) {
             }
             return who != nullptr ? (uint8_t*)who + off : nullptr;
         }
-        case SlotKind::Scene: {
-            const Path* p = sPaths.At(s.value);
-            return p != nullptr ? (uint8_t*)p : nullptr;
-        }
+        case SlotKind::Scene:
+            return sPaths.Resolve(s.value);
         default:
             return nullptr;
     }

@@ -9,7 +9,9 @@
 //   PlayerObjects.cpp S3: our arrows, bombs, hookshot... (kPlayerObjects: ADD A LINE) and what we carry
 //   SceneFlags.cpp    S4: the loaded scene's flags, live ("sflag", "sflags")
 //   FlagReload.cpp    S4: what read a flag only when it was created is created again when another player changes it
-//   SceneObjects.cpp  S5: the machinery that is the same for everyone (kSceneObjects: ADD A LINE); who touches it runs it
+//                     (also the world's events, weekEventReg; list actors that killed themselves in their Init come back)
+//   SceneObjects.cpp  S5: the machinery that is the same for everyone (kSceneObjects: ADD A LINE); who touches it runs it;
+//                     a copy of a lift carries its own Deku flowers (kCarriers: ADD A LINE)
 //   OcarinaEcho.cpp   S6: the notes of the others' ocarina, and the songs they play right ("song")
 //   DropRules.cpp     Drops: which created actors are shared items, and the twins' spawners (kTwinSpawners: ADD A LINE)
 //   SharedDrops.cpp   Drops: what falls is one item for everyone; the first one to take it gets it
@@ -64,8 +66,12 @@ void SceneFlags_NoteWorldWrite(const ActorContextSceneFlags& before);
 
 // FlagReload.cpp
 void FlagReload_InitBegin(Actor* actor);
-void FlagReload_InitEnd();
-void FlagReload_OnRemoteChange(int kind, int flag); // kind: 0 switch, 1 chest, 2 clear, 3 clear temp, 4 collectible
+void FlagReload_InitEnd(Actor* actor);
+void FlagReload_NoteSpawn(); // an actor was created (the one whose Init runs made it: never brought back if it dies)
+// kind: 0 switch, 1 chest, 2 clear, 3 clear temp, 4 collectible (the scene's flags, SceneFlags.cpp);
+// kFlagWorldEvent: a weekEventReg bit, flag = byte << 8 | bit (World/WorldSync.cpp)
+constexpr int kFlagWorldEvent = 5;
+void FlagReload_OnRemoteChange(int kind, int flag);
 
 // SceneObjects.cpp
 enum class TouchPolicy : uint8_t {
@@ -78,6 +84,9 @@ bool SceneObjects_ForcedLocal(int16_t actorId); // gCoop.Sync.Local: never repli
 TouchPolicy SceneObjects_Policy(int16_t actorId);
 bool SceneObjects_Touched(const Actor* actor, float distToLink); // our Link or one of our actors touches it now
 const char* SceneObjects_ActorName(int16_t actorId);             // GameIds.inc name ("OBJ_RAILLIFT"), "?" if none
+// A copy of machinery whose children are each game's own (kCarriers: a lift's Deku flowers) carries them as its own
+// update would (ActorSync.cpp, after its owner's memory is written)
+void SceneObjects_CarryChildren(Actor* copy);
 
 // DropRules.cpp (Drops compartidos): what SharedDrops_OnSpawned does with an actor just created (before its Init);
 // spawner = the actor whose update runs now (nullptr: none).

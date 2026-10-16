@@ -13,7 +13,7 @@ enum class SlotKind : uint8_t {
     Exe = 3,   // a pointer into the game's executable: value = offset from the image base
     Actor = 4, // a pointer into a replicated actor (or a list one: LocalListKey): key << 32 | region << 16 | offset
     Link = 5,  // a pointer into a Link (a player's own or a puppet): value = playerId << 32 | offset
-    Scene = 6, // a pointer into the loaded scene's memory (paths, cutscene data): value = offset from sceneSegment
+    Scene = 6, // a pointer into the loaded scene's paths: a Path* (its index) or into a path's points (ScenePoints*)
 };
 constexpr uint8_t kSlotKinds = 7;
 
@@ -50,6 +50,24 @@ inline bool ParseLocalListKey(uint32_t key, uint16_t& actorId, uint8_t& room, ui
 }
 inline uint64_t LinkRefValue(uint8_t playerId, uint32_t offset) {
     return ((uint64_t)playerId << 32) | offset;
+}
+
+// A Scene slot that points into the points of one of the scene's paths (an actor walking it keeps that pointer: the
+// Deku Butler's race, a lift's pathPoints): bit 31, the path's index in bits 16-30 and the byte offset in bits 0-15.
+// Without it the copy kept the null of its Init, and crashed when it became ours mid-race. A plain Scene value (a Path*)
+// is the path's index, always below kScenePointsBit.
+constexpr uint32_t kScenePointsBit = 0x80000000u;
+constexpr uint16_t kMaxScenePath = 0x7FFF;
+inline uint32_t ScenePointsValue(uint16_t pathIndex, uint16_t offset) {
+    return pathIndex > kMaxScenePath ? 0 : (kScenePointsBit | ((uint32_t)pathIndex << 16) | offset);
+}
+inline bool ParseScenePoints(uint64_t value, uint16_t& pathIndex, uint16_t& offset) {
+    if (value > 0xFFFFFFFFull || (value & kScenePointsBit) == 0) {
+        return false;
+    }
+    pathIndex = (uint16_t)((value >> 16) & kMaxScenePath);
+    offset = (uint16_t)value;
+    return true;
 }
 
 } // namespace coop
