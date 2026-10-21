@@ -10,7 +10,7 @@ namespace coop {
 namespace {
 
 struct Entry {
-    const char* text[4]; // indexed by Lang
+    const char* text[kLangCount]; // indexed by Lang
 };
 
 const Entry kMessages[] = {
@@ -62,7 +62,7 @@ const char* LangName(Lang lang) {
 }
 
 bool ParseLang(const std::string& text, Lang& out) {
-    for (Lang lang : { Lang::Es, Lang::En, Lang::Zh, Lang::Ru }) {
+    for (Lang lang : kLangs) {
         if (EqualsIgnoreCase(text, LangCode(lang)) || text == LangName(lang) ||
             EqualsIgnoreCase(text, LangName(lang))) {
             out = lang;
@@ -85,7 +85,14 @@ bool ParseLang(const std::string& text, Lang& out) {
 }
 
 std::string Tr(Msg id, std::initializer_list<std::string> args) {
-    const char* tmpl = kMessages[(size_t)id].text[(size_t)sLang.load()];
+    return FormatText(kMessages[(size_t)id].text[(size_t)sLang.load()], args);
+}
+
+const char* TrRaw(Lang lang, Msg id) {
+    return kMessages[(size_t)id].text[(size_t)lang];
+}
+
+std::string FormatText(const char* tmpl, std::initializer_list<std::string> args) {
     std::string out;
     for (const char* p = tmpl; *p != '\0'; p++) {
         if (*p == '{' && p[1] >= '0' && p[1] <= '9' && p[2] == '}') {

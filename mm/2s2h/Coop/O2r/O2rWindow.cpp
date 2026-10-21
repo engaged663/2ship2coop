@@ -4,6 +4,7 @@
 #include "O2r.h"
 
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/I18n/CoopText.h"
 
 #include "2s2h/BenGui/BenGui.hpp"
 #include "2s2h/BenGui/UIWidgets.hpp"
@@ -37,29 +38,30 @@ void DrawMissing() {
 // The question, in the window and in the menu (id keeps their buttons apart).
 void DrawQuestion(const char* id) {
     ImGui::PushID(id);
-    ImGui::Text("El servidor usa mods del juego (.o2r) que no tienes:");
+    ImGui::Text("%s", Tc(Txt::O2rAsk));
     DrawMissing();
-    ImGui::TextDisabled("Se guardan en la carpeta coop_mods y solo se usan mientras juegas en este servidor.");
-    if (ImGui::Button("Descargar")) {
+    ImGui::TextDisabled("%s", Tc(Txt::O2rWhere));
+    if (ImGui::Button(Tc(Txt::O2rDownload))) {
         O2r_Accept(sAlways);
     }
     ImGui::SameLine();
-    if (ImGui::Button("No, desconectar")) {
+    if (ImGui::Button(Tc(Txt::O2rRefuse))) {
         O2r_Decline();
     }
     ImGui::SameLine();
-    ImGui::Checkbox("Descargar siempre sin preguntar", &sAlways);
+    ImGui::Checkbox(Tc(Txt::O2rAlways), &sAlways);
     ImGui::PopID();
 }
 
 void DrawProgress(const char* id) {
     O2rProgress p = O2r_Progress();
     ImGui::PushID(id);
-    ImGui::Text("Descargando mods del servidor (%d/%d): %s", (int)p.number, (int)p.count, p.name.c_str());
+    ImGui::Text("%s",
+                Tx(Txt::O2rProgress, { std::to_string(p.number), std::to_string(p.count), p.name }).c_str());
     float fraction = p.total > 0 ? (float)((double)p.done / (double)p.total) : 0.0f;
     std::string label = o2r::FormatBytes(p.done) + " / " + o2r::FormatBytes(p.total);
     ImGui::ProgressBar(fraction, ImVec2(380.0f, 0.0f), label.c_str());
-    if (ImGui::Button("Cancelar")) {
+    if (ImGui::Button(Tc(Txt::Cancel))) {
         O2r_Decline();
     }
     ImGui::PopID();
@@ -100,11 +102,11 @@ void O2rWindow::Draw() {
         ImGui::SetWindowFontScale(CVarGetFloat("gCoop.Chat.Scale", 1.4f));
         if (state == O2rState::Asking) {
             DrawQuestion("window");
-            ImGui::TextDisabled("(también en F1 -> Co-op)");
+            ImGui::TextDisabled("%s", Tc(Txt::O2rAlsoMenu));
         } else if (state == O2rState::Downloading) {
             DrawProgress("window");
         } else {
-            ImGui::Text("Cargando los mods del servidor...");
+            ImGui::Text("%s", Tc(Txt::O2rLoading));
         }
     }
     ImGui::End();
@@ -117,7 +119,7 @@ void RegisterO2rWindow() {
         return; // presets run this function again
     }
     auto gui = Ship::Context::GetRawInstance()->GetWindow()->GetGui();
-    sWindow = std::make_shared<O2rWindow>("gCoop.O2r.Window", "Co-op Mods del servidor");
+    sWindow = std::make_shared<O2rWindow>("gCoop.O2r.Window", "Co-op Server Mods");
     gui->AddGuiWindow(sWindow);
     sWindow->Show();
 }
@@ -125,16 +127,16 @@ void RegisterO2rWindow() {
 } // namespace
 
 void O2rMenu_Draw() {
-    ImGui::SeparatorText("Mods del juego del servidor (.o2r)");
+    ImGui::SeparatorText(Tc(Txt::O2rTitle));
     if (Session_IsConnected()) {
         const std::vector<o2r::Entry>& list = O2r_Required();
         if (list.empty()) {
-            ImGui::TextColored(kGray, "Este servidor no usa mods del juego.");
+            ImGui::TextColored(kGray, "%s", Tc(Txt::O2rNone));
         } else {
             for (const o2r::Entry& entry : list) {
-                const char* status = O2rLoader_IsLoaded(entry.sha256) ? "cargado"
-                                     : O2r_InCache(entry)            ? "descargado"
-                                                                     : "falta";
+                const char* status = O2rLoader_IsLoaded(entry.sha256) ? Tc(Txt::O2rStateLoaded)
+                                     : O2r_InCache(entry)            ? Tc(Txt::O2rStateDownloaded)
+                                                                     : Tc(Txt::O2rStateMissing);
                 ImGui::BulletText("%s (%s) - %s", entry.name.c_str(), o2r::FormatBytes(entry.size).c_str(), status);
             }
             switch (O2r_State()) {
@@ -145,27 +147,23 @@ void O2rMenu_Draw() {
                     DrawProgress("menu");
                     break;
                 case O2rState::Loading:
-                    ImGui::TextColored(kYellow, "Cargando los mods del servidor...");
+                    ImGui::TextColored(kYellow, "%s", Tc(Txt::O2rLoading));
                     break;
                 case O2rState::Ready:
-                    ImGui::TextColored(kGreen, "Listo: tu juego tiene los mods del servidor.");
+                    ImGui::TextColored(kGreen, "%s", Tc(Txt::O2rReady));
                     break;
                 default:
                     break;
             }
         }
     }
-    UIWidgets::CVarCheckbox("Descargar los mods del servidor sin preguntar", "gCoop.O2r.AutoDownload",
+    UIWidgets::CVarCheckbox(Tc(Txt::O2rAutoDownload), "gCoop.O2r.AutoDownload",
                             UIWidgets::CheckboxOptions().Color(THEME_COLOR));
     UIWidgets::CVarCheckbox(
-        "Activar \"Enable Mods\" en la partida del servidor", "gCoop.O2r.AltAssets",
-        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
-            "Los mods de gráficos de 2 Ship solo se ven con \"Enable Mods\" (tecla Tab). Si los mods del servidor lo "
-            "necesitan, se activa mientras juegas en su partida y al salir vuelve a como lo tenías."));
+        Tc(Txt::O2rAltAssets), "gCoop.O2r.AltAssets",
+        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(Tip(Txt::O2rAltAssetsTip)));
     ImGui::PushTextWrapPos(0.0f);
-    ImGui::TextColored(kGray, "Se guardan en la carpeta coop_mods, junto a 2ship.exe. Una vez cargados siguen cargados "
-                              "hasta que cierres el juego. Lo que un mod cambie de la música o los sonidos no se "
-                              "aplica (2 Ship carga el audio al arrancar).");
+    ImGui::TextColored(kGray, "%s", Tc(Txt::O2rFolderNote));
     ImGui::PopTextWrapPos();
 }
 

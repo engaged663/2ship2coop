@@ -3,7 +3,8 @@
 //   COOP_ON_EVENT(myId, coop::ev::kChat, OnChat);              // void OnChat(const coop::json& ev)
 //   COOP_ON_STREAM(myId, coop::kStreamPlayerState, OnPose);    // void OnPose(const uint8_t* data, size_t size)
 //   COOP_ON_LOST(myId, OnLost);                                // void OnLost(const std::string& reason)
-// Several features may listen to the same event (e.g. "leave" is used by Session, Chat and Puppets).
+// Several features may listen to the same event (e.g. "leave" is used by Session, Chat and Puppets), in the order the
+// files happen to register; COOP_ON_EVENT_FIRST goes before them (the language of "welcome": I18n/CoopText.cpp).
 #include "common/Events.h"
 
 #include <cstddef>
@@ -17,6 +18,7 @@ using StreamFn = void (*)(const uint8_t* data, size_t size);
 using LostFn = void (*)(const std::string& reason);
 
 void AddEventHandler(const std::string& type, EventFn fn);
+void AddEventHandlerFirst(const std::string& type, EventFn fn);
 void AddStreamHandler(uint8_t streamType, StreamFn fn);
 void AddLostHandler(LostFn fn);
 
@@ -35,8 +37,15 @@ struct Registrar {
     }
 };
 
+struct FirstRegistrar {
+    FirstRegistrar(const char* type, EventFn fn) {
+        AddEventHandlerFirst(type, fn);
+    }
+};
+
 } // namespace coop::client
 
 #define COOP_ON_EVENT(id, type, fn) static coop::client::Registrar id##_coop_registrar(type, fn)
+#define COOP_ON_EVENT_FIRST(id, type, fn) static coop::client::FirstRegistrar id##_coop_registrar(type, fn)
 #define COOP_ON_STREAM(id, streamType, fn) static coop::client::Registrar id##_coop_registrar((uint8_t)(streamType), fn)
 #define COOP_ON_LOST(id, fn) static coop::client::Registrar id##_coop_registrar((coop::client::LostFn)(fn))

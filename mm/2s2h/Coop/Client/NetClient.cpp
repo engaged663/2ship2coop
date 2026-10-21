@@ -1,5 +1,7 @@
 #include "NetClient.h"
 
+#include "2s2h/Coop/I18n/CoopText.h"
+
 #include "common/Protocol.h"
 #include "common/BuildId.h"
 #include "common/Transport.h"
@@ -184,9 +186,9 @@ void NetClient::ThreadMain(std::string host, uint16_t port, std::string helloTex
                 if (!serverReason.empty()) {
                     lostReason = serverReason;
                 } else if (connected) {
-                    lostReason = "Se ha perdido la conexión con el servidor.";
+                    lostReason = Tx(Txt::NetLost);
                 } else {
-                    lostReason = "No se pudo conectar con el servidor.";
+                    lostReason = Tx(Txt::NetCantConnect);
                 }
                 mRunning = false;
             } else if (e.channel == kChannelEvents) {
@@ -206,7 +208,7 @@ void NetClient::ThreadMain(std::string host, uint16_t port, std::string helloTex
             }
         }
         if (!connected && std::chrono::steady_clock::now() > deadline) {
-            lostReason = "No se pudo conectar con el servidor (tiempo agotado). Revisa la IP, el puerto y el firewall.";
+            lostReason = Tx(Txt::NetTimeout);
             break;
         }
 
@@ -248,7 +250,7 @@ void NetClient::ThreadMain(std::string host, uint16_t port, std::string helloTex
             }
         }
         std::lock_guard<std::mutex> lock(mMutex); // released before Finish, which takes it again
-        lostReason = mDisconnectReason.empty() ? "Te has desconectado del servidor." : mDisconnectReason;
+        lostReason = mDisconnectReason.empty() ? Tx(Txt::NetYouLeft) : mDisconnectReason;
     }
     transport.Close();
     Finish(lostReason);

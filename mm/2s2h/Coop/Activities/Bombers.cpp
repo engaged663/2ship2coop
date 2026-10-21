@@ -112,7 +112,7 @@ void SyncCount() {
     }
     if (have != n) {
         if (sLastCount >= 0 && n > have) {
-            Chat_Add(ChatKind::Info, "¡Han atrapado a un Bomber! (" + std::to_string(n) + "/5)");
+            Chat_Add(ChatKind::Info, Tx(Txt::BombersCaught, { std::to_string(n) }));
         }
         s8* order = info.bombersCaughtOrder;
         bool used[kBombers] = {};
@@ -162,7 +162,7 @@ void FrameEnd() {
         }
         sOwnCatchMs = -kOwnCatchMs;
     } else if (finished && !sPrevFinished && setOff && Group_NowMs() - sOwnCatchMs >= kOwnCatchMs) {
-        Chat_Add(ChatKind::Ok, "¡Los cinco Bombers atrapados! Jim espera en el norte de la ciudad con el código.");
+        Chat_Add(ChatKind::Ok, Tx(Txt::BombersAll));
     }
     sPrevStarting = starting;
     sPrevFinished = finished;
@@ -200,8 +200,8 @@ bool Bombers_Progress(char* out, size_t size) {
     if (!Bombers_Active() || out == nullptr || size == 0) {
         return false;
     }
-    const char* form = CHECK_WEEKEVENTREG(WEEKEVENTREG_73_10) ? "forma deku" : "forma humana";
-    std::snprintf(out, size, "Bombers atrapados: %d/5 (%s)", CaughtCount(), form);
+    const char* form = Tc(CHECK_WEEKEVENTREG(WEEKEVENTREG_73_10) ? Txt::BombersFormDeku : Txt::BombersFormHuman);
+    std::snprintf(out, size, "%s", Tx(Txt::BombersProgress, { std::to_string(CaughtCount()), form }).c_str());
     return true;
 }
 

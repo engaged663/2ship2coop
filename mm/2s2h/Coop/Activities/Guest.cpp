@@ -214,19 +214,19 @@ void Join(uint8_t from, const ActivityDef* def, PlayState* play) {
     if (sLastKey == def->key && Group_NowMs() - sLastLeftMs < kRejoinQuietMs) {
         return;
     }
-    std::string name = def->name;
+    std::string name = Activity_Name(*def);
     switch (def->mode) {
         case ActivityMode::Together:
-            Chat_Add(ChatKind::Ok, "Juegas " + name + " con " + sDirectorNick + ": los puntos son del grupo.");
+            Chat_Add(ChatKind::Ok, Tx(Txt::GuestTogether, { name, sDirectorNick }));
             break;
         case ActivityMode::EachOwn:
-            Chat_Add(ChatKind::Ok, "Juegas " + name + " a la vez que " + sDirectorNick + ".");
+            Chat_Add(ChatKind::Ok, Tx(Txt::GuestEach, { name, sDirectorNick }));
             break;
         case ActivityMode::Turns:
-            Chat_Add(ChatKind::Ok, "Miras la ronda de " + sDirectorNick + " en " + name + ".");
+            Chat_Add(ChatKind::Ok, Tx(Txt::GuestTurns, { name, sDirectorNick }));
             break;
         case ActivityMode::Shared:
-            Chat_Add(ChatKind::Ok, "Jugáis " + name + " con " + sDirectorNick + ": el progreso es de todos.");
+            Chat_Add(ChatKind::Ok, Tx(Txt::GuestShared, { name, sDirectorNick }));
             break;
     }
 }
@@ -403,14 +403,14 @@ void GuestHudWindow::Draw() {
                              ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_AlwaysAutoResize;
     if (ImGui::Begin("##CoopGuestHud", nullptr, flags)) {
         ImGui::SetWindowFontScale(CVarGetFloat("gCoop.Chat.Scale", 1.4f));
-        ImGui::Text("%s - %s", sDef->name, sDirectorNick.c_str());
+        ImGui::Text("%s - %s", Activity_Name(*sDef), sDirectorNick.c_str());
         if (sHud.hasTimer) {
             int64_t elapsed = sHud.elapsed + (sHud.run ? std::min<int64_t>(Group_NowMs() - sHud.atMs, 1000) / 10 : 0);
             int64_t shown = sHud.down ? std::max<int64_t>(0, sHud.limit - elapsed) : elapsed;
-            ImGui::Text("Tiempo: %s", Activity_TimeText(shown).c_str());
+            ImGui::Text("%s", Tx(Txt::GuestHudTime, { Activity_TimeText(shown) }).c_str());
         }
         if (sHud.score > 0) {
-            ImGui::Text("Puntos: %d", sHud.score);
+            ImGui::Text("%s", Tx(Txt::GuestHudPoints, { std::to_string(sHud.score) }).c_str());
         }
     }
     ImGui::End();
@@ -501,12 +501,13 @@ uint8_t NextInTurn(uint8_t from, const ActivityDef& def, int16_t scene) {
 void OnTurnEnded(uint8_t from, const std::string& nick, const ActivityDef& def, int64_t score, int64_t cs) {
     std::string result;
     if (score > 0) {
-        result = std::to_string(score) + " puntos";
+        result = Tx(Txt::Points, { std::to_string(score) });
     }
     if (cs > 0) {
         result += (result.empty() ? "" : ", ") + Activity_TimeText(cs);
     }
-    Chat_Add(ChatKind::Info, nick + " termina " + def.name + (result.empty() ? "." : ": " + result + "."));
+    Chat_Add(ChatKind::Info, result.empty() ? Tx(Txt::GuestTurnEnds, { nick, Activity_Name(def) })
+                                            : Tx(Txt::GuestTurnEndsResult, { nick, Activity_Name(def), result }));
     sRounds[{ from, def.key }] = Group_NowMs();
     PlayState* play = gPlayState;
     const RemotePlayer* p = Session_FindPlayer(from);
@@ -517,8 +518,7 @@ void OnTurnEnded(uint8_t from, const std::string& nick, const ActivityDef& def, 
         return;
     }
     if (NextInTurn(from, def, roomRound ? -1 : play->sceneId) == Session_LocalId()) {
-        Chat_Add(ChatKind::Ok,
-                 std::string("Te toca: ") + def.name + ". Habla con quien lo lleva para jugar tu ronda.");
+        Chat_Add(ChatKind::Ok, Tx(Txt::GuestYourTurn, { Activity_Name(def) }));
     }
 }
 
@@ -530,9 +530,9 @@ void OnAct(const json& ev) {
     std::string state = GetString(ev, "state");
     std::string nick = GetString(ev, "nick");
     const ActivityDef* def = Activity_ByKey(GetString(ev, "key"));
-    std::string name = GetString(ev, "name");
+    std::string name = def != nullptr ? std::string(Activity_Name(*def)) : GetString(ev, "name");
     if (name.empty()) {
-        name = def != nullptr ? def->name : GetString(ev, "key");
+        name = GetString(ev, "key");
     }
     if (state == "end") {
         if (from == sDirector) {
@@ -542,11 +542,11 @@ void OnAct(const json& ev) {
             OnTurnEnded(from, nick, *def, GetInt(ev, "score"), GetInt(ev, "cs"));
         }
     } else if (state == "start") {
-        Chat_Add(ChatKind::Info, nick + " empieza " + name + ".");
+        Chat_Add(ChatKind::Info, Tx(Txt::GuestStarts, { nick, name }));
     } else if (state == "result") {
         int64_t cs = GetInt(ev, "cs");
-        Chat_Add(ChatKind::Info, nick + (GetBool(ev, "won") ? " gana " : " no gana ") + name +
-                                     (cs > 0 ? " (" + Activity_TimeText(cs) + ")." : "."));
+        std::string time = cs > 0 ? Tx(Txt::TimeSuffix, { Activity_TimeText(cs) }) : std::string();
+        Chat_Add(ChatKind::Info, Tx(GetBool(ev, "won") ? Txt::GuestWins : Txt::GuestLoses, { nick, name, time }));
     }
 }
 
@@ -625,7 +625,7 @@ void RegisterGuest() {
     });
     if (sHudWindow == nullptr) {
         auto gui = Ship::Context::GetRawInstance()->GetWindow()->GetGui();
-        sHudWindow = std::make_shared<GuestHudWindow>("gCoop.Group.GuestHud", "Co-op Minijuego del grupo");
+        sHudWindow = std::make_shared<GuestHudWindow>("gCoop.Group.GuestHud", "Co-op Group Minigame");
         gui->AddGuiWindow(sHudWindow);
         sHudWindow->Show();
     }

@@ -40,6 +40,9 @@ void LangCmd(CommandContext& ctx, const std::vector<std::string>& args) {
     if (!ctx.server.Config().configPath.empty()) {
         SaveConfigLanguage(ctx.server.Config().configPath, lang);
     }
+    json changed = MakeEvent(ev::kLang); // the games in "automatic" switch their co-op texts too
+    changed["lang"] = LangCode(lang);
+    ctx.server.Broadcast(changed, nullptr);
     ctx.Reply(Tr(Msg::LangChanged, { LangName(lang) }), level::kOk); // already in the new language
 }
 

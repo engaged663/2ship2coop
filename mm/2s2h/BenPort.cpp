@@ -1,5 +1,6 @@
 #include "2s2h/Coop/Host/HostMode.h" // [COOP]
 #include "2s2h/Coop/O2r/O2r.h"       // [COOP] the server's .o2r mods, loaded at the frame's safe point
+#include "2s2h/Coop/I18n/CoopFonts.h" // [COOP] Cyrillic and Chinese in the ImGui fonts
 extern "C" void Coop_OnExit();      // [COOP] Coop/CoopInit.cpp: leave the server's world properly when closing
 #include "BenPort.h"
 #include <iostream>
@@ -195,6 +196,8 @@ OTRGlobals::OTRGlobals() {
         fontStandardLarger = CreateFontWithSize(20.0f, "fonts/Montserrat-Regular.ttf");
         fontStandardLargest = CreateFontWithSize(24.0f, "fonts/Montserrat-Regular.ttf");
         ImGui::GetIO().FontDefault = fontStandardLarger;
+        // [COOP] the menu's text, its titles and the windows' default: they get Chinese when it is shown
+        CoopFonts_SetCoopFonts({ fontMonoLarger, fontStandardLargest, fontStandardLarger });
     }
 
     previousImGuiScaleIndex = -1;
@@ -1905,7 +1908,8 @@ ImFont* OTRGlobals::CreateFontWithSize(float size, std::string fontPath) {
             Ship::Context::GetRawInstance()->GetResourceManager()->LoadResource(fontPath, false, initData));
         ImFontConfig fontConf;
         fontConf.FontDataOwnedByAtlas = false;
-        font = mImGuiIo->Fonts->AddFontFromMemoryTTF(fontData->Data, fontData->DataSize, size, &fontConf, nullptr);
+        font = mImGuiIo->Fonts->AddFontFromMemoryTTF(fontData->Data, fontData->DataSize, size, &fontConf,
+                                                     CoopFonts_BaseRanges()); // [COOP] Latin and Cyrillic
     }
     // FontAwesome fonts need to have their sizes reduced by 2.0f/3.0f in order to align correctly
     float iconFontSize = size * 2.0f / 3.0f;
@@ -1916,6 +1920,7 @@ ImFont* OTRGlobals::CreateFontWithSize(float size, std::string fontPath) {
     iconsConfig.GlyphMinAdvanceX = iconFontSize;
     mImGuiIo->Fonts->AddFontFromMemoryCompressedBase85TTF(fontawesome_compressed_data_base85, iconFontSize,
                                                           &iconsConfig, sIconsRanges);
+    CoopFonts_OnFontCreated(font, size, fontPath); // [COOP] Cyrillic for the fonts without it
     return font;
 }
 

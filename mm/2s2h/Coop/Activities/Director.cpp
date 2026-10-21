@@ -98,7 +98,7 @@ void Send(const char* state, const ActivityDef* def) {
     json ev = MakeEvent(ev::kAct);
     ev["state"] = state;
     ev["key"] = def != nullptr ? def->key : "";
-    ev["name"] = def != nullptr ? def->name : "";
+    ev["name"] = def != nullptr ? Activity_NameIn(*def, CoopText_ServerLang()) : ""; // the server repeats it
     NetClient::Get().SendEvent(ev);
 }
 
@@ -128,7 +128,8 @@ const ActivityDef* QuestHere(PlayState* play) {
 
 // Its room: the group and whoever we invite play it with us once everyone is ready; meanwhile this game waits.
 void OpenRoom(const ActivityDef& def) {
-    Room_Open(def.key, def.name, Activity_ModeName(def.mode), Activity_PlaceName(def));
+    Room_Open(def.key, Activity_NameIn(def, CoopText_ServerLang()), Activity_ModeName(def.mode),
+              Activity_PlaceName(def));
     RoomHold_Begin(def.key);
     SPDLOG_INFO("[Coop] Activity {}: its room opens", def.key);
 }
@@ -161,7 +162,7 @@ void Start(PlayState* play, const ActivityDef* def) {
     if (UsesRooms() && !Room_DirectsRound(def->key)) {
         OpenRoom(*def); // (into a special entrance its room ran already: Room_DirectsRound)
     } else if (!Room_Has() && Group_AnyMateNear(kFollowDist)) {
-        Chat_Add(ChatKind::Info, std::string(def->name) + ": tu grupo juega contigo.");
+        Chat_Add(ChatKind::Info, Tx(Txt::ActGroupPlays, { Activity_Name(*def) }));
     }
 }
 
@@ -172,7 +173,7 @@ void End() {
     json ev = MakeEvent(ev::kAct);
     ev["state"] = "end";
     ev["key"] = sRunning->key;
-    ev["name"] = sRunning->name;
+    ev["name"] = Activity_NameIn(*sRunning, CoopText_ServerLang());
     // the round's result (Por turnos)
     ev["score"] = sScored ? std::min<int>(gSaveContext.minigameScore, 0xFFFF) : 0;
     ev["cs"] = std::clamp<int64_t>(sLastHudCs, 0, 36000000);
@@ -441,12 +442,12 @@ void Director_ReportResult(const ActivityDef& def) {
     json ev = MakeEvent(ev::kAct);
     ev["state"] = "result";
     ev["key"] = def.key;
-    ev["name"] = def.name;
+    ev["name"] = Activity_NameIn(def, CoopText_ServerLang());
     ev["won"] = won;
     ev["cs"] = cs;
     NetClient::Get().SendEvent(ev);
-    Chat_Add(ChatKind::Info, std::string(won ? "Has ganado " : "No has ganado ") + def.name +
-                                 (cs > 0 ? " (" + Activity_TimeText(cs) + ")." : "."));
+    std::string time = cs > 0 ? Tx(Txt::TimeSuffix, { Activity_TimeText(cs) }) : std::string();
+    Chat_Add(ChatKind::Info, Tx(won ? Txt::ActYouWon : Txt::ActYouLost, { Activity_Name(def), time }));
 }
 
 } // namespace coop::client

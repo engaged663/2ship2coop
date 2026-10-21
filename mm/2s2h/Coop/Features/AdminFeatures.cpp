@@ -28,6 +28,8 @@ void Inventory_ChangeUpgrade(s16 upgrade, u32 value);
 
 using coop::client::Chat_Add;
 using coop::client::ChatKind;
+using coop::client::Tx;
+using coop::client::Txt;
 
 namespace {
 
@@ -120,16 +122,15 @@ void RunUnlock() {
     // Everything above must survive the save: read, written back and read again, nothing may change
     std::string err = coop::client::fields::SelfTest();
     if (!err.empty()) {
-        Chat_Add(ChatKind::Warn, "Aviso del desbloqueo: " + err);
+        Chat_Add(ChatKind::Warn, Tx(Txt::UnlockWarn, { err }));
     }
     coop::client::WorldSession_UploadNow(true); // ammo, health and magic: on the server's disk now
-    Chat_Add(ChatKind::Ok, "Tienes todos los objetos, máscaras, canciones y corazones (lo compartido es para toda la "
-                           "partida y ya está guardado en el servidor).");
+    Chat_Add(ChatKind::Ok, Tx(Txt::UnlockDone));
 }
 
 void OnUnlockAll(const coop::json&) {
     if (!coop::client::WorldSession_InWorld()) {
-        Chat_Add(ChatKind::Error, "El desbloqueo solo funciona dentro de la partida del servidor.");
+        Chat_Add(ChatKind::Error, Tx(Txt::UnlockOutside));
         return;
     }
     if (CanUnlockNow()) {
@@ -151,7 +152,7 @@ void UnlockWhenReady() {
         RunUnlock();
     } else if (NowMs() - sUnlockSinceMs > kUnlockWaitMs) {
         sUnlockSinceMs = -1;
-        Chat_Add(ChatKind::Error, "No se pudo aplicar el desbloqueo (la partida no estaba lista): pídelo otra vez.");
+        Chat_Add(ChatKind::Error, Tx(Txt::UnlockFailed));
     }
 }
 
@@ -173,8 +174,8 @@ void OnGive(const coop::json& ev) {
     if (toBank > 0) {
         gSaveContext.save.saveInfo.highScores[HS_BANK_RUPEES] += toBank;
     }
-    Chat_Add(ChatKind::Ok, "Has recibido " + std::to_string(amount) + " rupias" +
-                               (toBank > 0 ? (" (" + std::to_string(toBank) + " al banco).") : "."));
+    Chat_Add(ChatKind::Ok, toBank > 0 ? Tx(Txt::GiveRupeesBank, { std::to_string(amount), std::to_string(toBank) })
+                                      : Tx(Txt::GiveRupees, { std::to_string(amount) }));
 }
 
 void RegisterAdminFeatures() {

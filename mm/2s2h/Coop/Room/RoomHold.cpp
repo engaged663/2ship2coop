@@ -70,7 +70,7 @@ void FrameEnd() {
     bool held = HeldNow(play);
     if (held && !sWasHeld) {
         SPDLOG_INFO("[Coop] Waiting for room {} to be ready", sKey);
-        Chat_Add(ChatKind::Info, "Tu partida espera a que todos los de la sala estén listos (START: listo).");
+        Chat_Add(ChatKind::Info, Tx(Txt::RoomHoldWaiting));
         RoomWindow_Show();
     } else if (!held && sWasHeld) {
         SPDLOG_INFO("[Coop] Room {} no longer holds this game", sKey);
@@ -87,7 +87,7 @@ void FrameEnd() {
     bool ours = r.id != 0 && r.key == sKey && r.director == Session_LocalId() && Waiting(r.phase);
     if (ours && play != nullptr && play->sceneId != sScene && WorldSession_Active()) {
         // The scene where the round waited is gone (a reset of the cycle, the end of the world): it cannot start
-        Chat_Add(ChatKind::Warn, "La actividad no puede empezar ya: sales de su sala.");
+        Chat_Add(ChatKind::Warn, Tx(Txt::RoomCantStart));
         Room_Leave();
         ours = false;
     }

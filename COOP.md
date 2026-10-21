@@ -23,7 +23,8 @@ copyrighted assets.
 - **Groups:** invite players into a group to share dialogues, cutscenes, minigames (together / each on their own /
   by turns), quests and boss cutscenes.
 - **Chat and commands:** `/tp`, `/gift`, `/pm`, groups, moderation (`op`, `ban`, `kick`), world tools.
-  Server texts in English, Spanish, Chinese and Russian (`"language"` in `server.json`, or `/lang`).
+  Texts in English, Spanish, Chinese and Russian: the server's (`"language"` in `server.json`, or `/lang`) and the
+  game's Co-op menu, windows and notices (F1 → Co-op → Language: automatic = the server's language).
 - **Server mods:** Lua scripts and DLL plugins on the server can change the whole experience — give items, heal or
   hurt, spawn enemies, warp players, add commands, bend the clock, force 2 Ship difficulty options — while players
   keep using the same `2ship.exe`. See [Mods](#mods).

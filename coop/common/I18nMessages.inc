@@ -321,6 +321,13 @@ X(InvInventory, "inventario inválido o demasiado grande", "invalid or too large
 X(InvCycleUnasked, "cycle_result sin haberlo pedido el servidor", "cycle_result that the server did not ask for",
   "服务器未请求的 cycle_result", "cycle_result, который сервер не запрашивал")
 X(InvCycle, "cycle_result inválido: {0}", "invalid cycle_result: {0}", "无效的 cycle_result:{0}", "недопустимый cycle_result: {0}")
+X(InvWopsFlood, "demasiados cambios del mundo por segundo", "too many world changes per second", "每秒世界变更过多",
+  "слишком много изменений мира в секунду")
+X(InvWops, "wops mal formado: {0}", "malformed wops: {0}", "格式错误的 wops:{0}", "неверный формат wops: {0}")
+X(InvWopsSchema, "{0} cambios del mundo fuera del esquema", "{0} world changes outside the schema",
+  "{0} 项世界变更超出了结构定义", "изменений мира вне схемы: {0}")
+X(LogPropBroken, "Objeto roto por {0}: escena {1}, clave {2}, parte {3}", "Object broken by {0}: scene {1}, key {2}, part {3}",
+  "{0} 打破了物件:场景 {1},键 {2},部分 {3}", "{0} разбил объект: сцена {1}, ключ {2}, часть {3}")
 X(MissingFields, "falta 'fields'", "'fields' is missing", "缺少 'fields'", "отсутствует 'fields'")
 
 // ---- Shared world ----

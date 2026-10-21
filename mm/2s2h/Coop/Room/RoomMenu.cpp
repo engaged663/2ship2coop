@@ -2,7 +2,9 @@
 // server's game (Unirme) and the player's options (gCoop.Room.*).
 #include "Room.h"
 
+#include "2s2h/Coop/Activities/Activities.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/I18n/CoopText.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "2s2h/BenGui/BenGui.hpp"
@@ -19,13 +21,13 @@ const ImVec4 kGray = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
 const char* StateText(RoomPhase phase) {
     switch (phase) {
         case RoomPhase::Lobby:
-            return "esperando confirmaciones";
+            return Tc(Txt::RoomPhaseLobby);
         case RoomPhase::Starting:
-            return "a punto de empezar";
+            return Tc(Txt::RoomPhaseStarting);
         case RoomPhase::Running:
-            return "en marcha";
+            return Tc(Txt::RoomPhaseRunning);
         case RoomPhase::Ended:
-            return "terminada";
+            return Tc(Txt::RoomPhaseEnded);
         default:
             return "";
     }
@@ -33,32 +35,34 @@ const char* StateText(RoomPhase phase) {
 
 const char* StateText(const std::string& state) {
     if (state == "lobby") {
-        return "esperando";
+        return Tc(Txt::RoomStateWaiting);
     }
     if (state == "starting") {
-        return "empezando";
+        return Tc(Txt::RoomStateStarting);
     }
     if (state == "running") {
-        return "en marcha";
+        return Tc(Txt::RoomPhaseRunning);
     }
-    return "terminada";
+    return Tc(Txt::RoomPhaseEnded);
 }
 
 void DrawOwn() {
     if (!Room_Has()) {
         ImGui::PushTextWrapPos(0.0f);
-        ImGui::TextColored(kGray, "No estás en ninguna sala. Se abre una al empezar un minijuego (con o sin grupo).");
+        ImGui::TextColored(kGray, "%s", Tc(Txt::RoomNoneHint));
         ImGui::PopTextWrapPos();
         return;
     }
     const RoomInfo& r = Room_Get();
-    ImGui::Text("Tu sala: %s (%s, %d jugadores)", r.name.c_str(), StateText(r.phase), (int)r.members.size());
-    if (UIWidgets::Button("Abrir la ventana de la sala",
+    ImGui::Text("%s", Tx(Txt::RoomYours, { Activity_ShownName(r.key, r.name), StateText(r.phase),
+                                           std::to_string(r.members.size()) })
+                          .c_str());
+    if (UIWidgets::Button(Tc(Txt::RoomOpenWindow),
                           UIWidgets::ButtonOptions().Color(THEME_COLOR).Size(UIWidgets::Sizes::Inline))) {
         RoomWindow_Show();
     }
     ImGui::SameLine();
-    if (UIWidgets::Button("Salir de la sala",
+    if (UIWidgets::Button(Tc(Txt::RoomLeave),
                           UIWidgets::ButtonOptions().Color(THEME_COLOR).Size(UIWidgets::Sizes::Inline))) {
         Room_Leave();
     }
@@ -66,17 +70,18 @@ void DrawOwn() {
 
 void DrawOpen() {
     const std::vector<OpenRoom>& open = Room_OpenRooms();
-    ImGui::Text("Salas abiertas:");
+    ImGui::Text("%s", Tc(Txt::RoomOpenList));
     if (open.empty()) {
-        ImGui::TextColored(kGray, "Ninguna.");
+        ImGui::TextColored(kGray, "%s", Tc(Txt::RoomOpenNone));
         return;
     }
     for (const OpenRoom& o : open) {
         ImGui::PushID((int)o.id);
-        ImGui::Text("%s - %s (%d/4, %s)", o.name.c_str(), o.nick.c_str(), o.count, StateText(o.state));
+        ImGui::Text("%s - %s (%d/4, %s)", Activity_ShownName(o.key, o.name).c_str(), o.nick.c_str(), o.count,
+                    StateText(o.state));
         if (Room_Get().id != o.id) {
             ImGui::SameLine();
-            if (ImGui::SmallButton("Unirme")) {
+            if (ImGui::SmallButton(Tc(Txt::RoomJoin))) {
                 Room_Join(o.id);
             }
         }
@@ -85,28 +90,23 @@ void DrawOpen() {
 }
 
 void DrawOptions() {
-    auto opts = [](const char* tooltip) {
-        return UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(tooltip);
+    auto opts = [](Txt tooltip) {
+        return UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(Tip(tooltip));
     };
-    UIWidgets::CVarCheckbox("Abrir una sala al empezar un minijuego", "gCoop.Room.Enabled",
-                            opts("Tu grupo entra solo y puedes invitar a quien quieras solo para esa actividad. "
-                                 "Desactivado: los minijuegos funcionan como antes (solo el grupo, de cerca)."));
-    UIWidgets::CVarCheckbox("Esperar a que todos confirmen antes de empezar", "gCoop.Room.Hold",
-                            opts("Tu partida se congela al empezar el minijuego hasta que todos los de la sala pulsan "
-                                 "Listo (tú también: botón Listo o START). Desactivado: empieza al momento y los demás "
-                                 "se unen al confirmar."));
+    UIWidgets::CVarCheckbox(Tc(Txt::RoomOptEnabled), "gCoop.Room.Enabled", opts(Txt::RoomOptEnabledTip));
+    UIWidgets::CVarCheckbox(Tc(Txt::RoomOptHold), "gCoop.Room.Hold", opts(Txt::RoomOptHoldTip));
     UIWidgets::CVarSliderFloat(
-        "Tamaño de la ventana de la sala", "gCoop.Room.Scale",
+        Tc(Txt::RoomScale), "gCoop.Room.Scale",
         UIWidgets::FloatSliderOptions().Color(THEME_COLOR).Min(0.8f).Max(2.5f).DefaultValue(1.1f).Format("%.1f"));
 }
 
 } // namespace
 
 void RoomMenu_Draw() {
-    ImGui::SeparatorText("Salas de actividad");
+    ImGui::SeparatorText(Tc(Txt::RoomsTitle));
     if (!Session_IsConnected() || !WorldSession_InWorld()) {
         ImGui::PushTextWrapPos(0.0f);
-        ImGui::TextColored(kGray, "Entra en la partida del servidor para usar las salas de actividad.");
+        ImGui::TextColored(kGray, "%s", Tc(Txt::RoomsEnterFirst));
         ImGui::PopTextWrapPos();
     } else {
         DrawOwn();

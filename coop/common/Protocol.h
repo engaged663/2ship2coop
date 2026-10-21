@@ -163,7 +163,9 @@ inline constexpr const char* kHello = "hello";             // C->S proto, nick, 
 inline constexpr const char* kWelcome = "welcome";         // S->C id, nick, motd, players[], o2r[{name, size, sha256}]
                                                            // (the game mods to have first: only if there are some),
                                                            // sync{sounds, ambient, playerObjects, sceneFlags,
-                                                           // sceneObjects, ocarina} (what this server shares)
+                                                           // sceneObjects, ocarina} (what this server shares),
+                                                           // lang (es, en, zh, ru: the language the server speaks)
+inline constexpr const char* kLang = "lang";               // S->C lang (/lang changed the server's language)
 inline constexpr const char* kReject = "reject";           // S->C reason
 inline constexpr const char* kKicked = "kicked";           // S->C reason
 inline constexpr const char* kJoin = "join";               // S->C id, nick

@@ -40,9 +40,9 @@ void OnPm(const json& ev) {
     std::string to = GetString(ev, "to");
     std::string text = GetString(ev, "text");
     if (from == Session_LocalNick()) {
-        Chat_Add(ChatKind::Private, "[tú -> " + to + "] " + text);
+        Chat_Add(ChatKind::Private, Tx(Txt::ChatPmTo, { to, text }));
     } else {
-        Chat_Add(ChatKind::Private, "[" + from + " -> tú] " + text);
+        Chat_Add(ChatKind::Private, Tx(Txt::ChatPmFrom, { from, text }));
     }
 }
 
@@ -58,14 +58,24 @@ void OnWelcome(const json& ev) {
 }
 
 void OnJoin(const json& ev) {
-    Chat_Add(ChatKind::Presence, GetString(ev, "nick") + " se ha unido a la partida.");
+    Chat_Add(ChatKind::Presence, Tx(Txt::ChatJoined, { GetString(ev, "nick") }));
+}
+
+// The server's plain "disconnected", in whatever language it speaks: not worth showing.
+bool PlainDisconnect(const std::string& reason) {
+    for (Lang lang : kLangs) {
+        if (reason == TrRaw(lang, Msg::LeaveDisconnected)) {
+            return true;
+        }
+    }
+    return reason.empty();
 }
 
 void OnLeave(const json& ev) {
+    std::string nick = GetString(ev, "nick");
     std::string reason = GetString(ev, "reason");
-    std::string text = GetString(ev, "nick") + " ha salido de la partida";
-    text += (reason.empty() || reason == "desconectado") ? "." : " (" + reason + ").";
-    Chat_Add(ChatKind::Presence, text);
+    Chat_Add(ChatKind::Presence,
+             PlainDisconnect(reason) ? Tx(Txt::ChatLeft, { nick }) : Tx(Txt::ChatLeftReason, { nick, reason }));
 }
 
 void OnLost(const std::string& reason) {
@@ -112,7 +122,7 @@ void Chat_Submit(const std::string& text) {
         }
     }
     if (!Session_IsConnected()) {
-        Chat_Add(ChatKind::Error, "No estás conectado a ningún servidor.");
+        Chat_Add(ChatKind::Error, Tx(Txt::NotConnected));
         return;
     }
     json ev = MakeEvent(text[0] == '/' ? ev::kCmd : ev::kChat);

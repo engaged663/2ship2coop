@@ -172,7 +172,7 @@ void EndingMode_Begin() {
     // Majora died in the game that ran her: the texts of the ending advance on their own in every game
     GameInteractor_ExecuteOnGameCompletion();
     SPDLOG_INFO("[Coop] The ending starts");
-    Chat_Add(ChatKind::Ok, "Empieza el final del juego. Lo veis todos a la vez.");
+    Chat_Add(ChatKind::Ok, Tx(Txt::EndingBegins));
 }
 
 } // namespace coop::client
@@ -215,7 +215,7 @@ extern "C" s32 Coop_CutsceneHold(PlayState* play) {
 extern "C" void Coop_OnFinale(PlayState* play) {
     if (sActive && sFinaleSinceMs == 0) {
         sFinaleSinceMs = NowMs();
-        Chat_Add(ChatKind::Info, "Fin. En unos segundos volvéis al Amanecer del Primer Día.");
+        Chat_Add(ChatKind::Info, Tx(Txt::EndingFin));
     }
 }
 

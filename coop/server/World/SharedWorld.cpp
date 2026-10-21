@@ -285,7 +285,7 @@ void SharedWorld::ApplyOps(RemoteClient& c, const json& ev) {
         return; // D1: the players' games own the world's changes; the host only follows them
     }
     if (!c.wopsBudget.Take(Now())) {
-        mServer.NoteInvalid(c, "demasiados cambios del mundo por segundo");
+        mServer.NoteInvalid(c, Tr(Msg::InvWopsFlood));
         return;
     }
     if (GetInt(ev, "cycle", -1) != mStore.Cycle()) {
@@ -294,7 +294,7 @@ void SharedWorld::ApplyOps(RemoteClient& c, const json& ev) {
     world::Ops ops;
     std::string err;
     if (!world::FromJson(ev, ops, &err)) {
-        mServer.NoteInvalid(c, "wops mal formado: " + err);
+        mServer.NoteInvalid(c, Tr(Msg::InvWops, { err }));
         return;
     }
     world::Ops relay;
@@ -304,7 +304,7 @@ void SharedWorld::ApplyOps(RemoteClient& c, const json& ev) {
         mDirty = true;
     }
     if (invalid > 0) {
-        mServer.NoteInvalid(c, std::to_string(invalid) + " cambios del mundo fuera del esquema");
+        mServer.NoteInvalid(c, Tr(Msg::InvWopsSchema, { std::to_string(invalid) }));
     }
     if (!corrections.Empty()) {
         json out = world::ToJson(corrections);

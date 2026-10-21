@@ -26,6 +26,11 @@ void AddEventHandler(const std::string& type, EventFn fn) {
     EventTable()[type].push_back(fn);
 }
 
+void AddEventHandlerFirst(const std::string& type, EventFn fn) {
+    auto& handlers = EventTable()[type];
+    handlers.insert(handlers.begin(), fn);
+}
+
 void AddStreamHandler(uint8_t streamType, StreamFn fn) {
     StreamTable()[streamType].push_back(fn);
 }

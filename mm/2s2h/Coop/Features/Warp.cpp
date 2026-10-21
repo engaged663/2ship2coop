@@ -1,5 +1,6 @@
 #include "Warp.h"
 
+#include "2s2h/Coop/I18n/CoopText.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 #include "2s2h/Coop/Room/Room.h"
 
@@ -91,30 +92,30 @@ bool Warp_Current(WarpTarget& out) {
 
 std::string Warp_BlockedReason() {
     if (!PoseCapture_InGameplay()) {
-        return "no estás dentro de una partida";
+        return coop::client::Tx(coop::client::Txt::WarpNotInGame);
     }
     PlayState* play = gPlayState;
     Player* player = GET_PLAYER(play);
     if (play->transitionTrigger != TRANS_TRIGGER_OFF || play->transitionMode != TRANS_MODE_OFF) {
-        return "estás cambiando de escenario";
+        return coop::client::Tx(coop::client::Txt::WarpChangingScene);
     }
     if (coop::client::RoomHold_Active()) {
-        return "tu partida espera a que empiece tu sala";
+        return coop::client::Tx(coop::client::Txt::WarpRoomHold);
     }
     if (player->stateFlags1 & PLAYER_STATE1_DEAD) {
-        return "Link no tiene energía";
+        return coop::client::Tx(coop::client::Txt::WarpDead);
     }
     if (Play_InCsMode(play) || CutsceneManager_GetCurrentCsId() != CS_ID_NONE) {
-        return "hay una cinemática en curso";
+        return coop::client::Tx(coop::client::Txt::WarpCutscene);
     }
     if (IS_PAUSED(&play->pauseCtx)) {
-        return "el menú de pausa está abierto";
+        return coop::client::Tx(coop::client::Txt::WarpPaused);
     }
     if (play->msgCtx.msgMode != MSGMODE_NONE || (player->stateFlags1 & PLAYER_STATE1_TALKING)) {
-        return "estás en un diálogo";
+        return coop::client::Tx(coop::client::Txt::WarpTalking);
     }
     if (player->rideActor != nullptr) {
-        return "vas a caballo";
+        return coop::client::Tx(coop::client::Txt::WarpRiding);
     }
     return "";
 }

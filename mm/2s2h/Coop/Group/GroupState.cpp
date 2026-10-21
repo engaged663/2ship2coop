@@ -2,10 +2,12 @@
 // "/..." lines, so the server answers them (in its language) like any other command.
 #include "Group.h"
 
+#include "2s2h/Coop/Activities/Activities.h"
 #include "2s2h/Coop/Chat/ChatModel.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/I18n/CoopText.h"
 #include "2s2h/Coop/Puppet/PuppetManager.h"
 
 #include "common/Protocol.h"
@@ -27,13 +29,15 @@ namespace {
 uint32_t sGroupId = 0;
 uint8_t sLeader = 0;
 std::vector<GroupMember> sMembers;
-std::string sActivityName;
+std::string sActivityKey;  // the leader's activity...
+std::string sActivityName; // ...and its name as the server sent it (shown in our language when we know the key)
 std::vector<GroupInvite> sInvites;
 
 void Reset() {
     sGroupId = 0;
     sLeader = 0;
     sMembers.clear();
+    sActivityKey.clear();
     sActivityName.clear();
     sInvites.clear();
 }
@@ -67,12 +71,13 @@ void OnGroup(const json& ev) {
     }
     // Same group, another leader (the old one left): say who leads now
     if (id != 0 && id == sGroupId && leader != sLeader && members.size() > 1) {
-        Chat_Add(ChatKind::Info, leader == Session_LocalId() ? std::string("Ahora eres el líder del grupo.")
-                                                              : NickIn(members, leader) + " es ahora el líder del grupo.");
+        Chat_Add(ChatKind::Info, leader == Session_LocalId() ? Tx(Txt::GroupLeaderYou)
+                                                              : Tx(Txt::GroupLeaderOther, { NickIn(members, leader) }));
     }
     sGroupId = id;
     sLeader = id != 0 ? leader : 0;
     sMembers = std::move(members);
+    sActivityKey = id != 0 ? GetString(ev, "activity") : std::string();
     sActivityName = id != 0 ? GetString(ev, "name") : std::string();
 }
 
@@ -101,7 +106,7 @@ void OnPlayerLeft(const json& ev) {
 
 void SendCommand(const std::string& line) {
     if (!Session_IsConnected()) {
-        Chat_Add(ChatKind::Error, "No estás conectado a ningún servidor.");
+        Chat_Add(ChatKind::Error, Tx(Txt::NotConnected));
         return;
     }
     json ev = MakeEvent(ev::kCmd);
@@ -146,7 +151,7 @@ bool Group_IsMate(uint8_t playerId) {
 }
 
 std::string Group_ActivityName() {
-    return sActivityName;
+    return Activity_ShownName(sActivityKey, sActivityName);
 }
 
 const std::vector<GroupInvite>& Group_Invites() {

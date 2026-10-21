@@ -358,7 +358,7 @@ void ProcessFull() {
     std::string err;
     if (!create && !fields::CheckJson(Member(ev, "fields"), &err)) {
         sPending = nullptr;
-        LeaveWorld("El mundo del servidor no es válido (" + err + ").", true);
+        LeaveWorld(Tx(Txt::WorldBad, { err }), true);
         return;
     }
     json inv = Member(Member(ev, "you"), "inv");
@@ -400,7 +400,7 @@ void ReturnStolenSwords() {
     if (world::ReturnStolenSwords(stolen, equipment.data(), items.data())) {
         fields::Write(kEquipment, equipment.data());
         fields::Write(kItems, items.data());
-        Chat_Add(ChatKind::Info, "La Canción del Tiempo ha devuelto a la partida la espada que robó Takkuri.");
+        Chat_Add(ChatKind::Info, Tx(Txt::WorldSword));
     }
 }
 
@@ -418,8 +418,7 @@ void TryActivate() {
         fields::SyncSwordButton();
         SaveBuilder_RefreshButtons();
         sStale = false;
-        Chat_Add(ChatKind::Info, "Tu inventario era de un ciclo anterior: vuelves con lo que conserva la Canción del "
-                                 "Tiempo.");
+        Chat_Add(ChatKind::Info, Tx(Txt::WorldStale));
     }
     sState = WorldState::Active;
     WorldSync_SetActive(true);
@@ -437,7 +436,7 @@ void TryActivate() {
     TrackLocation();
     Upload(true);
     sLastUploadMs = NowMs();
-    Chat_Add(ChatKind::Ok, "Estás en la partida del servidor. /tiempo muestra el reloj.");
+    Chat_Add(ChatKind::Ok, Tx(Txt::WorldIn));
 }
 
 void ComputeCycle() {
@@ -456,7 +455,7 @@ void WhenPlayEnds() {
         if (next == Play_Init) {
             BuildNow();
         } else {
-            LeaveWorld("No se pudo entrar en la partida del servidor.", false); // something else ended the scene
+            LeaveWorld(Tx(Txt::WorldEnterFail), false); // something else ended the scene
         }
         return;
     }
@@ -466,7 +465,7 @@ void WhenPlayEnds() {
         return;
     }
     if (WorldSession_InWorld() && next != Play_Init && next != DayTelop_Init) {
-        LeaveWorld("Has salido de la partida del servidor.", false); // owl statue, reset, end of the game...
+        LeaveWorld(Tx(Txt::WorldLeft), false); // owl statue, reset, end of the game...
     }
 }
 
@@ -494,7 +493,7 @@ void OnWelcome(const json&) {
 void OnLost(const std::string&) {
     sAutoEnterPending = false; // the next welcome decides again
     if (sState != WorldState::Outside) {
-        LeaveWorld("Sin conexión con el servidor: vuelves a la selección de archivo.", true);
+        LeaveWorld(Tx(Txt::WorldLost), true);
     }
 }
 
@@ -523,39 +522,38 @@ int WorldSession_Cycle() {
 std::string WorldSession_StatusText() {
     switch (sState) {
         case WorldState::Outside:
-            return Session_IsConnected() ? "No estás en la partida del servidor."
-                                         : "Conéctate a un servidor para jugar en su partida.";
+            return Tx(Session_IsConnected() ? Txt::WorldStatusOutside : Txt::WorldStatusConnectFirst);
         case WorldState::Requested:
-            return "Esperando al servidor...";
+            return Tx(Txt::WorldStatusRequested);
         case WorldState::Booting:
-            return "Entrando en la partida del servidor...";
+            return Tx(Txt::WorldStatusBooting);
         case WorldState::Active:
-            return "En la partida del servidor: " + ClockSync_Describe() + ".";
+            return Tx(Txt::WorldStatusActive, { ClockSync_Describe() });
     }
     return "";
 }
 
 void WorldSession_RequestEnter() {
     if (!Session_IsConnected()) {
-        Chat_Add(ChatKind::Warn, "Conéctate primero a un servidor (menú Co-op).");
+        Chat_Add(ChatKind::Warn, Tx(Txt::WorldConnectFirst));
         return;
     }
     if (sState != WorldState::Outside) {
         return;
     }
     if (!O2r_Ready()) { // the server's game mods (.o2r) first (O2r/O2rSync.cpp)
-        Chat_Add(ChatKind::Warn, "Espera: tu juego aún está preparando los mods del servidor (.o2r).");
+        Chat_Add(ChatKind::Warn, Tx(Txt::WorldWaitO2r));
         return;
     }
     sState = WorldState::Requested;
     json enter = MakeEvent(ev::kWorldEnter);
     enter["o2r"] = O2r_LoadedHashes(); // the server checks them
     NetClient::Get().SendEvent(enter);
-    Chat_Add(ChatKind::Info, "Entrando en la partida del servidor...");
+    Chat_Add(ChatKind::Info, Tx(Txt::WorldStatusBooting));
 }
 
 void WorldSession_RequestLeave() {
-    LeaveWorld("Has salido de la partida del servidor.", true);
+    LeaveWorld(Tx(Txt::WorldLeft), true);
 }
 
 void WorldSession_UploadNow(bool save) {
@@ -661,7 +659,7 @@ extern "C" void Coop_OnPauseSave() {
         return;
     }
     WorldSession_UploadNow(true);
-    Chat_Add(ChatKind::Ok, "Partida guardada en el servidor.");
+    Chat_Add(ChatKind::Ok, Tx(Txt::WorldSaved));
 }
 
 COOP_ON_EVENT(worldSessionFull, ev::kWorldFull, OnWorldFull);

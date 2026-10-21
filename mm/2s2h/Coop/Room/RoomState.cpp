@@ -160,7 +160,7 @@ void OnRoomChat(const json& ev) {
         sChat.erase(sChat.begin());
     }
     // Also in the main chat: it is read while playing, when the room's window is small
-    Chat_Add(ChatKind::Room, "[Sala] <" + line.nick + "> " + line.text);
+    Chat_Add(ChatKind::Room, Tx(Txt::RoomChatLine, { line.nick, line.text }));
 }
 
 void OnRooms(const json& ev) {
@@ -202,7 +202,7 @@ json Op(const char* op) {
 
 void Send(const json& ev) {
     if (!Session_IsConnected()) {
-        Chat_Add(ChatKind::Error, "No estás conectado a ningún servidor.");
+        Chat_Add(ChatKind::Error, Tx(Txt::NotConnected));
         return;
     }
     NetClient::Get().SendEvent(ev);

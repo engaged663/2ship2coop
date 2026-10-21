@@ -3,6 +3,8 @@
 #include "Dispatcher.h"
 #include "NetClient.h"
 
+#include "2s2h/Coop/I18n/CoopText.h"
+
 #include "common/Protocol.h"
 #include "common/Text.h"
 
@@ -40,7 +42,7 @@ void OnWelcome(const json& ev) {
             sPlayers[rp.id] = rp;
         }
     }
-    Notify("Conectado a " + NetClient::Get().ServerLabel() + " como " + sLocalNick, ImVec4(0.5f, 1.0f, 0.5f, 1.0f));
+    Notify(Tx(Txt::SessionConnected, { NetClient::Get().ServerLabel(), sLocalNick }), ImVec4(0.5f, 1.0f, 0.5f, 1.0f));
 }
 
 void OnJoin(const json& ev) {
@@ -98,11 +100,11 @@ bool Session_ConnectFromSettings() {
     int port = CVarGetInteger("gCoop.Port", kDefaultPort);
     std::string pass = CVarGetString("gCoop.Password", "");
     if (!IsValidNick(nick)) {
-        Notify("Elige un nick válido (3-16 letras, números o _) en el menú Co-op.", ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+        Notify(Tx(Txt::SessionBadNick), ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
         return false;
     }
     if (host.empty() || port <= 0 || port > 65535) {
-        Notify("Revisa la IP y el puerto del servidor en el menú Co-op.", ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+        Notify(Tx(Txt::SessionBadHost), ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
         return false;
     }
     NetClient::Get().Connect(host, (uint16_t)port, nick, pass);

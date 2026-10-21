@@ -215,7 +215,7 @@ void OnReward(const json& ev) {
         Rupees_ChangeBy((s16)rupees);
         Rewards_SuppressEnd();
         Audio_PlaySfx(NA_SE_SY_GET_ITEM);
-        Chat_Add(ChatKind::Ok, "+" + std::to_string(rupees) + " rupias (premio de " + nick + ").");
+        Chat_Add(ChatKind::Ok, Tx(Txt::RewardRupees, { std::to_string(rupees), nick }));
         return;
     }
     int gi = (int)GetInt(ev, "gi");
@@ -246,7 +246,7 @@ void ProcessCopies(PlayState* play) {
                     if (!late) {
                         return; // the world may still bring the new bottle
                     }
-                    Chat_Add(ChatKind::Warn, "No tenías una botella vacía para el premio de " + c.nick + ".");
+                    Chat_Add(ChatKind::Warn, Tx(Txt::RewardNoBottle, { c.nick }));
                     sCopies.pop_front();
                     return;
                 }
@@ -261,10 +261,10 @@ void ProcessCopies(PlayState* play) {
     if (TextBoxFree(play)) {
         Message_StartTextbox(play, entry.textId, NULL);
         Audio_PlayFanfare(Classify(c.gi) == GiClass::Shared ? NA_BGM_GET_ITEM : NA_BGM_GET_SMALL_ITEM);
-        Chat_Add(ChatKind::Ok, "Premio del grupo (de " + c.nick + ").");
+        Chat_Add(ChatKind::Ok, Tx(Txt::RewardGroup, { c.nick }));
         sCopies.pop_front();
     } else if (Group_NowMs() - c.sinceMs > kWaitMs) {
-        Chat_Add(ChatKind::Ok, "Premio del grupo (de " + c.nick + ").");
+        Chat_Add(ChatKind::Ok, Tx(Txt::RewardGroup, { c.nick }));
         sCopies.pop_front();
     }
 }

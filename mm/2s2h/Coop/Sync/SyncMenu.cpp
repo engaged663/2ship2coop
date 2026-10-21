@@ -5,6 +5,7 @@
 #include "2s2h/Coop/Actors/ActorRegistry.h"
 #include "2s2h/Coop/Actors/Leases.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/I18n/CoopText.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include "2s2h/BenGui/BenGui.hpp"
@@ -25,13 +26,13 @@ namespace {
 const ImVec4 kGray = { 0.6f, 0.6f, 0.6f, 1.0f };
 
 void DrawNearby() {
-    if (!ImGui::CollapsingHeader("Ver lo sincronizado cerca (para avisar de un fallo)")) {
+    if (!ImGui::CollapsingHeader(Tc(Txt::SyncNearby))) {
         return;
     }
     PlayState* play = gPlayState;
     Player* link = play != nullptr ? (Player*)play->actorCtx.actorLists[ACTORCAT_PLAYER].first : nullptr;
     if (link == nullptr || !WorldSession_Active()) {
-        ImGui::TextColored(kGray, "Solo dentro de la partida del servidor.");
+        ImGui::TextColored(kGray, "%s", Tc(Txt::OnlyInWorld));
         return;
     }
     struct Row {
@@ -49,15 +50,15 @@ void DrawNearby() {
     }
     std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.dist < b.dist; });
     if (rows.empty()) {
-        ImGui::TextColored(kGray, "Nada sincronizado a menos de 1500 unidades.");
+        ImGui::TextColored(kGray, "%s", Tc(Txt::SyncNothingNear));
         return;
     }
     if (ImGui::BeginTable("coopSyncNearby", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-        ImGui::TableSetupColumn("Actor");
-        ImGui::TableSetupColumn("Id");
-        ImGui::TableSetupColumn("Sala");
-        ImGui::TableSetupColumn("Lo simula");
-        ImGui::TableSetupColumn("Distancia");
+        ImGui::TableSetupColumn(Tc(Txt::ColActor));
+        ImGui::TableSetupColumn(Tc(Txt::ColId));
+        ImGui::TableSetupColumn(Tc(Txt::ColRoom));
+        ImGui::TableSetupColumn(Tc(Txt::ColSimulatedBy));
+        ImGui::TableSetupColumn(Tc(Txt::ColDistance));
         ImGui::TableHeadersRow();
         for (const Row& r : rows) {
             uint8_t owner = Leases_Owner(*r.t);
@@ -68,15 +69,15 @@ void DrawNearby() {
             ImGui::Text("0x%03X", (unsigned)(uint16_t)r.t->actor->id);
             ImGui::TableNextColumn();
             if (r.t->room == image_limits::kPlayerRoom) {
-                ImGui::Text("jugador");
+                ImGui::Text("%s", Tc(Txt::CellPlayer));
             } else {
                 ImGui::Text("%d", (int)r.t->room);
             }
             ImGui::TableNextColumn();
             if (owner == 0) {
-                ImGui::Text("nadie aún");
+                ImGui::Text("%s", Tc(Txt::CellNobodyYet));
             } else if (owner == Session_LocalId()) {
-                ImGui::Text("tú");
+                ImGui::Text("%s", Tc(Txt::CellYou));
             } else {
                 const RemotePlayer* p = Session_FindPlayer(owner);
                 ImGui::Text("%s", p != nullptr ? p->nick.c_str() : "?");
@@ -89,24 +90,24 @@ void DrawNearby() {
 }
 
 void DrawNearbyItems() {
-    if (!ImGui::CollapsingHeader("Ver los objetos que caen cerca (corazones, rupias, hadas)")) {
+    if (!ImGui::CollapsingHeader(Tc(Txt::SyncItems))) {
         return;
     }
     if (!WorldSession_Active()) {
-        ImGui::TextColored(kGray, "Solo dentro de la partida del servidor.");
+        ImGui::TextColored(kGray, "%s", Tc(Txt::OnlyInWorld));
         return;
     }
     std::vector<SharedDropRow> rows = SharedDrops_Nearby(1500.f);
     if (rows.empty()) {
-        ImGui::TextColored(kGray, "Ningún objeto compartido a menos de 1500 unidades.");
+        ImGui::TextColored(kGray, "%s", Tc(Txt::SyncNoItems));
         return;
     }
     if (ImGui::BeginTable("coopSyncItems", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-        ImGui::TableSetupColumn("Objeto");
-        ImGui::TableSetupColumn("Clave");
-        ImGui::TableSetupColumn("Cayó en");
-        ImGui::TableSetupColumn("Estado");
-        ImGui::TableSetupColumn("Distancia");
+        ImGui::TableSetupColumn(Tc(Txt::ColItem));
+        ImGui::TableSetupColumn(Tc(Txt::ColKey));
+        ImGui::TableSetupColumn(Tc(Txt::ColDroppedIn));
+        ImGui::TableSetupColumn(Tc(Txt::ColState));
+        ImGui::TableSetupColumn(Tc(Txt::ColDistance));
         ImGui::TableHeadersRow();
         for (const SharedDropRow& r : rows) {
             ImGui::TableNextRow();
@@ -115,9 +116,9 @@ void DrawNearbyItems() {
             ImGui::TableNextColumn();
             ImGui::Text("%08X", r.key);
             ImGui::TableNextColumn();
-            ImGui::Text("%s", r.mine ? "tu juego" : "otro juego");
+            ImGui::Text("%s", Tc(r.mine ? Txt::CellYourGame : Txt::CellOtherGame));
             ImGui::TableNextColumn();
-            ImGui::Text("%s", r.claim == 0 ? "en el suelo" : (r.claim == 1 ? "pidiéndolo" : "tuyo"));
+            ImGui::Text("%s", Tc(r.claim == 0 ? Txt::CellOnGround : (r.claim == 1 ? Txt::CellAsking : Txt::CellYours)));
             ImGui::TableNextColumn();
             ImGui::Text("%.0f", r.dist);
         }
@@ -128,42 +129,32 @@ void DrawNearbyItems() {
 } // namespace
 
 void SyncMenu_Draw() {
-    ImGui::SeparatorText("Sincronización");
+    ImGui::SeparatorText(Tc(Txt::SyncTitle));
     for (int i = 0; i < (int)SyncPart::Count; i++) {
         SyncPart part = (SyncPart)i;
-        UIWidgets::CVarCheckbox(Sync_Name(part), Sync_CVar(part),
-                                UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
-                                    "Apágalo si algo de esta parte falla: se nota sin reiniciar."));
+        UIWidgets::CVarCheckbox(
+            Sync_Name(part), Sync_CVar(part),
+            UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(Tip(Txt::SyncPartTip)));
         if (!Sync_ServerAllows(part)) {
             ImGui::SameLine();
-            ImGui::TextColored(kGray, "(apagado en el servidor)");
+            ImGui::TextColored(kGray, "%s", Tc(Txt::SyncServerOff));
         }
     }
     UIWidgets::CVarCheckbox(
-        "Recrear objetos que otro jugador cambia (paredes, rocas, bloques, templos)", "gCoop.Sync.FlagReload",
-        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
-            "Un objeto que solo mira su bandera al crearse se crea de nuevo cuando otro jugador la cambia. También los "
-            "eventos del mundo: el templo de Woodfall aparece cuando otro jugador toca la Sonata."));
+        Tc(Txt::SyncFlagReload), "gCoop.Sync.FlagReload",
+        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(Tip(Txt::SyncFlagReloadTip)));
     UIWidgets::CVarCheckbox(
-        "Las copias miran los objetos de tu juego (el globo de Jim)", "gCoop.Sync.ListPointers",
-        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
-            "Un personaje copiado de otro juego que mira algo que cada juego tiene por su cuenta (el globo al que "
-            "dispara Jim, un cartel, una puerta) mira el de tu juego. Apagado: como antes."));
+        Tc(Txt::SyncListPointers), "gCoop.Sync.ListPointers",
+        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(Tip(Txt::SyncListPointersTip)));
     UIWidgets::CVarCheckbox(
-        "Ver el efecto de las canciones de los demás (destello, lluvia)", "gCoop.Sync.SongEffects",
-        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(
-            "Cuando otro jugador toca bien una canción a tu lado la oyes siempre; esto añade su destello en tu "
-            "pantalla (o la lluvia de la Canción de la Tormenta)."));
-    UIWidgets::CVarSliderInt("Volumen de los demás (%)", "gCoop.Sync.RemoteVolume",
+        Tc(Txt::SyncSongEffects), "gCoop.Sync.SongEffects",
+        UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(Tip(Txt::SyncSongEffectsTip)));
+    UIWidgets::CVarSliderInt(Tc(Txt::SyncVolume), "gCoop.Sync.RemoteVolume",
                              UIWidgets::IntSliderOptions().Color(THEME_COLOR).Min(0).Max(100).DefaultValue(100));
-    UIWidgets::CVarInputString("Compartir también (ids o nombres)", "gCoop.Sync.Shared",
-                               UIWidgets::InputOptions().Color(THEME_COLOR).Tooltip(
-                                   "Actores que no estaban en la lista y quieres que sean iguales para todos, "
-                                   "separados por comas: OBJ_RAILLIFT, 0x1C3... Se aplica al recargar la escena."));
-    UIWidgets::CVarInputString("Nunca compartir (ids o nombres)", "gCoop.Sync.Local",
-                               UIWidgets::InputOptions().Color(THEME_COLOR).Tooltip(
-                                   "Actores que cada juego tendrá a su aire aunque estén en una lista. Se aplica al "
-                                   "recargar la escena."));
+    UIWidgets::CVarInputString(Tc(Txt::SyncShared), "gCoop.Sync.Shared",
+                               UIWidgets::InputOptions().Color(THEME_COLOR).Tooltip(Tip(Txt::SyncSharedTip)));
+    UIWidgets::CVarInputString(Tc(Txt::SyncLocal), "gCoop.Sync.Local",
+                               UIWidgets::InputOptions().Color(THEME_COLOR).Tooltip(Tip(Txt::SyncLocalTip)));
     DrawNearby();
     DrawNearbyItems();
 }

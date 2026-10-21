@@ -8,6 +8,7 @@
 #include "2s2h/Coop/Activities/Activities.h"
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Group/Group.h"
+#include "2s2h/Coop/I18n/CoopText.h"
 
 #include "common/Protocol.h"
 
@@ -72,28 +73,29 @@ void DrawState(const RoomInfo& r) {
     int64_t left = r.untilMs - Group_NowMs();
     switch (r.phase) {
         case RoomPhase::Lobby:
-            ImGui::TextColored(kYellow, "Esperando a que todos estén listos (se cancela en %s)", Clock(left).c_str());
+            ImGui::TextColored(kYellow, "%s", Tx(Txt::RoomWaitAll, { Clock(left) }).c_str());
             break;
         case RoomPhase::Starting:
-            ImGui::TextColored(kGreen, "¡Todos listos! Empieza en %d...", (int)std::max<int64_t>(1, (left + 999) / 1000));
+            ImGui::TextColored(
+                kGreen, "%s",
+                Tx(Txt::RoomAllReady, { std::to_string(std::max<int64_t>(1, (left + 999) / 1000)) }).c_str());
             break;
         case RoomPhase::Running:
-            ImGui::TextColored(kGreen, "En marcha");
+            ImGui::TextColored(kGreen, "%s", Tc(Txt::RoomRunning));
             break;
         case RoomPhase::Ended:
-            ImGui::TextColored(kGray, "Terminada: la sala se cierra en %s si nadie empieza otra ronda",
-                               Clock(left).c_str());
+            ImGui::TextColored(kGray, "%s", Tx(Txt::RoomEnded, { Clock(left) }).c_str());
             break;
         default:
             break;
     }
     if (RoomHold_Active()) {
         ImGui::PushTextWrapPos(0.0f);
-        ImGui::TextColored(kYellow, "Tu partida espera a que todos confirmen (START o el botón Listo).");
+        ImGui::TextColored(kYellow, "%s", Tc(Txt::RoomHeld));
         ImGui::PopTextWrapPos();
     }
     const ActivityDef* def = Def(r);
-    char progress[96];
+    char progress[160]; // UTF-8: Russian and Chinese take more bytes
     if (def != nullptr && def->hooks != nullptr && def->hooks->progress != nullptr &&
         def->hooks->progress(progress, sizeof(progress))) {
         ImGui::Text("%s", progress);
@@ -105,31 +107,31 @@ void DrawMember(const RoomInfo& r, const RoomMemberInfo& m, bool compact) {
     bool me = m.id == Session_LocalId();
     std::string name = m.nick;
     if (m.id == r.host) {
-        name += " (anfitrión)";
+        name += std::string(" ") + Tc(Txt::TagHost);
     }
     if (m.id == r.director && r.director != r.host) {
-        name += " (juega)";
+        name += std::string(" ") + Tc(Txt::TagPlays);
     }
     if (me) {
-        name += " (tú)";
+        name += std::string(" ") + Tc(Txt::TagYou);
     }
     ImGui::TextColored(me ? kGreen : ImVec4(1, 1, 1, 1), "%s", name.c_str());
     if (Waiting(r.phase)) {
         ImGui::SameLine();
         if (m.ready) {
-            ImGui::TextColored(kGreen, "- listo");
+            ImGui::TextColored(kGreen, "%s", Tc(Txt::MemberReady));
         } else if (r.place == "here" && !m.here) {
-            ImGui::TextColored(kYellow, "- viajando");
+            ImGui::TextColored(kYellow, "%s", Tc(Txt::MemberTravelling));
         } else {
-            ImGui::TextColored(kGray, "- esperando");
+            ImGui::TextColored(kGray, "%s", Tc(Txt::MemberWaiting));
         }
     } else if (!compact && (m.score >= 0 || m.cs >= 0 || m.won >= 0)) {
         std::string result;
         if (m.won >= 0) {
-            result = m.won ? "ganó" : "no ganó";
+            result = Tc(m.won ? Txt::ResultWon : Txt::ResultLost);
         }
         if (m.score > 0) {
-            result += (result.empty() ? "" : ", ") + std::to_string(m.score) + " puntos";
+            result += (result.empty() ? "" : ", ") + Tx(Txt::Points, { std::to_string(m.score) });
         }
         if (m.cs > 0) {
             result += (result.empty() ? "" : ", ") + Activity_TimeText(m.cs);
@@ -140,7 +142,7 @@ void DrawMember(const RoomInfo& r, const RoomMemberInfo& m, bool compact) {
     if (!compact && Room_IsHost() && !me) {
         ImGui::SameLine();
         ImGui::PushID(m.id);
-        if (ImGui::SmallButton("Quitar")) {
+        if (ImGui::SmallButton(Tc(Txt::RoomKick))) {
             Room_Kick(m.id);
         }
         ImGui::PopID();
@@ -148,14 +150,14 @@ void DrawMember(const RoomInfo& r, const RoomMemberInfo& m, bool compact) {
 }
 
 void DrawInvite(const RoomInfo& r) {
-    ImGui::SeparatorText("Invitar (solo para esta actividad)");
+    ImGui::SeparatorText(Tc(Txt::RoomInviteTitle));
     bool groupLeft = false;
     for (const GroupMember& m : Group_Members()) {
         if (m.id != Session_LocalId() && !Room_IsMate(m.id)) {
             groupLeft = true;
         }
     }
-    if (groupLeft && ImGui::SmallButton("Invitar a mi grupo")) {
+    if (groupLeft && ImGui::SmallButton(Tc(Txt::RoomInviteGroup))) {
         Room_InviteGroup();
     }
     int shown = 0;
@@ -169,27 +171,27 @@ void DrawInvite(const RoomInfo& r) {
         ImGui::Text("%s", player.nick.c_str());
         ImGui::SameLine();
         if (pending) {
-            ImGui::TextColored(kGray, "(invitado)");
-        } else if (ImGui::SmallButton("Invitar")) {
+            ImGui::TextColored(kGray, "%s", Tc(Txt::RoomInvited));
+        } else if (ImGui::SmallButton(Tc(Txt::Invite))) {
             Room_Invite(id);
         }
         ImGui::PopID();
         shown++;
     }
     if (shown == 0 && !groupLeft) {
-        ImGui::TextColored(kGray, "No hay nadie más en el servidor para invitar.");
+        ImGui::TextColored(kGray, "%s", Tc(Txt::RoomNobodyToInvite));
     }
 }
 
 void DrawSettings(const RoomInfo& r) {
-    ImGui::SeparatorText(Room_IsHost() ? "Configuración" : "Configuración (la cambia el anfitrión)");
+    ImGui::SeparatorText(Tc(Room_IsHost() ? Txt::RoomSettings : Txt::RoomSettingsGuest));
     bool open = r.open;
     bool travel = r.travel;
     bool rewards = r.rewards;
     ImGui::BeginDisabled(!Room_IsHost());
-    bool changed = ImGui::Checkbox("Sala abierta: cualquiera de la partida puede unirse", &open);
-    changed |= ImGui::Checkbox("Llevar a los participantes al confirmar", &travel);
-    changed |= ImGui::Checkbox("Compartir los premios de la actividad", &rewards);
+    bool changed = ImGui::Checkbox(Tc(Txt::RoomSetOpen), &open);
+    changed |= ImGui::Checkbox(Tc(Txt::RoomSetTravel), &travel);
+    changed |= ImGui::Checkbox(Tc(Txt::RoomSetRewards), &rewards);
     ImGui::EndDisabled();
     if (changed && Room_IsHost()) {
         Room_Settings(open, travel, rewards);
@@ -217,7 +219,7 @@ void DrawChat(int lines, bool input) {
     bool send = ImGui::InputText("##CoopRoomChat", sInput, sizeof(sInput), ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::PopItemWidth();
     ImGui::SameLine();
-    send |= ImGui::Button("Enviar");
+    send |= ImGui::Button(Tc(Txt::RoomSend));
     if (send && sInput[0] != '\0') {
         Room_Chat(sInput);
         sInput[0] = '\0';
@@ -229,20 +231,20 @@ void DrawButtons(const RoomInfo& r) {
     const RoomMemberInfo* me = Room_Me();
     if (Waiting(r.phase) && me != nullptr) {
         if (!me->ready) {
-            if (ImGui::Button(r.director == Session_LocalId() ? "Listo: empezar" : "Listo")) {
+            if (ImGui::Button(Tc(r.director == Session_LocalId() ? Txt::RoomReadyStart : Txt::RoomReady))) {
                 Room_SetReady(true);
             }
-        } else if (ImGui::Button("No estoy listo")) {
+        } else if (ImGui::Button(Tc(Txt::RoomNotReady))) {
             Room_SetReady(false);
         }
         ImGui::SameLine();
     }
-    if (ImGui::Button(Waiting(r.phase) ? "No participar (salir de la sala)" : "Salir de la sala")) {
+    if (ImGui::Button(Tc(Waiting(r.phase) ? Txt::RoomNoParticipate : Txt::RoomLeave))) {
         Room_Leave();
     }
     if (Room_IsHost()) {
         ImGui::SameLine();
-        if (ImGui::Button("Cerrar sala")) {
+        if (ImGui::Button(Tc(Txt::RoomClose))) {
             Room_Close();
         }
     }
@@ -262,20 +264,22 @@ void DrawFull(const RoomInfo& r) {
         ImGui::TextColored(kGray, "%s", mode);
     }
     DrawState(r);
-    ImGui::SeparatorText(("Participantes (" + std::to_string(r.members.size()) + "/4)").c_str());
+    ImGui::SeparatorText(Tx(Txt::RoomParticipants, { std::to_string(r.members.size()) }).c_str());
     for (const RoomMemberInfo& m : r.members) {
         DrawMember(r, m, false);
     }
     int64_t now = Group_NowMs();
     for (const RoomPendingInvite& i : r.invites) {
-        ImGui::TextColored(kGray, "Invitado: %s (%d s)", i.nick.c_str(),
-                           (int)std::max<int64_t>(0, (i.expiresMs - now + 999) / 1000));
+        ImGui::TextColored(
+            kGray, "%s",
+            Tx(Txt::RoomInvitedLine, { i.nick, std::to_string(std::max<int64_t>(0, (i.expiresMs - now + 999) / 1000)) })
+                .c_str());
     }
     if (Room_IsHost()) {
         DrawInvite(r);
     }
     DrawSettings(r);
-    ImGui::SeparatorText("Chat de la sala");
+    ImGui::SeparatorText(Tc(Txt::RoomChatTitle));
     DrawChat(kChatLines, true);
     ImGui::Spacing();
     DrawButtons(r);
@@ -312,9 +316,9 @@ void RoomWindow::Draw() {
                              ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_AlwaysAutoResize;
     if (ImGui::Begin("##CoopRoom", nullptr, flags)) {
         ImGui::SetWindowFontScale(CVarGetFloat("gCoop.Room.Scale", 1.1f));
-        ImGui::TextColored(kTitle, "Sala: %s", r.name.c_str());
+        ImGui::TextColored(kTitle, "%s", Tx(Txt::RoomWindowTitle, { Activity_ShownName(r.key, r.name) }).c_str());
         ImGui::SameLine();
-        if (ImGui::SmallButton(sExpanded ? "Reducir" : "Abrir")) {
+        if (ImGui::SmallButton(Tc(sExpanded ? Txt::RoomCollapse : Txt::RoomExpand))) {
             sExpanded = !sExpanded;
         }
         if (sExpanded) {
@@ -333,7 +337,7 @@ void RegisterRoomWindow() {
         return; // presets run this function again
     }
     auto gui = Ship::Context::GetRawInstance()->GetWindow()->GetGui();
-    sWindow = std::make_shared<RoomWindow>("gCoop.Room.Window", "Co-op Sala");
+    sWindow = std::make_shared<RoomWindow>("gCoop.Room.Window", "Co-op Room");
     gui->AddGuiWindow(sWindow);
     sWindow->Show();
 }

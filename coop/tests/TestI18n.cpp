@@ -6,6 +6,7 @@
 #include "common/I18n.h"
 
 #include <cstdio>
+#include <iterator>
 
 using namespace coop_test;
 
@@ -25,8 +26,8 @@ struct LangGuard {
 const coop::Lang kAllLangs[] = { coop::Lang::Es, coop::Lang::En, coop::Lang::Zh, coop::Lang::Ru };
 
 // Which of {0}..{9} a text uses, as a bit mask.
-unsigned PlaceholderMask(coop::Msg id) {
-    std::string text = coop::Tr(id, { "@0@", "@1@", "@2@", "@3@", "@4@", "@5@", "@6@", "@7@", "@8@", "@9@" });
+unsigned PlaceholderMask(const char* tmpl) {
+    std::string text = coop::FormatText(tmpl, { "@0@", "@1@", "@2@", "@3@", "@4@", "@5@", "@6@", "@7@", "@8@", "@9@" });
     unsigned mask = 0;
     for (unsigned i = 0; i < 10; i++) {
         if (text.find("@" + std::to_string(i) + "@") != std::string::npos) {
@@ -35,6 +36,22 @@ unsigned PlaceholderMask(coop::Msg id) {
     }
     return mask;
 }
+
+unsigned PlaceholderMask(coop::Msg id) {
+    return PlaceholderMask(coop::TrRaw(coop::GetLang(), id));
+}
+
+// The game's own catalog (menu, windows, its chat lines): the same columns as the server's.
+struct GameText {
+    const char* id;
+    const char* text[coop::kLangCount];
+};
+
+const GameText kGameTexts[] = {
+#define X(id, es, en, zh, ru) { #id, { es, en, zh, ru } },
+#include "../../mm/2s2h/Coop/I18n/CoopTextMessages.inc"
+#undef X
+};
 
 } // namespace
 
@@ -119,6 +136,8 @@ TEST_CASE(LangCommandSwitchesTheWholeServer) {
     a->Cmd("/lang zh");
     CHECK(a->WaitForSys("ok", s));
     CHECK(coop::GetLang() == coop::Lang::Zh);
+    auto told = a->WaitFor("lang", s); // the games in "automatic" switch their own texts too
+    CHECK(told.has_value() && coop::GetString(*told, "lang") == "zh");
     a->Cmd("/lang");
     auto cur = a->WaitFor("sys", s);
     CHECK(cur.has_value());
@@ -129,6 +148,27 @@ TEST_CASE(LangCommandSwitchesTheWholeServer) {
     CHECK(coop::GetLang() == coop::Lang::Ru);
     s.server->ExecuteConsoleLine("lang es");
     CHECK(coop::GetLang() == coop::Lang::Es);
+}
+
+TEST_CASE(WelcomeTellsTheServerLanguage) {
+    LangGuard g(coop::Lang::Ru);
+    TestServer s;
+    auto a = Join(s, "Alice");
+    CHECK_EQ(coop::GetString(a->welcome, "lang"), std::string("ru"));
+}
+
+TEST_CASE(EveryGameTextExistsInEveryLanguageWithTheSamePlaceholders) {
+    for (const GameText& t : kGameTexts) {
+        unsigned reference = PlaceholderMask(t.text[0]);
+        for (size_t lang = 0; lang < coop::kLangCount; lang++) {
+            if (t.text[lang][0] == '\0' || PlaceholderMask(t.text[lang]) != reference) {
+                std::printf("  game text %s: empty or other placeholders in %s\n", t.id,
+                            coop::LangCode(coop::kLangs[lang]));
+                CHECK(false);
+            }
+        }
+    }
+    CHECK(std::size(kGameTexts) > 300);
 }
 
 TEST_CASE(EnglishAliasesRunTheSpanishCommands) {

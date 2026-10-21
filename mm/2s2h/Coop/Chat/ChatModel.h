@@ -1,5 +1,8 @@
 #pragma once
 // Chat history shown by ChatWindow. Lines come from the server (chat, pm, sys, join/leave) and local events.
+// The game's own lines go in the player's language: Chat_Add(ChatKind::Ok, Tx(Txt::WorldSaved)) (I18n/CoopText.h).
+#include "2s2h/Coop/I18n/CoopText.h"
+
 #include <deque>
 #include <string>
 #include <vector>

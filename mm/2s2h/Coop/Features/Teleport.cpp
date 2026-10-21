@@ -37,19 +37,18 @@ PendingTrip sPendingTrip;
 void Travel(const WarpTarget& spot, s16 scene, const std::string& target) {
     if (scene == gPlayState->sceneId && spot.room == gPlayState->roomCtx.curRoom.num) {
         Warp_MoveInsideRoom(spot);
-        Chat_Add(ChatKind::Ok, target.empty() ? "Te han teletransportado." : "Te has teletransportado junto a " + target + ".");
+        Chat_Add(ChatKind::Ok, target.empty() ? Tx(Txt::TpMoved) : Tx(Txt::TpNextTo, { target }));
     } else {
         Warp_Go(spot);
-        Chat_Add(ChatKind::Ok, target.empty() ? "Viajando..." : "Viajando hasta " + target + "...");
+        Chat_Add(ChatKind::Ok, target.empty() ? Tx(Txt::TpTravel) : Tx(Txt::TpTravelTo, { target }));
     }
 }
 
 void OnTp(const json& ev) {
-    std::string target = GetString(ev, "target", "el jugador");
+    std::string target = GetString(ev, "target", Tx(Txt::TpDefaultTarget));
     WarpTarget spot;
     if (!Warp_FromJson(ev, spot)) {
-        Chat_Add(ChatKind::Error, target.empty() ? "El destino no es válido."
-                                                 : "El destino de " + target + " no es válido.");
+        Chat_Add(ChatKind::Error, target.empty() ? Tx(Txt::TpBad) : Tx(Txt::TpBadOf, { target }));
         return;
     }
     s16 scene = (s16)GetInt(ev, "scene", -1);
@@ -57,10 +56,10 @@ void OnTp(const json& ev) {
     if (!blocked.empty()) {
         if (GetBool(ev, "roomTrip")) {
             sPendingTrip = PendingTrip{ true, spot, scene, target, Group_NowMs() + kRoomTripMs };
-            Chat_Add(ChatKind::Info, "Irás junto a " + target + " en cuanto puedas (" + blocked + ").");
+            Chat_Add(ChatKind::Info, Tx(Txt::TpLater, { target, blocked }));
             return;
         }
-        Chat_Add(ChatKind::Error, "No puedes teletransportarte ahora: " + blocked + ".");
+        Chat_Add(ChatKind::Error, Tx(Txt::TpBlocked, { blocked }));
         return;
     }
     sPendingTrip.active = false;

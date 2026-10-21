@@ -84,10 +84,11 @@ static void RegisterDebugBoot() {
         }
         if (err.empty()) {
             SPDLOG_INFO("[Coop] Field self-test OK");
-            coop::client::Chat_Add(coop::client::ChatKind::Ok, "Prueba de campos del mundo: correcta.");
+            coop::client::Chat_Add(coop::client::ChatKind::Ok, coop::client::Tx(coop::client::Txt::SelfTestOk));
         } else {
             SPDLOG_ERROR("[Coop] Field self-test failed: {}", err);
-            coop::client::Chat_Add(coop::client::ChatKind::Error, "Prueba de campos del mundo: " + err);
+            coop::client::Chat_Add(coop::client::ChatKind::Error,
+                                   coop::client::Tx(coop::client::Txt::SelfTestFail, { err }));
         }
     });
 }

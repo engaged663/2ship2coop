@@ -687,7 +687,7 @@ std::string SelfTest() {
     for (int i = 0; i < save::kUpgradeCount; i++) { // SaveLayout.h mirrors gUpgradeShifts and gUpgradeMasks
         uint32_t mask = ((1u << save::kUpgradeBits[i]) - 1) << save::kUpgradeShifts[i];
         if (save::kUpgradeShifts[i] != gUpgradeShifts[i] || mask != gUpgradeMasks[i]) {
-            return "SaveLayout.h: la mejora " + std::to_string(i) + " no coincide con gUpgradeShifts/gUpgradeMasks";
+            return "SaveLayout.h: upgrade " + std::to_string(i) + " does not match gUpgradeShifts/gUpgradeMasks";
         }
     }
     json shared = ReadAllJson();
@@ -701,13 +701,13 @@ std::string SelfTest() {
     for (size_t i = 0; i < world::kFieldCount; i++) {
         const char* name = world::kFields[i].name;
         if (shared[name] != sharedAgain[name]) {
-            return std::string("el campo del mundo '") + name + "' cambia al escribirlo";
+            return std::string("world field '") + name + "' changes when written";
         }
     }
     json playerAgain = ReadPlayer();
     for (const PlayerField& f : kPlayerAccess) {
         if (player[f.name] != playerAgain[f.name]) {
-            return std::string("el campo del jugador '") + f.name + "' cambia al escribirlo";
+            return std::string("player field '") + f.name + "' changes when written";
         }
     }
     return "";

@@ -48,14 +48,14 @@ std::string ImportCrossCheck() {
         bytes.assign(world::kFields[i].size, 0);
         Read((int)i, bytes.data());
         if (bytes != imported.fields[i]) {
-            return std::string("el conversor lee distinto el campo del mundo '") + world::kFields[i].name + "'";
+            return std::string("the converter reads world field '") + world::kFields[i].name + "' differently";
         }
     }
     json own = ReadPlayer();
     const json& converted = imported.inv["fields"];
     for (auto it = own.begin(); it != own.end(); ++it) {
         if (!converted.contains(it.key()) || converted[it.key()] != it.value()) {
-            return std::string("el conversor lee distinto el dato del jugador '") + it.key() + "'";
+            return std::string("the converter reads player data '") + it.key() + "' differently";
         }
     }
     return "";

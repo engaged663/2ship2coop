@@ -17,6 +17,8 @@ extern "C" {
 
 using coop::client::Chat_Add;
 using coop::client::ChatKind;
+using coop::client::Tx;
+using coop::client::Txt;
 
 namespace {
 
@@ -68,10 +70,10 @@ void OnRefund(const coop::json& ev) {
         coop::client::Rewards_SuppressBegin(); // a gift is not a group prize
         Rupees_ChangeBy((s16)amount);
         coop::client::Rewards_SuppressEnd();
-        Chat_Add(ChatKind::Warn,
-                 "Se te han devuelto " + std::to_string(amount) + " rupias" + (reason.empty() ? "." : " (" + reason + ")."));
+        Chat_Add(ChatKind::Warn, reason.empty() ? Tx(Txt::GiftRefund, { std::to_string(amount) })
+                                                : Tx(Txt::GiftRefundReason, { std::to_string(amount), reason }));
     } else {
-        Chat_Add(ChatKind::Error, "No se pudieron devolver " + std::to_string(amount) + " rupias: no estás en una partida.");
+        Chat_Add(ChatKind::Error, Tx(Txt::GiftRefundFail, { std::to_string(amount) }));
     }
 }
 

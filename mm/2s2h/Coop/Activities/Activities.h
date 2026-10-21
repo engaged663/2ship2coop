@@ -8,6 +8,8 @@
 //   Follow.cpp         "follow": go where the director goes (a minigame's entrance, the end of a cutscene)
 //   Rewards.cpp        prizes: what is each player's own is copied to the mates who were there
 //   Bombers.cpp        the Bombers' hide-and-seek: one count for every game, its hooks
+#include "2s2h/Coop/I18n/CoopText.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -50,7 +52,7 @@ struct GuestSlot {
 
 struct ActivityDef {
     const char* key;  // ASCII [a-z0-9_]: travels in the protocol
-    const char* name; // Spanish, shown to the players
+    Txt name;         // shown to the players in their language (I18n/CoopTextMessages.inc); the server's in its own
     ActivityKind kind;
     int16_t scene;      // SCENE_* where the minigame is played (-1: quests)
     int16_t npcs[6];    // ACTOR_* of its NPCs (0 = end); npcs[0] runs a minigame
@@ -67,7 +69,11 @@ const ActivityDef* Activity_All(size_t* count);
 bool Activity_IsGlobal(const ActivityDef& def); // played in several scenes (hooks->active)
 const char* Activity_PlaceName(const ActivityDef& def); // for its room: here, entrance, anywhere
 const char* Activity_ModeName(ActivityMode mode);       // for its room: together, each, turns, shared
-const char* Activity_ModeText(const std::string& modeName); // Spanish, for the windows
+const char* Activity_ModeText(const std::string& modeName); // in the game's language, for the windows
+const char* Activity_Name(const ActivityDef& def);           // in the game's language
+const char* Activity_NameIn(const ActivityDef& def, Lang lang); // what goes to the server: in its language
+// A name that came from the network: ours by its key when we know it (the sender wrote it in the server's language).
+std::string Activity_ShownName(const std::string& key, const std::string& sent);
 const ActivityDef* Activity_ByKey(const std::string& key);
 const ActivityDef* Activity_MinigameOfScene(int16_t scene);
 const ActivityDef* Activity_QuestOfNpc(int16_t actorId);

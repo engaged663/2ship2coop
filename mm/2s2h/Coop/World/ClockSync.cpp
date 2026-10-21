@@ -128,7 +128,7 @@ void InterceptSongs() {
             msgCtx->stateTimer = 2;
         }
         NetClient::Get().SendEvent(MakeEvent(ev::kSotPropose));
-        Chat_Add(ChatKind::Info, "Has propuesto volver al Amanecer del Primer Día.");
+        Chat_Add(ChatKind::Info, Tx(Txt::ClockSot));
         return;
     }
     switch (msgCtx->ocarinaMode) {
@@ -222,10 +222,10 @@ std::string ClockSync_Describe() {
     }
     std::string text = clock::Format(ServerAbs());
     if (sInverted) {
-        text += " · tiempo ralentizado";
+        text += std::string(" · ") + Tc(Txt::ClockSlowed);
     }
     if (sStopped) {
-        text += " · reloj parado";
+        text += std::string(" · ") + Tc(Txt::ClockStopped);
     }
     return text;
 }

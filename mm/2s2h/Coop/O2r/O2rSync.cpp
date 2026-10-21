@@ -110,13 +110,13 @@ void Fail(const std::string& why) {
 const char* ErrorText(o2r::Download::Error error) {
     switch (error) {
         case o2r::Download::Error::Open:
-            return "No se pudo crear el archivo del mod en la carpeta coop_mods.";
+            return Tc(Txt::O2rErrOpen);
         case o2r::Download::Error::Write:
-            return "No se pudo guardar el mod en la carpeta coop_mods (¿disco lleno?).";
+            return Tc(Txt::O2rErrWrite);
         case o2r::Download::Error::Hash:
-            return "El mod descargado no coincide con el del servidor.";
+            return Tc(Txt::O2rErrHash);
         default:
-            return "El servidor ha enviado un trozo de mod que no se esperaba.";
+            return Tc(Txt::O2rErrChunk);
     }
 }
 
@@ -156,8 +156,7 @@ void StartDownload() {
     sLastChunkMs = NowMs();
     SPDLOG_INFO("[Coop] .o2r: downloading {} file(s), {}", sMissing.size(),
                 o2r::FormatBytes(sDownload->BytesTotal()));
-    Chat_Add(ChatKind::Info,
-             "Descargando los mods del servidor (" + o2r::FormatBytes(sDownload->BytesTotal()) + ")...");
+    Chat_Add(ChatKind::Info, Tx(Txt::O2rDownloading, { o2r::FormatBytes(sDownload->BytesTotal()) }));
     SendRequests();
 }
 
@@ -167,7 +166,7 @@ void OnWelcome(const json& ev) {
     auto list = ev.find("o2r");
     if (!o2r::ListFromJson(list != ev.end() ? *list : json(), sRequired, &why)) {
         SPDLOG_WARN("[Coop] .o2r: the server's list was refused: {}", why);
-        Fail("El servidor ha enviado una lista de mods que no es válida.");
+        Fail(Tx(Txt::O2rBadList));
         return;
     }
     if (sRequired.empty()) {
@@ -182,15 +181,14 @@ void OnWelcome(const json& ev) {
         }
     }
     SPDLOG_INFO("[Coop] .o2r: the server uses {} ({} missing)", Names(sRequired), sMissing.size());
-    Chat_Add(ChatKind::Info, "El servidor usa mods del juego (.o2r): " + Names(sRequired) + ".");
+    Chat_Add(ChatKind::Info, Tx(Txt::O2rUses, { Names(sRequired) }));
     if (sMissing.empty()) {
         StartLoading();
     } else if (HostMode_Enabled() || CVarGetInteger("gCoop.O2r.AutoDownload", 0) != 0) {
         StartDownload();
     } else {
         sState = O2rState::Asking;
-        Chat_Add(ChatKind::Warn, "Te faltan " + o2r::FormatBytes(missingBytes) +
-                                     ": acepta la descarga en la ventana de arriba o en F1 -> Co-op.");
+        Chat_Add(ChatKind::Warn, Tx(Txt::O2rNeed, { o2r::FormatBytes(missingBytes) }));
     }
 }
 
@@ -265,7 +263,7 @@ void O2r_Accept(bool always) {
 
 void O2r_Decline() {
     if (sState == O2rState::Asking || sState == O2rState::Downloading) {
-        Fail("Sin los mods del servidor no puedes jugar en él: te has desconectado.");
+        Fail(Tx(Txt::O2rDeclined));
     }
 }
 
@@ -290,7 +288,7 @@ O2rProgress O2r_Progress() {
 void O2r_FrameStart() {
     O2rLoader_AltFrame();
     if (sState == O2rState::Downloading && NowMs() - sLastChunkMs > kO2rStallMs) {
-        Fail("El servidor ha dejado de enviar los mods (.o2r).");
+        Fail(Tx(Txt::O2rStalled));
         return;
     }
     if (sState != O2rState::Loading || O2rLoader_Busy()) {
@@ -300,13 +298,13 @@ void O2r_FrameStart() {
         if (!O2rLoader_IsLoaded(entry.sha256)) {
             std::error_code ec;
             fs::remove(fs::path(FinalPath(entry)), ec); // maybe damaged: it is downloaded again next time
-            Fail("No se pudo cargar el mod del servidor " + entry.name + ".");
+            Fail(Tx(Txt::O2rLoadFail, { entry.name }));
             return;
         }
     }
     sState = O2rState::Ready;
     SPDLOG_INFO("[Coop] .o2r: ready");
-    Chat_Add(ChatKind::Ok, "Mods del servidor cargados: " + Names(sRequired) + ".");
+    Chat_Add(ChatKind::Ok, Tx(Txt::O2rAllLoaded, { Names(sRequired) }));
 }
 
 COOP_ON_EVENT(o2rWelcome, ev::kWelcome, OnWelcome);

@@ -130,9 +130,11 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 ### `mm/2s2h/Coop/` (game)
 | File | Responsibility |
 |---|---|
-| `CoopInit.cpp` | order of each frame's work: network → world → clock; at the end, world changes; auto-connect |
+| `CoopInit.cpp` | order of each frame's work: network → language → world → clock; at the end, world changes; auto-connect |
+| `I18n/CoopText.*` + `CoopTextMessages.inc` | **the game's texts in es/en/zh/ru**: `Tx(Txt::X, {args})`, `Tc(Txt::X)`, `Tip(Txt::X)`; one line per text; the language selector (`gCoop.Language`: `auto` = the server's, else the system's) |
+| `I18n/CoopFonts.*` | ImGui fonts with Cyrillic (always) and Chinese (a system font, `gCoop.ChineseFont`, only while Chinese is shown; the font texture is made again at runtime) |
 | `Client/NetClient.*` | network thread + queues (only that thread touches ENet) |
-| `Client/Dispatcher.*` | event → handlers; macros `COOP_ON_EVENT/ON_STREAM/ON_LOST` |
+| `Client/Dispatcher.*` | event → handlers; macros `COOP_ON_EVENT/ON_STREAM/ON_LOST` (`COOP_ON_EVENT_FIRST`: before the others) |
 | `Client/Session.*` | who I am, who is connected and where |
 | `Chat/ChatModel.*` | chat history and sending (`/...` = server command) |
 | `Chat/ChatWindow.*` | ImGui overlay at the bottom left (Enter opens, Esc closes, ↑/↓ history) |
@@ -325,9 +327,23 @@ reasons. It is chosen in three ways (the last one wins):
 3. While running: `/lang en` (admins and console); without an argument it shows the current one. It is saved to `server.json`.
 
 Command names do not change (they are written in ASCII), except that the world ones also have an English name:
-`/tiempo`=`/clock`, `/si`=`/yes`, `/mundo`=`/world`, `/reiniciar`=`/restart`. An empty `motd` = default welcome in
-the server's language; one written by hand is sent as is. The game's texts (menu, chat window) are still in
-Spanish. Adding a language: `Lang` + `LangCode/LangName` in `I18n.cpp` and one more column in each `X(...)` of the `.inc`.
+`/tiempo`=`/clock`, `/si`=`/yes`, `/mundo`=`/world`, `/reiniciar`=`/restart`, `/invitar`=`/invite`,
+`/aceptar`=`/accept`, `/rechazar`=`/decline`, `/grupo`=`/group`, `/dejargrupo`=`/leavegroup`, `/sala`=`/room`
+(and its words: `invite`, `accept`, `ready`, `leave`...), `/listo`=`/ready`, `/restaurar`=`/restore`,
+`/importar`=`/import`; `/help` and the usage lines show the names of the server's language. An empty `motd` =
+default welcome in the server's language; one written by hand is sent as is.
+
+**The game** has its own catalog with the same four columns, `mm/2s2h/Coop/I18n/CoopTextMessages.inc`: the Co-op
+menu, the room/invitation/mods windows and the chat lines the game writes. F1 → Co-op → "Idioma / Language":
+*Automatic* (default) follows the server (its `welcome` carries `lang`; `/lang` sends a `lang` event to everyone) and,
+while not connected, the system's language; or a fixed one. The names the server repeats (an activity's, in
+invitations and rooms) are sent in the server's language and each game shows them in its own by their key. Chinese
+needs a font of the system (Windows: Microsoft YaHei): it is added to the ImGui fonts only while Chinese is shown
+(`I18n/CoopFonts.cpp`; another file: `gCoop.ChineseFont`). coop-tests checks that every text of both catalogs exists
+in every language with the same `{N}`.
+
+Adding a language: `Lang`, `kLangs` + `LangCode/LangName` in `I18n.h/.cpp` and one more column in each `X(...)` of
+both `.inc` files (the game's `CoopText.cpp` table too).
 
 ## Building
 

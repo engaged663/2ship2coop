@@ -3,6 +3,7 @@
 #include "Sync.h"
 
 #include "2s2h/Coop/Client/Dispatcher.h"
+#include "2s2h/Coop/I18n/CoopText.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -21,15 +22,9 @@ constexpr std::array<const char*, kParts> kCVars = { "gCoop.Sync.Sounds",       
 constexpr std::array<const char*, kParts> kKeys = { "sounds",     "ambient",      "playerObjects",
                                                     "sceneFlags", "sceneObjects", "ocarina",
                                                     "drops" };
-constexpr std::array<const char*, kParts> kNames = {
-    "Sonidos de los demás Links y de lo que simulan sus juegos",
-    "Música y temblores de jefes, minijefes y eventos",
-    "Objetos de los jugadores (flechas, bombas, gancho...) y lo que llevan en la mano",
-    "Banderas de la escena en vivo (interruptores, cofres, salas)",
-    "Maquinaria de la escena (plataformas, ascensores, interruptores, bloques)",
-    "Ocarina de los demás (sus notas y sus canciones)",
-    "Objetos que caen (corazones, rupias, hadas...): los mismos para todos, el primero que llega se los queda",
-};
+constexpr std::array<Txt, kParts> kNames = { Txt::SyncSounds,       Txt::SyncAmbient,      Txt::SyncPlayerObjects,
+                                             Txt::SyncSceneFlags,   Txt::SyncSceneObjects, Txt::SyncOcarina,
+                                             Txt::SyncDrops };
 std::array<bool, kParts> sServer = { true, true, true, true, true, true, true };
 
 void OnWelcome(const json& ev) {
@@ -63,7 +58,7 @@ const char* Sync_CVar(SyncPart part) {
 }
 
 const char* Sync_Name(SyncPart part) {
-    return kNames[(size_t)part];
+    return Tc(kNames[(size_t)part]);
 }
 
 } // namespace coop::client

@@ -73,8 +73,8 @@ void OnProp(Server& server, RemoteClient& client, const json& ev) {
     json out = ev;
     out["from"] = client.id;
     SendToStage(server, client, out);
-    server.Log().Info("Objeto roto por " + client.nick + ": escena " + std::to_string(scene) + ", clave " +
-                      std::to_string(key) + ", parte " + std::to_string(child));
+    server.Log().Info(Tr(Msg::LogPropBroken,
+                         { client.nick, std::to_string(scene), std::to_string(key), std::to_string(child) }));
 }
 
 // A game that just arrived in a scene asks what is gone there.

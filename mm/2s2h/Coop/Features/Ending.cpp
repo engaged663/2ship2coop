@@ -120,7 +120,7 @@ void GiveFierceDeityIfEarned() {
     }
     Item_Give(gPlayState, ITEM_MASK_FIERCE_DEITY);
     SET_WEEKEVENTREG(WEEKEVENTREG_84_20);
-    Chat_Add(ChatKind::Ok, "Tenéis las 20 máscaras: la Máscara de la Fiera Deidad es vuestra.");
+    Chat_Add(ChatKind::Ok, Tx(Txt::EndFierceDeity));
 }
 
 // Oath to Order with the four remains on the rooftop: the giants hold the moon and everyone goes to Majora.
@@ -132,7 +132,7 @@ void OathToOrder() {
     Announce(kStageLair);
     sPending = kStageLair;
     sPendingSinceMs = NowMs();
-    Chat_Add(ChatKind::Info, "Los gigantes detienen la luna. ¡A por Majora!");
+    Chat_Add(ChatKind::Info, Tx(Txt::EndGiants));
 }
 
 void FrameEnd() {
@@ -167,12 +167,12 @@ void OnEnding(const json& ev) {
     }
     std::string nick = GetString(ev, "nick");
     if (nick.empty()) {
-        nick = "La partida del servidor";
+        nick = Tx(Txt::EndServerGame);
     }
     if (stage == kStageDefeated) {
         if (!sDefeated) {
             sDefeated = true;
-            Chat_Add(ChatKind::Ok, "¡" + nick + " ha derrotado a Majora!");
+            Chat_Add(ChatKind::Ok, Tx(Txt::EndDefeated, { nick }));
         }
         return;
     }
@@ -181,9 +181,10 @@ void OnEnding(const json& ev) {
     }
     sPending = stage;
     sPendingSinceMs = NowMs();
-    Chat_Add(ChatKind::Info, stage == kStageRooftop ? nick + " ha subido a la torre del reloj: vais todos allí."
-                             : stage == kStageLair  ? nick + " ha tocado la Canción del Juramento: ¡todos contra Majora!"
-                                                    : nick + " empieza el final del juego: lo veis todos juntos.");
+    Chat_Add(ChatKind::Info, Tx(stage == kStageRooftop ? Txt::EndRooftop
+                                : stage == kStageLair  ? Txt::EndLair
+                                                       : Txt::EndStarts,
+                                { nick }));
 }
 
 void Reset() {
