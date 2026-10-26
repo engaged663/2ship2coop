@@ -296,6 +296,7 @@ X(InvCamera, "cámara inválida", "invalid camera", "无效的摄像机数据", 
 X(InvActorPacket, "paquete de actores inválido", "invalid actor packet", "无效的角色数据包", "недопустимый пакет акторов")
 X(InvHit, "golpe inválido", "invalid hit", "无效的攻击数据", "недопустимый удар")
 X(InvDamage, "daño inválido", "invalid damage", "无效的伤害数据", "недопустимый урон")
+X(InvGrab, "agarre inválido", "invalid grab", "无效的抓取数据", "недопустимый захват")
 X(InvDrop, "objeto soltado inválido", "invalid dropped item", "无效的掉落物数据", "недопустимый выпавший предмет")
 X(InvLoan, "préstamo inválido", "invalid loan", "无效的借用数据", "недопустимая передача актора")
 X(InvEchoActor, "actor de eco inválido", "invalid echo actor", "无效的回声角色", "недопустимый актор-эхо")

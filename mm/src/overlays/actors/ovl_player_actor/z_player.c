@@ -4512,7 +4512,11 @@ s32 Player_SetAction(PlayState* play, Player* this, PlayerActionFunc actionFunc,
         Player_UseItem(play, this, ITEM_NONE);
     }
 
-    func_800AEF44(Effect_GetByIndex(this->meleeWeaponEffectIndex[2]));
+    // [COOP] A remote player's puppet has no tire mark (NULL here), and enemies that grab Link (Gyorg, ReDeads, Like
+    // Likes...) call this on the puppet they chase
+    if (Effect_GetByIndex(this->meleeWeaponEffectIndex[2]) != NULL) {
+        func_800AEF44(Effect_GetByIndex(this->meleeWeaponEffectIndex[2]));
+    }
     this->actionFunc = actionFunc;
 
     if ((this->itemAction != this->heldItemAction) && (!(arg3 & 1) || !(this->stateFlags1 & PLAYER_STATE1_400000))) {
@@ -21538,6 +21542,7 @@ s32 Player_GrabPlayer(PlayState* play, Player* this) {
                                    PLAYER_STATE1_200000 | PLAYER_STATE1_800000))) {
             if (!(this->stateFlags2 & PLAYER_STATE2_80) && !(this->stateFlags3 & PLAYER_STATE3_FLYING_WITH_HOOKSHOT)) {
                 func_8085B170(play, this);
+                Coop_OnPlayerGrabbed(play, this); // [COOP] another player's puppet: that player is grabbed too
                 return true;
             }
         }
@@ -21590,6 +21595,10 @@ void func_8085B384(Player* this, PlayState* play) {
  */
 s32 Player_InflictDamage(PlayState* play, s32 damage) {
     Player* player = GET_PLAYER(play);
+
+    if (Coop_OnPuppetDamage(play, player, damage)) { // [COOP] aimed at another player's puppet: that player takes it
+        return false;
+    }
 
     if ((player->stateFlags2 & PLAYER_STATE2_80) || !Player_InBlockingCsMode(play, player)) {
         if (func_808339D4(play, player, damage) == 0) {

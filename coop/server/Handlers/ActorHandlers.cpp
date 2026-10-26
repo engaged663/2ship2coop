@@ -328,15 +328,9 @@ void OnHit(Server& server, RemoteClient& client, const json& ev) {
     server.SendEvent(*target, out);
 }
 
-void OnHurt(Server& server, RemoteClient& client, const json& ev) {
-    if (!Takes(server, client) || !client.hitBudget.Take(server.NowMs())) {
-        return;
-    }
-    std::string kind = GetString(ev, "kind");
-    if (!InRange(ev, "to", 1, kMaxPlayers + kMaxHosts) || (kind != "col" && kind != "knock") || !ValidDamage(ev)) {
-        server.NoteInvalid(client, Tr(Msg::InvDamage));
-        return;
-    }
+// The player "to" of a hurt or grab, if the sender's enemies may reach it: another player (not a host) of its stage,
+// and the sender simulates something there (a room or a lent NPC).
+RemoteClient* ReachableVictim(Server& server, RemoteClient& client, const json& ev) {
     RemoteClient* victim = server.Players().ById((uint8_t)GetInt(ev, "to"));
     bool lessee = false;
     for (const auto& [k, l] : sLeases) {
@@ -344,10 +338,69 @@ void OnHurt(Server& server, RemoteClient& client, const json& ev) {
     }
     if (victim == nullptr || victim == &client || victim->host || !Takes(server, *victim) ||
         !SameStage(*victim, client) || !(OwnsAnyRoomOf(client, StageOf(client)) || lessee)) {
+        return nullptr;
+    }
+    return victim;
+}
+
+void OnHurt(Server& server, RemoteClient& client, const json& ev) {
+    if (!Takes(server, client) || !client.hitBudget.Take(server.NowMs())) {
+        return;
+    }
+    std::string kind = GetString(ev, "kind");
+    if (!InRange(ev, "to", 1, kMaxPlayers + kMaxHosts) || (kind != "col" && kind != "knock" && kind != "pain") ||
+        !ValidDamage(ev)) {
+        server.NoteInvalid(client, Tr(Msg::InvDamage));
+        return;
+    }
+    RemoteClient* victim = ReachableVictim(server, client, ev);
+    if (victim == nullptr) {
         return;
     }
     json out = ev;
     out["damage"] = std::min<int64_t>(GetInt(ev, "damage"), kMaxHurtDamage);
+    out["from"] = client.id;
+    server.SendEvent(*victim, out);
+}
+
+// A rotation: three binary angles.
+bool ValidRot(const json& ev, const char* key) {
+    auto it = ev.find(key);
+    if (it == ev.end() || !it->is_array() || it->size() != 3) {
+        return false;
+    }
+    for (const json& v : *it) {
+        if (!v.is_number_integer() || v.get<int64_t>() < -0x8000 || v.get<int64_t>() > 0xFFFF) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Grabs (game: Actors/GrabSync.cpp): an enemy the sender simulates grabbed, holds or let go of another player's Link;
+// that player's game does the same to its own Link.
+void OnGrab(Server& server, RemoteClient& client, const json& ev) {
+    if (!Takes(server, client) || !server.Config().grabs || !client.grabBudget.Take(server.NowMs())) {
+        return;
+    }
+    std::string op = GetString(ev, "op");
+    bool placed = ev.find("pos") != ev.end() || ev.find("rot") != ev.end();
+    auto attached = ev.find("attached");
+    bool ok = InRange(ev, "to", 1, kMaxPlayers + kMaxHosts) &&
+              (!placed || (FiniteVec3(ev, "pos") && ValidRot(ev, "rot"))) &&
+              (attached == ev.end() || attached->is_boolean()) &&
+              ((op == "start" && InRange(ev, "key", 0, 0xFFFFFFFFll) && InRange(ev, "actorId", 0, kMaxActorId)) ||
+               op == "hold" || (op == "free" && InRange(ev, "av2", 0, 255)) ||
+               (op == "text" && InRange(ev, "id", 0, 0xFFFF)));
+    if (!ok) {
+        server.NoteInvalid(client, Tr(Msg::InvGrab));
+        return;
+    }
+    RemoteClient* victim = ReachableVictim(server, client, ev);
+    if (victim == nullptr) {
+        return;
+    }
+    json out = ev;
     out["from"] = client.id;
     server.SendEvent(*victim, out);
 }
@@ -540,6 +593,7 @@ COOP_SERVER_EVENT(eponaCall, ev::kEponaCall, true, OnEponaCall);
 COOP_SERVER_EVENT(eponaPassenger, ev::kEponaPassenger, true, OnEponaPassenger);
 COOP_SERVER_EVENT(actorHit, ev::kHit, true, OnHit);
 COOP_SERVER_EVENT(actorHurt, ev::kHurt, true, OnHurt);
+COOP_SERVER_EVENT(actorGrab, ev::kGrab, true, OnGrab);
 COOP_SERVER_EVENT(actorDrop, ev::kDrop, true, OnDrop);
 COOP_SERVER_ON_TICK(actorAuthority, TickAuthority);
 

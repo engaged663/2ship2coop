@@ -160,6 +160,32 @@ TEST_CASE(PlayerStateV20HeldItemScales) {
     CHECK(!sane(0.f, std::numeric_limits<float>::infinity()));
 }
 
+// A Link with no skeleton (looking through a telescope) goes as an empty pose marked "not drawn": never refused (a
+// refused pose counts towards a kick) and still hidden on arrival (PoseCapture.cpp, PuppetActor.cpp)
+TEST_CASE(PlayerStateBodilessPoseStaysHidden) {
+    coop::PlayerState s;
+    s.sceneId = 0x2D; // Termina Field, where the Observatory's telescope looks
+    s.stateFlags2 = coop::pose_limits::kStateFlags2;
+    auto bytes = coop::EncodePlayerState(s);
+    coop::PlayerState d;
+    CHECK(coop::DecodePlayerState(bytes.data(), bytes.size(), d));
+    CHECK(coop::SanitizePlayerState(d));
+    CHECK_EQ(d.stateFlags2, coop::pose_limits::kStateFlags2);
+    CHECK_EQ(d.joints[0].x, (int16_t)0);
+    CHECK_EQ(d.appearance, (int16_t)0);
+}
+
+// v21: "held by an enemy" (PLAYER_STATE2_80) travels: the grabbing enemy in the other game sees its prey escape
+TEST_CASE(PlayerStateHeldBitTravels) {
+    coop::PlayerState s;
+    s.stateFlags2 = (1u << 7) | (1u << 5); // held, and a bit puppets never get
+    auto bytes = coop::EncodePlayerState(s);
+    coop::PlayerState d;
+    CHECK(coop::DecodePlayerState(bytes.data(), bytes.size(), d));
+    CHECK(coop::SanitizePlayerState(d));
+    CHECK_EQ(d.stateFlags2, (uint32_t)(1u << 7));
+}
+
 TEST_CASE(EventParseValidates) {
     coop::json ev;
     std::string err;

@@ -9,6 +9,7 @@
 #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
 #include "objects/object_rr/object_rr.h"
 #include "2s2h/BenGui/CosmeticEditor.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER)
@@ -314,7 +315,9 @@ void func_808FA4F4(EnRr* this, PlayState* play) {
             sp34 = false;
         }
 
-        if (sp34 && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+        // [COOP] Another player's Link it ate: the text goes to that player's game (GrabSync.cpp)
+        if (sp34 && !Coop_GrabVictimText(play, player, 0xF6) &&
+            (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
             Message_StartTextbox(play, 0xF6, NULL);
         }
 

@@ -31,7 +31,8 @@ namespace coop::client {
 
 struct TrackedActor;
 
-enum class SyncPart : uint8_t { Sounds, Ambient, PlayerObjects, SceneFlags, SceneObjects, Ocarina, Drops, Count };
+// Grabs: enemies that grab another player's Link grab it in that player's game (Actors/GrabSync.cpp)
+enum class SyncPart : uint8_t { Sounds, Ambient, PlayerObjects, SceneFlags, SceneObjects, Ocarina, Drops, Grabs, Count };
 
 // SyncOptions.cpp
 bool Sync_On(SyncPart part);           // playing in the server's world, its CVar on and the server allows it

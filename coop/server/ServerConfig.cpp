@@ -38,6 +38,7 @@ json Defaults(const ServerConfig& cfg) {
              { "sceneObjects", cfg.sceneObjects },
              { "ocarina", cfg.ocarina },
              { "drops", cfg.drops },
+             { "grabs", cfg.grabs },
              { "timeSpeed", cfg.timeSpeed },
              { "voteSeconds", cfg.voteTimeoutMs / 1000 },
              { "saveSeconds", cfg.worldSaveMs / 1000 },
@@ -244,6 +245,7 @@ bool LoadOrCreateConfig(const std::string& path, ServerConfig& out, std::string*
     cfg.sceneObjects = r.Bool("sceneObjects", cfg.sceneObjects);
     cfg.ocarina = r.Bool("ocarina", cfg.ocarina);
     cfg.drops = r.Bool("drops", cfg.drops);
+    cfg.grabs = r.Bool("grabs", cfg.grabs);
     cfg.timeSpeed = r.Number("timeSpeed", cfg.timeSpeed, kMinTimeSpeed, kMaxTimeSpeed);
     cfg.voteTimeoutMs = r.Int("voteSeconds", cfg.voteTimeoutMs / 1000, 10, 300) * 1000;
     cfg.worldSaveMs = r.Int("saveSeconds", cfg.worldSaveMs / 1000, 2, 600) * 1000;
@@ -358,7 +360,8 @@ json SyncOptionsJson(const ServerConfig& config) {
              { "sceneFlags", config.sceneFlags },
              { "sceneObjects", config.sceneObjects },
              { "ocarina", config.ocarina },
-             { "drops", config.drops } };
+             { "drops", config.drops },
+             { "grabs", config.grabs } };
 }
 
 } // namespace coop::server

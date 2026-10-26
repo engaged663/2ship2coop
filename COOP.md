@@ -4,7 +4,7 @@ An online co-op mod for [2 Ship 2 Harkinian](README.md): up to 4 players share o
 three-day clock, the same unique items and quest flags, the same enemies, props and NPCs — through a small
 dedicated server.
 
-> **Status:** work in progress. The server and protocol (v20) are covered by an automated test suite
+> **Status:** work in progress. The server and protocol (v21) are covered by an automated test suite
 > (490+ tests); the in-game side is verified by compiling and by manual play-testing, so expect rough edges.
 > Bug reports are welcome.
 
@@ -54,7 +54,8 @@ copyrighted assets.
 command), `gameSettings` (2 Ship
 options forced on everyone in the server's world), `mods` (below), `o2r` (the game mods the players download) and the
 total sync's parts (all `true` by default): `sounds`, `ambient` (music and quakes), `playerObjects`, `sceneFlags`,
-`sceneObjects` (platforms, lifts, switches, blocks), `ocarina` and `drops` (everything that falls — rupees,
+`sceneObjects` (platforms, lifts, switches, blocks), `ocarina`, `grabs` (an enemy that grabs you in another
+player's game — Gyorg, ReDeads, Like Likes — grabs you in yours) and `drops` (everything that falls — rupees,
 hearts, ammo, fairies — is one item for everyone: the first one to touch it gets it).
 
 To try it alone: `2ship-coop-bot.exe --target YourNick --mode mirror` makes a fake player.

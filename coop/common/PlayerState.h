@@ -84,7 +84,7 @@ constexpr float kWorldLimit = 60000.f;     // no map is this big
 constexpr float kValueLimit = 1.0e6f;      // speed and the raw float fields
 // State bits a puppet may use (everything else could make the draw code touch actors it lacks).
 constexpr uint32_t kStateFlags1 = (1u << 27) | (1u << 22) | (1u << 25) | (1u << 23); // swimming, shield up, Zora boomerang, riding
-constexpr uint32_t kStateFlags2 = 1u << 29;                             // not drawn
+constexpr uint32_t kStateFlags2 = (1u << 29) | (1u << 7);               // not drawn, held by an enemy (v21)
 constexpr uint32_t kStateFlags3 = (1u << 12) | (1u << 15);              // Goron ball, Zora fast swim
 constexpr uint8_t kMaxLayer = 16;           // gSaveContext.sceneLayer: (cutscene index & 0xF) + 1 at most
 constexpr uint8_t kMeleeAnimations = 34;    // PLAYER_MWA_MAX

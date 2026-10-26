@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <cstring>
 #include <png.h>
+#include <spdlog/spdlog.h>
 
 using json = nlohmann::json;
 
@@ -19,27 +20,37 @@ extern "C" {
 static s16 fileNumber = 1;
 static u16 pictoPhotoRGBABuffer[PICTO_PHOTO_SIZE];
 
+// [COOP] Runs for every photo taken (VB_PICTO_TAKE, option on or off) and never throws: an exception from here crossed
+// the engine's C code and closed the game. A co-op game never writes saves of its own, so it had no saves/ folder.
 void SavePictoPng() {
     const int width = PICTO_PHOTO_WIDTH;
     const int height = PICTO_PHOTO_HEIGHT;
 
     std::string path =
         Ship::Context::GetPathRelativeToAppDirectory("saves/picto" + std::to_string(fileNumber) + ".png");
+    std::error_code dirError;
+    std::filesystem::create_directories(std::filesystem::path(path).parent_path(), dirError);
 
     FILE* fp = fopen(path.c_str(), "wb");
-    if (!fp)
-        throw std::runtime_error("Failed to open PNG file for write");
+    if (!fp) {
+        SPDLOG_WARN("[ColorPictograph] Cannot write the photo to {}", path);
+        return;
+    }
 
     png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-    if (!png)
-        throw std::runtime_error("png_create_write_struct failed");
+    png_infop info = (png != nullptr) ? png_create_info_struct(png) : nullptr;
+    if (!info) {
+        png_destroy_write_struct(&png, nullptr);
+        fclose(fp);
+        return;
+    }
 
-    png_infop info = png_create_info_struct(png);
-    if (!info)
-        throw std::runtime_error("png_create_info_struct failed");
-
-    if (setjmp(png_jmpbuf(png)))
-        throw std::runtime_error("libpng write error");
+    if (setjmp(png_jmpbuf(png))) {
+        SPDLOG_WARN("[ColorPictograph] Cannot write the photo to {}", path);
+        png_destroy_write_struct(&png, &info);
+        fclose(fp);
+        return;
+    }
 
     png_init_io(png, fp);
 
@@ -84,8 +95,13 @@ void LoadPictoPNG() {
     png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
     png_infop info = png_create_info_struct(png);
 
-    if (setjmp(png_jmpbuf(png)))
-        throw std::runtime_error("libpng read error");
+    // [COOP] An unreadable photo is no photo (never an exception through the engine's C code, see SavePictoPng)
+    if (setjmp(png_jmpbuf(png))) {
+        png_destroy_read_struct(&png, &info, nullptr);
+        fclose(fp);
+        std::memset(pictoPhotoRGBABuffer, 0, sizeof(pictoPhotoRGBABuffer));
+        return;
+    }
 
     png_init_io(png, fp);
     png_read_info(png, info);
@@ -94,8 +110,12 @@ void LoadPictoPNG() {
     int depth, color;
     png_get_IHDR(png, info, &width, &height, &depth, &color, nullptr, nullptr, nullptr);
 
-    if (width != PICTO_PHOTO_WIDTH || height != PICTO_PHOTO_HEIGHT)
-        throw std::runtime_error("PNG dimensions mismatch");
+    if (width != PICTO_PHOTO_WIDTH || height != PICTO_PHOTO_HEIGHT) {
+        png_destroy_read_struct(&png, &info, nullptr);
+        fclose(fp);
+        std::memset(pictoPhotoRGBABuffer, 0, sizeof(pictoPhotoRGBABuffer));
+        return;
+    }
 
     png_set_expand(png);
     png_set_strip_16(png);

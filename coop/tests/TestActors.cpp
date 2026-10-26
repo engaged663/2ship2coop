@@ -250,6 +250,91 @@ TEST_CASE(HurtDamageIsClamped) {
     CHECK_EQ(GetInt(*hurt, "damage"), (int64_t)kMaxHurtDamage);
 }
 
+// v21: damagePlayer aimed at another player's puppet (a ReDead biting it) reaches that player
+TEST_CASE(HurtPainRelayed) {
+    Room r;
+    LastAuth(r.s, *r.a);
+    json pain = Hurt(r.b->id, 4);
+    pain["kind"] = "pain";
+    r.a->Send(pain);
+    auto hurt = r.b->WaitFor("hurt", r.s);
+    CHECK(hurt.has_value());
+    CHECK_EQ(GetString(*hurt, "kind"), std::string("pain"));
+    pain["kind"] = "bite"; // unknown kinds stay out
+    r.a->Send(pain);
+    CHECK(!r.b->WaitFor("hurt", r.s, 200).has_value());
+}
+
+json Grab(uint8_t to, const char* op) {
+    json g = { { "t", "grab" }, { "to", to }, { "op", op } };
+    if (std::string(op) == "start") {
+        g["key"] = 0x40000012;
+        g["actorId"] = 0x12B; // Gyorg
+    } else if (std::string(op) == "free") {
+        g["av2"] = 101;
+    } else if (std::string(op) == "text") {
+        g["id"] = 0xF6;
+    }
+    return g;
+}
+
+// v21: an enemy of the room's owner grabs, holds and lets go of another player's Link
+TEST_CASE(GrabRelayedFromAuthority) {
+    Room r;
+    LastAuth(r.s, *r.a);
+    r.a->Send(Grab(r.b->id, "start"));
+    auto start = r.b->WaitFor("grab", r.s);
+    CHECK(start.has_value());
+    CHECK_EQ(GetInt(*start, "from"), (int64_t)r.a->id);
+    CHECK_EQ(GetInt(*start, "key"), (int64_t)0x40000012);
+    json hold = Grab(r.b->id, "hold");
+    hold["pos"] = Arr(10.0, 400.0, -20.5);
+    hold["rot"] = Arr(0x4000, -100, 0);
+    hold["attached"] = true;
+    r.a->Send(hold);
+    auto held = r.b->WaitFor("grab", r.s);
+    CHECK(held.has_value() && held->value("attached", false));
+    r.a->Send(Grab(r.b->id, "hold")); // keeping it alive, nothing moved
+    CHECK(r.b->WaitFor("grab", r.s).has_value());
+    r.a->Send(Grab(r.b->id, "free"));
+    auto freed = r.b->WaitFor("grab", r.s);
+    CHECK(freed.has_value());
+    CHECK_EQ(GetInt(*freed, "av2"), (int64_t)101);
+    r.a->Send(Grab(r.b->id, "text"));
+    CHECK(r.b->WaitFor("grab", r.s).has_value());
+    r.b->Send(Grab(r.a->id, "start")); // not the owner: its enemies are copies
+    CHECK(!r.a->WaitFor("grab", r.s, 200).has_value());
+    r.a->Send(Grab(r.a->id, "start")); // itself
+    CHECK(!r.a->WaitFor("grab", r.s, 200).has_value());
+}
+
+TEST_CASE(GrabRejectsBadFields) {
+    Room r;
+    LastAuth(r.s, *r.a);
+    json noKey = Grab(r.b->id, "start");
+    noKey.erase("key");
+    json badPos = Grab(r.b->id, "hold");
+    badPos["pos"] = Arr(1.0, 2.0, 1.0e9);
+    badPos["rot"] = Arr(0, 0, 0);
+    json posNoRot = Grab(r.b->id, "hold");
+    posNoRot["pos"] = Arr(1.0, 2.0, 3.0);
+    json badAv2 = Grab(r.b->id, "free");
+    badAv2["av2"] = 300;
+    for (const json& bad : { noKey, badPos, posNoRot, badAv2, Grab(r.b->id, "eat") }) {
+        r.a->Send(bad);
+        CHECK(!r.b->WaitFor("grab", r.s, 150).has_value());
+    }
+}
+
+TEST_CASE(GrabsOffRelaysNothing) {
+    server::ServerConfig cfg;
+    cfg.grabs = false;
+    Room r(cfg);
+    LastAuth(r.s, *r.a);
+    r.a->Send(Grab(r.b->id, "start"));
+    CHECK(!r.b->WaitFor("grab", r.s, 200).has_value());
+}
+
 TEST_CASE(DropRelayedToTheScene) {
     Room r;
     LastAuth(r.s, *r.a);

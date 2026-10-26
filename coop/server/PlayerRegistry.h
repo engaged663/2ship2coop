@@ -65,6 +65,7 @@ struct RemoteClient {
     int64_t roomSinceMs = 0;  // when it arrived in its current scene/room (the oldest one there owns the room)
     TokenBucket actorBudget{ kActorStreamBurst, kActorStreamPerSecond };
     TokenBucket hitBudget{ kHitBurst, kHitPerSecond };
+    TokenBucket grabBudget{ kGrabBurst, kGrabPerSecond };
     TokenBucket dropBudget{ kDropBurst, kDropPerSecond };
     TokenBucket propBudget{ kPropBurst, kPropPerSecond }; // pots, grass (PropHandlers.cpp)
     TokenBucket itemBudget{ kItemBurst, kItemPerSecond }; // shared drops (ItemHandlers.cpp)

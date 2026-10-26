@@ -32,6 +32,12 @@ void Coop_ActorUpdateEnd(PlayState* play, Actor* actor);
 
 // func_800B8D10 (knockback of GET_PLAYER). 1 = it was aimed at a puppet: sent to its player instead.
 s32 Coop_OnKnockback(PlayState* play, Actor* actor, f32 speed, s16 yaw, f32 velY, s32 type, u32 damage);
+// Player_InflictDamage (play->damagePlayer). 1 = GET_PLAYER is a puppet: sent to its player instead (HitSync.cpp).
+s32 Coop_OnPuppetDamage(PlayState* play, Player* player, s32 damage);
+// Grabs (GrabSync.cpp). Coop_OnPlayerGrabbed: Player_GrabPlayer grabbed this Player (a puppet: its player is grabbed in
+// its game). Coop_GrabVictimText: 1 = this text a grabber shows is about a puppet: shown in its player's game instead.
+void Coop_OnPlayerGrabbed(PlayState* play, Player* player);
+s32 Coop_GrabVictimText(PlayState* play, Player* player, u16 textId);
 // Sincronización total S1 (Sync/SoundEcho.cpp). Coop_OnSfx: every AudioSfx_PlaySfx, before it runs; 1 = it must not
 // sound here (a copy's own code: its owner sends its sounds). Coop_OnWorldSfx: SoundSource_Add, begin = 1 before and
 // 0 after. Coop_FlaggedAudio: around Actor_UpdateFlaggedAudio (those travel with the actor's memory).

@@ -4,6 +4,7 @@
 
 #include "PuppetManager.h"
 
+#include "2s2h/Coop/Actors/GrabSync.h"
 #include "2s2h/Coop/Actors/HitSync.h"
 
 #include "2s2h/Coop/Client/Session.h"
@@ -66,7 +67,7 @@ void ApplyState(EnCoopPuppet* self, const coop::PlayerState& st, PlayState* play
     p->invincibilityTimer = st.invincibilityTimer;
     p->skelAnime.movementFlags = st.movementFlags;
     p->stateFlags1 = st.stateFlags1;
-    p->stateFlags2 = st.stateFlags2;
+    p->stateFlags2 = st.stateFlags2 | coop::client::GrabSync_PuppetFlags2(self->playerId, st.stateFlags2);
     p->stateFlags3 = st.stateFlags3;
     p->headLimbRot = ToVec3s(st.headLimbRot);
     p->upperLimbRot = ToVec3s(st.upperLimbRot);

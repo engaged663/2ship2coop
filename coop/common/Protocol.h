@@ -6,7 +6,8 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 20; // v20: the pose ends with unk_B08/unk_B0C (bow string, Deku stick);
+constexpr uint32_t kProtocolVersion = 21; // v21: grabs ("grab"; "hurt" kind "pain"; the pose carries "held");
+                                          // v20: the pose ends with unk_B08/unk_B0C (bow string, Deku stick);
                                           // a Scene slot may point into a path's points (Slot.h);
                                           // v19: shared drops (item, item_take, item_gone, item_rest, items;
                                           // welcome sync "drops");
@@ -75,6 +76,8 @@ constexpr uint32_t kRuntimeKeyBits = 0xC0000000u; // keys of runtime/derived act
 constexpr int kMaxActorId = 0x2FF;         // above every actor of the game's table
 constexpr int kHitBurst = 30;             // hit + hurt events per player: burst...
 constexpr int kHitPerSecond = 20;         // ...and sustained rate
+constexpr int kGrabBurst = 60;            // grab events per player: burst...
+constexpr int kGrabPerSecond = 40;        // ...and sustained rate (a "hold" each frame while an enemy moves its prey)
 constexpr int kDropBurst = 20;            // drop events per player: burst...
 constexpr int kDropPerSecond = 10;        // ...and sustained rate
 // Shared props (pots, grass, crates, rupees lying around) and the ending
@@ -204,6 +207,9 @@ inline constexpr const char* kCycleResult = "cycle_result";   // C->S fields{}
 inline constexpr const char* kAuth = "auth"; // S->C scene, rooms[[room, id]...] (who simulates each room's enemies)
 inline constexpr const char* kHit = "hit";   // C->S scene, room, key, col, elem, dmgFlags, effect, damage, hitEffect, pos[3], attackerId, form; S->C + from
 inline constexpr const char* kHurt = "hurt"; // C->S to, kind, dmgFlags, effect, damage, hitEffect, pos[3], knock{}; S->C + from
+                                             // (kind "col", "knock" or "pain": play->damagePlayer)
+inline constexpr const char* kGrab = "grab"; // C->S to, op: "start" key actorId | "hold" [pos[3] rot[3] attached] |
+                                             // "free" av2 [pos[3] rot[3]] | "text" id; S->C + from (GrabSync.cpp)
 inline constexpr const char* kDrop = "drop"; // C->S scene, room, pos[3], params, fn; S->C + from
 // Server-side simulation (sub-project D)
 inline constexpr const char* kHostFollow = "host_follow"; // S->C (host only) id: the player whose room to keep loaded

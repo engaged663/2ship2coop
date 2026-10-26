@@ -364,6 +364,22 @@ extern "C" s32 Coop_OnKnockback(PlayState* play, Actor* actor, f32 speed, s16 ya
     return true;
 }
 
+// play->damagePlayer aimed at a puppet (a ReDead or a Gibdo biting it, a Floormaster squeezing it): the engine never
+// hurts a puppet, its player takes the damage.
+extern "C" s32 Coop_OnPuppetDamage(PlayState* play, Player* player, s32 damage) {
+    if (player == nullptr || player->actor.id != ACTOR_EN_COOP_PUPPET) {
+        return false;
+    }
+    if (damage < 0 && InWorld()) {
+        Vec3s pos = { (s16)player->actor.world.pos.x, (s16)player->actor.world.pos.y, (s16)player->actor.world.pos.z };
+        coop::json ev = DamageFields(coop::ev::kHurt, 0, 0, (uint8_t)std::min<s32>(-damage, kMaxHurtDamage), 0, pos);
+        ev["to"] = (uint8_t)COOP_PUPPET_GET_PLAYER_ID(&player->actor);
+        ev["kind"] = "pain";
+        NetClient::Get().SendEvent(ev);
+    }
+    return true;
+}
+
 namespace {
 
 Vec3s PosOf(const json& ev) {
@@ -438,6 +454,10 @@ void OnShouldPlayerUpdate(Actor* actor, bool* should) {
     SPDLOG_INFO("[Coop] Hurt from player {}: {} damage {}", (int)h.from, h.kind, h.damage);
     if (h.kind == "knock") {
         func_800B8D10(gPlayState, &sHurtSource, h.knockSpeed, h.knockYaw, h.knockVelY, h.knockType, h.damage);
+        return;
+    }
+    if (h.kind == "pain") {
+        gPlayState->damagePlayer(gPlayState, -(s32)h.damage); // what the enemy did to our puppet (GrabSync.cpp)
         return;
     }
     if (player->invincibilityTimer > 0 || (player->cylinder.base.acFlags & AC_HIT)) {

@@ -483,7 +483,11 @@ X(SyncDrops, "Objetos que caen (corazones, rupias, hadas...): los mismos para to
   "Dropped items (hearts, rupees, fairies...): the same for everyone, the first to get there keeps them",
   "掉落物（心、卢比、妖精……）：所有人看到的都一样，先到先得",
   "Выпадающие предметы (сердца, рупии, феи...): одни на всех, достаются тому, кто успел первым")
-X(SyncFlagReload, "Recrear objetos que otro jugador cambia (paredes, rocas, bloques, templos)",
+X(SyncGrabs, "Agarres: si un enemigo te agarra (Gyorg, ReDead, Like Like...) en el juego de otro, también en el tuyo",
+  "Grabs: an enemy that grabs you (Gyorg, ReDead, Like Like...) in another player's game grabs you in yours too",
+  "抓取：敌人（Gyorg、ReDead、Like Like……）在其他玩家的游戏中抓住你时，在你的游戏中也会抓住你",
+  "Захваты: если враг (Gyorg, ReDead, Like Like...) хватает вас в игре другого игрока, то и в вашей тоже")
+X(SyncFlagReload,"Recrear objetos que otro jugador cambia (paredes, rocas, bloques, templos)",
   "Recreate objects another player changes (walls, rocks, blocks, temples)", "重建被其他玩家改变的物体（墙、岩石、方块、神殿）",
   "Пересоздавать объекты, которые меняет другой игрок (стены, камни, блоки, храмы)")
 X(SyncFlagReloadTip,

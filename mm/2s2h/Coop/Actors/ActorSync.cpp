@@ -7,6 +7,7 @@
 #include "ActorMemory.h"
 #include "Authority.h"
 #include "CoopEngine.h"
+#include "GrabSync.h"
 #include "HitSync.h"
 #include "Leases.h"
 
@@ -82,6 +83,8 @@ std::map<int8_t, uint16_t> sSendSeq;
 std::map<uint32_t, int64_t> sCreateTried; // runtime keys: when we last tried to create their copy
 TrackedActor* sUpdating = nullptr;        // the actor of ours whose update is running
 Actor* sAnyUpdating = nullptr;            // any actor whose update is running (PropSync.cpp)
+bool sFormSwapped = false;                // GET_PLAYER_FORM is a puppet's during this update...
+u8 sOwnForm = 0;                          // ...and this is ours, back after it
 uint32_t sFrame = 0;
 
 // (The ending does not stop this: the copies of the lair stay frozen until its scene is gone. The ending's scenes
@@ -506,6 +509,7 @@ Actor* ActorSync_AnyUpdating() {
 }
 
 void ActorSync_OnDestroyed(TrackedActor& t) {
+    GrabSync_OnActorGone(t.actor); // what it held is let go
     if (Active() && Leases_IsMine(t)) {
         sRecentlyGone[t.room].push_back({ t.key, NowMs() });
     }
@@ -615,11 +619,27 @@ extern "C" Player* Coop_ActorUpdateBegin(PlayState* play, Actor* actor, s32* for
     if (OnOurLinkOnly(*t)) {
         target = local;
     }
+    if (Player* prey = GrabSync_Prey(actor)) {
+        target = prey; // what it holds, until it lets go (GrabSync.cpp)
+    }
+    GrabSync_UpdateBegin(actor);
     gCoopPlayerOverride = target != local ? target : nullptr;
+    if (gCoopPlayerOverride != nullptr) {
+        // GET_PLAYER_FORM is the chased Link's form too: Gibdos and ReDeads do not grab a Goron or a Deku, a Like
+        // Like only eats a human's shield
+        sOwnForm = gSaveContext.save.playerForm;
+        gSaveContext.save.playerForm = gCoopPlayerOverride->transformation;
+        sFormSwapped = true;
+    }
     return target;
 }
 
 extern "C" void Coop_ActorUpdateEnd(PlayState* play, Actor* actor) {
+    GrabSync_UpdateEnd(actor);
+    if (sFormSwapped) {
+        gSaveContext.save.playerForm = sOwnForm;
+        sFormSwapped = false;
+    }
     sAnyUpdating = nullptr;
     if (sUpdating != nullptr && sUpdating->actor == actor) {
         sUpdating = nullptr;

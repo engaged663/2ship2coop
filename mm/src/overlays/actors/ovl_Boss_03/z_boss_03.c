@@ -861,7 +861,9 @@ void Boss03_ChewPlayer(Boss03* this, PlayState* play) {
     this->unk_2BD = true;
     this->unk_25C = 15;
 
-    if (this->workTimer[WORK_TIMER_CURRENT_ACTION] == 90) {
+    // [COOP] Only when it chews our own Link: another player's game blurs when it chews that player's (GrabSync.cpp)
+    if ((this->workTimer[WORK_TIMER_CURRENT_ACTION] == 90) &&
+        (player == (Player*)play->actorCtx.actorLists[ACTORCAT_PLAYER].first)) {
         Play_EnableMotionBlur(150);
     }
 

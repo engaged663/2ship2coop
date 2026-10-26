@@ -35,7 +35,7 @@ static_assert(limits::kFormCount == PLAYER_FORM_MAX && limits::kMaskCount == PLA
 static_assert(limits::kStateFlags1 ==
                   (u32)(PLAYER_STATE1_8000000 | PLAYER_STATE1_400000 | PLAYER_STATE1_ZORA_BOOMERANG_THROWN |
                         PLAYER_STATE1_800000) &&
-                  limits::kStateFlags2 == (u32)PLAYER_STATE2_20000000 &&
+                  limits::kStateFlags2 == (u32)(PLAYER_STATE2_20000000 | PLAYER_STATE2_80) &&
                   limits::kStateFlags3 == (u32)(PLAYER_STATE3_1000 | PLAYER_STATE3_8000),
               "coop::pose_limits state masks out of date");
 static_assert(limits::kMeleeAnimations == PLAYER_MWA_MAX &&
@@ -49,7 +49,8 @@ namespace {
 // The same masks are re-applied on receive (coop::SanitizePlayerState).
 constexpr u32 kSyncedStateFlags1 = PLAYER_STATE1_8000000 /* swimming */ | PLAYER_STATE1_400000 /* shield up */ |
                                    PLAYER_STATE1_ZORA_BOOMERANG_THROWN | PLAYER_STATE1_800000 /* riding Epona */;
-constexpr u32 kSyncedStateFlags2 = PLAYER_STATE2_20000000; // not drawn
+// Not drawn; held by an enemy (the enemy that holds us in another game sees us escape: Actors/GrabSync.cpp)
+constexpr u32 kSyncedStateFlags2 = PLAYER_STATE2_20000000 | PLAYER_STATE2_80;
 constexpr u32 kSyncedStateFlags3 = PLAYER_STATE3_1000 /* goron ball */ | PLAYER_STATE3_8000 /* zora fast swim */;
 
 uint16_t sSeq = 0;
@@ -151,11 +152,17 @@ void PoseCapture_Tick() {
     s.unk_B08 = HeldItemScale(player->unk_B08); // the bow's string
     s.unk_B0C = HeldItemScale(player->unk_B0C); // the Deku stick's length
 
+    // Looking through a telescope (the Observatory's, the Curiosity Shop's, the pirates') Link has no skeleton
+    // (Player_InitCommon skips it): our puppet is "not drawn" in the other games meanwhile
     const PlayerAnimationFrame* frame = (const PlayerAnimationFrame*)player->skelAnime.jointTable;
-    for (int i = 0; i < coop::kPoseJoints; i++) {
-        s.joints[i] = ToVec(frame->frameTable[i]);
+    if (frame != nullptr) {
+        for (int i = 0; i < coop::kPoseJoints; i++) {
+            s.joints[i] = ToVec(frame->frameTable[i]);
+        }
+        s.appearance = frame->appearanceInfo;
+    } else {
+        s.stateFlags2 |= PLAYER_STATE2_20000000;
     }
-    s.appearance = frame->appearanceInfo;
     s.layer = (uint8_t)std::clamp<int>(gSaveContext.sceneLayer, 0, coop::pose_limits::kMaxLayer);
     s.meleeWeaponState = player->meleeWeaponState; // the sword's trail on our puppet in the other games
     s.meleeWeaponAnimation = (uint8_t)player->meleeWeaponAnimation;

@@ -18,14 +18,14 @@ constexpr size_t kParts = (size_t)SyncPart::Count;
 constexpr std::array<const char*, kParts> kCVars = { "gCoop.Sync.Sounds",        "gCoop.Sync.Ambient",
                                                      "gCoop.Sync.PlayerObjects", "gCoop.Sync.SceneFlags",
                                                      "gCoop.Sync.SceneObjects",  "gCoop.Sync.Ocarina",
-                                                     "gCoop.Sync.Drops" };
+                                                     "gCoop.Sync.Drops",         "gCoop.Sync.Grabs" };
 constexpr std::array<const char*, kParts> kKeys = { "sounds",     "ambient",      "playerObjects",
                                                     "sceneFlags", "sceneObjects", "ocarina",
-                                                    "drops" };
+                                                    "drops",      "grabs" };
 constexpr std::array<Txt, kParts> kNames = { Txt::SyncSounds,       Txt::SyncAmbient,      Txt::SyncPlayerObjects,
                                              Txt::SyncSceneFlags,   Txt::SyncSceneObjects, Txt::SyncOcarina,
-                                             Txt::SyncDrops };
-std::array<bool, kParts> sServer = { true, true, true, true, true, true, true };
+                                             Txt::SyncDrops,        Txt::SyncGrabs };
+std::array<bool, kParts> sServer = { true, true, true, true, true, true, true, true };
 
 void OnWelcome(const json& ev) {
     auto sync = ev.find("sync");

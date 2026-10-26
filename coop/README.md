@@ -95,7 +95,7 @@ they carry, the scene's flags live, its machinery and the ocarina: see "Total sy
 | `Commands/WorldCommands.cpp` | `/tiempo /si /no /settime /mundo /reiniciar` |
 | `Commands/SaveCommands.cpp` | `/backup [lista]` (op), `/restaurar <copia\|ultima>` and `/importar <archivo> [nick] [auto\|buho\|ciclo]` (console) |
 | `World/RoomAuthority.*` | C: who simulates the enemies of each (scene, room): the one who has been there longest and is not busy |
-| `Handlers/ActorHandlers.cpp` | C: `auth` and forwarding the enemy stream, `hit`, `hurt`, `drop` (with their rules) |
+| `Handlers/ActorHandlers.cpp` | C: `auth` and forwarding the enemy stream, `hit`, `hurt`, `grab`, `drop` (with their rules) |
 | `Handlers/PropHandlers.cpp` | scenery objects (`prop`, `props`: what is broken is remembered while someone stays in the scene) |
 | `Handlers/ItemHandlers.cpp` + `ItemBook.*` | shared drops: `item`, `item_take` (the first one gets it), `item_gone`, `item_rest`, `items` (what lies in a stage, for latecomers) |
 | `Handlers/EndingHandlers.cpp` | the ending: stages (`ending`), tower countdown (`rooftop`), sync (`ending_sync`) and new cycle at the end (`ending_done`) |
@@ -165,7 +165,8 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Actors/ActorRegistry.*` | C: the scene's shared enemies, their key, skeleton and collisions |
 | `Actors/Authority.*` | C: the `auth` table in the game |
 | `Actors/ActorSync.*` | C: the authority transmits; the others apply replicas; target = the nearest Link |
-| `Actors/HitSync.*` | C: hits on replicas (`hit`) and from enemies to other players (`hurt`), injected into the collisions |
+| `Actors/HitSync.*` | C: hits on replicas (`hit`) and from enemies to other players (`hurt`; `pain`: `damagePlayer` aimed at a puppet), injected into the collisions |
+| `Actors/GrabSync.*` | grabs: an enemy of ours that grabs a puppet (`Player_GrabPlayer`) grabs that player's Link in its game (`grab` start/hold/free/text); the puppet keeps "held" until its pose confirms it |
 | `Actors/DropSync.cpp` | C: each game drops its own objects when a shared enemy dies (only with `gCoop.Sync.Drops` off) |
 | `Actors/LiveFlags.*` | C: instantly removes unique objects someone else picked up (tokens, fairies, heart pieces) |
 | `Features/Teleport.cpp` | applies `tp`: move within the same room or travel with the respawn system |
@@ -252,8 +253,8 @@ is how long an invitation lasts. Also: `timeSpeed` (speed of the three days, 0.1
 `commandPermissions` (`{"tp": "op"}`: who uses each command),
 `gameSettings` (2 Ship options forced on everyone), `mods` (folders, lists and limits: `docs/mods/README.md`),
 `o2r` (the game mods the players download: see "Game mods (.o2r)") and the six parts of the total sync, `true` by
-default: `sounds`, `ambient`, `playerObjects`, `sceneFlags`, `sceneObjects`, `ocarina` (see "Total sync"), and
-`drops` (see "Shared drops").
+default: `sounds`, `ambient`, `playerObjects`, `sceneFlags`, `sceneObjects`, `ocarina` (see "Total sync"), `grabs`
+(see `Actors/GrabSync.cpp`) and `drops` (see "Shared drops").
 
 ## Recipes (what gets modified most)
 
@@ -532,7 +533,7 @@ Game mods (.o2r): `O2r.AutoDownload` (0 by default: ask before downloading a ser
 `O2r.AltAssets` (1 by default: "Enable Mods" on while in the server's world if its mods have `alt/` files; 0 = never
 touch it), `World.AltAssetsRestore` (internal: "Enable Mods" before that, given back on leaving or at the next start).
 Total sync (1 by default): `Sync.Sounds`, `Sync.Ambient`, `Sync.PlayerObjects`, `Sync.SceneFlags`, `Sync.FlagReload`,
-`Sync.SceneObjects`, `Sync.Ocarina`; `Sync.RemoteVolume` (0-100, 100); `Sync.Shared` and `Sync.Local` (text: actor
+`Sync.SceneObjects`, `Sync.Ocarina`, `Sync.Grabs`; `Sync.RemoteVolume` (0-100, 100); `Sync.Shared` and `Sync.Local` (text: actor
 ids or names, comma separated).
 
 ## Game mods (.o2r)
