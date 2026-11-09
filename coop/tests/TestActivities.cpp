@@ -2,6 +2,10 @@
 // event and passes it only to the group in the scene, or to the whole scene for bosses.
 #include "TestWorld.h"
 
+#include "common/ActivityTrips.h"
+
+#include <utility>
+
 using namespace coop;
 using namespace coop_test;
 
@@ -218,4 +222,67 @@ TEST_CASE(TalkVarsAndCinemaBlurAreChecked) {
     cam["blur"] = 300;
     p.a->Send(cam);
     CHECK(!p.b->WaitFor("cinema", p.s, 150).has_value());
+}
+
+// ---- Activity trips (common/ActivityTrips.h): who a "follow" with an activity's key takes along ----
+
+namespace {
+
+struct TripGame {
+    bool runsIt = false; // directs the round (or it is its own run)
+    bool guest = false;  // plays it as the other game's guest
+    int reloads = 0;
+};
+
+// One game makes a trip into the activity's entrance (followed: because the other's "follow" took it); the games
+// pass "follow" on with the rules until nobody sends any more (or 20 trips: a loop).
+int Trips(TripGame& from, TripGame& to, bool followed) {
+    int total = 0;
+    TripGame* sender = &from;
+    TripGame* receiver = &to;
+    bool taken = followed;
+    while (total < 20) {
+        sender->reloads++;
+        total++;
+        if (!ActivityTrip_TakesOthers(taken, sender->guest) || !ActivityTrip_Follows(receiver->runsIt, false)) {
+            break;
+        }
+        std::swap(sender, receiver);
+        taken = true;
+    }
+    return total;
+}
+
+} // namespace
+
+TEST_CASE(ActivityTripTakesTheGuestAlongOnce) {
+    // The room's round runs: its director goes into the Goron race and takes its guest; the guest's trip goes back to
+    // nobody (both games used to reload the start line forever: the countdown never ended)
+    TripGame director{ true, false }, guest{ false, true };
+    CHECK_EQ(Trips(director, guest, false), 2);
+    CHECK_EQ(director.reloads, 1);
+    CHECK_EQ(guest.reloads, 1);
+}
+
+TEST_CASE(ActivityTripOfAGuestIsItsOwn) {
+    // The guest's false start (or retry) reloads only its own race
+    TripGame director{ true, false }, guest{ false, true };
+    CHECK_EQ(Trips(guest, director, false), 1);
+    CHECK_EQ(director.reloads, 0);
+    // Even if a guest's trip were passed on, the director never follows a trip into the activity it runs
+    CHECK(!ActivityTrip_Follows(true, false));
+    CHECK(ActivityTrip_Follows(false, false));
+}
+
+TEST_CASE(ActivityTripOfTheWholeRoomTakesEveryone) {
+    // "all": the round starts, or whoever caught the last Bomber takes the room to Jim (its director too)
+    CHECK(ActivityTrip_Follows(true, true));
+    CHECK(ActivityTrip_Follows(false, true));
+}
+
+TEST_CASE(ActivityTripWithoutRoomStillTakesTheGroup) {
+    // No room: whoever walks into the minigame's entrance first takes the group, and only once
+    TripGame first{ true, false }, mate{ false, false };
+    CHECK_EQ(Trips(first, mate, false), 2);
+    CHECK(!ActivityTrip_TakesOthers(true, false)); // a trip we were taken on is never passed on
 }

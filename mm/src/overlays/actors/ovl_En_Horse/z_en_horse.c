@@ -3663,8 +3663,9 @@ void EnHorse_MountDismount(EnHorse* this, PlayState* play) {
     s32 mountSide = EnHorse_GetMountSide(this, play);
     s32 proxy = Coop_EponaIsProxy(&this->actor);
 
-    if ((mountSide != 0) && ((!proxy && !(this->stateFlags & ENHORSE_UNRIDEABLE)) ||
-                             (proxy && Coop_EponaIsProxyRideable(&this->actor)))) {
+    // [COOP] Coop_EponaMayMount: never onto this horse while Link rides another one (two players' Eponas meeting)
+    if ((mountSide != 0) && Coop_EponaMayMount(play, &this->actor) &&
+        ((!proxy && !(this->stateFlags & ENHORSE_UNRIDEABLE)) || (proxy && Coop_EponaIsProxyRideable(&this->actor)))) {
         Actor_SetRideActor(play, &this->actor, mountSide);
     }
 

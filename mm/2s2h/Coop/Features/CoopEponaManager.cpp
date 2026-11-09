@@ -6,6 +6,7 @@
 #include "2s2h/Coop/Features/Ending.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
+#include "common/EponaRules.h"
 #include "common/EponaState.h"
 #include "common/Protocol.h"
 #include "common/StreamIds.h"
@@ -57,6 +58,11 @@ constexpr int64_t kRejoinWaitMs = 15000;
 HorseData sHorseDataBeforeRide;
 bool sHorseDataSaved = false;
 
+// Epona's Song calls OUR horse (gHorsePlayedEponasSong, taken by the first horse whose idle sees it): the other players'
+// horses are Eponas too, so their updates and their spawn (EnHorse_Init clears it) keep it as it was.
+bool sSongKept = false;
+s32 sSongBefore = false;
+
 int64_t NowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::steady_clock::now().time_since_epoch())
@@ -79,6 +85,16 @@ bool IsHorseActor(const Actor* actor) {
 bool IsMounted(const EnHorse* horse) {
     Player* player = LocalLink();
     return player != nullptr && player->rideActor == &horse->actor && (player->stateFlags1 & PLAYER_STATE1_800000);
+}
+
+// Our horse already announced in this scene and alive: Epona's Song calls it again instead of making another one.
+EnHorse* OwnHorseHere() {
+    for (auto& [key, horse] : sHorses) {
+        if (!horse.remote && horse.actor != nullptr && horse.actor->actor.update != nullptr) {
+            return horse.actor;
+        }
+    }
+    return nullptr;
 }
 
 EnHorse* FindAvailableOwnerHorse() {
@@ -226,9 +242,11 @@ void EnsureProxy(PlayState* play, HorseProxyState& proxy) {
     if (slot <= OBJECT_SLOT_NONE || !Object_IsLoaded(&play->objectCtx, slot)) {
         return;
     }
+    s32 song = gHorsePlayedEponasSong; // (EnHorse_Init clears it: our horse's call stays)
     Actor* actor = Actor_Spawn(&play->actorCtx, play, ACTOR_EN_HORSE, proxy.state.pos[0], proxy.state.pos[1],
                                proxy.state.pos[2], proxy.state.rot.x, proxy.state.rot.y, proxy.state.rot.z,
                                ENHORSE_PARAMS(ENHORSE_PARAM_4000, ENHORSE_2));
+    gHorsePlayedEponasSong = song;
     if (actor == nullptr) {
         SPDLOG_WARN("[Coop] Could not spawn proxy Epona ({}, {})", (int)proxy.key.ownerPlayerId,
                     proxy.key.callSequence);
@@ -581,8 +599,15 @@ void CoopEpona_OnSongPlayed(PlayState* play) {
     if (!InGameplay(play) || !Horse_IsValidSpawn(play->sceneId)) {
         return;
     }
-    EnHorse* horse = FindAvailableOwnerHorse();
-    if (horse == nullptr) {
+    EnHorse* resting = OwnHorseHere() == nullptr ? FindAvailableOwnerHorse() : nullptr;
+    EponaSong call = EponaRules_OnSong(OwnHorseHere() != nullptr, resting != nullptr);
+    if (call == EponaSong::CallOurs) {
+        // gHorsePlayedEponasSong stays set: our horse answers as in the original (it comes to us, or appears at the
+        // nearest fence out of sight); the other players' horses never take it (sSongKept). Never a second Epona.
+        return;
+    }
+    EnHorse* horse = resting;
+    if (call == EponaSong::Spawn) {
         Player* player = LocalLink();
         if (player == nullptr) {
             return;
@@ -630,6 +655,8 @@ void CoopEpona_BeforeProxyUpdate(EnHorse* horse, PlayState*) {
     if (state == nullptr) {
         return;
     }
+    sSongKept = true; // its idle would take Epona's Song: that call is for our horse (AfterProxyUpdate puts it back)
+    sSongBefore = gHorsePlayedEponasSong;
     horse->playerControlled = false;
     horse->curStick.x = 0.0f;
     horse->curStick.z = 0.0f;
@@ -639,6 +666,10 @@ void CoopEpona_BeforeProxyUpdate(EnHorse* horse, PlayState*) {
 }
 
 void CoopEpona_AfterProxyUpdate(EnHorse* horse, PlayState*) {
+    if (sSongKept) {
+        gHorsePlayedEponasSong = sSongBefore;
+        sSongKept = false;
+    }
     HorseProxyState* state = CoopEpona_ProxyState(&horse->actor);
     if (state != nullptr) {
         ApplyProxyState(*state);
@@ -761,6 +792,10 @@ s32 Coop_EponaIsProxy(const Actor* actor) { return coop::client::CoopEpona_IsPro
 s32 Coop_EponaIsProxyRideable(const Actor* actor) { return coop::client::CoopEpona_IsProxyRideable(actor) ? 1 : 0; }
 s32 Coop_EponaProxyHasLocalPassenger(const Actor* actor) {
     return coop::client::CoopEpona_ProxyHasLocalPassenger(actor) ? 1 : 0;
+}
+s32 Coop_EponaMayMount(PlayState* play, const Actor* horse) {
+    Player* player = play == nullptr ? nullptr : GET_PLAYER(play);
+    return (player == nullptr || coop::EponaRules_MayMount(player->rideActor, horse)) ? 1 : 0;
 }
 void Coop_EponaBeforeProxyUpdate(EnHorse* horse, PlayState* play) {
     coop::client::CoopEpona_BeforeProxyUpdate(horse, play);

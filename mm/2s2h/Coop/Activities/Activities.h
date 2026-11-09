@@ -101,6 +101,11 @@ bool Guest_SkipsLease(int16_t actorId); // its NPC is the director's: we never a
 bool Guest_ContactTarget(const TrackedActor& t); // a target of our Together activity: our contacts with it count
 void Guest_OnFollow(uint8_t from, const std::string& key); // Follow.cpp: we go with it into its activity
 
+// Follow.cpp
+// The transition to `entrance` starting now is a trip a mate's "follow" took us on (Director.cpp never passes it on).
+// Asked once per trip.
+bool Follow_TookUs(uint16_t entrance);
+
 // Rewards.cpp
 void Rewards_SuppressBegin(); // Gift.cpp, AdminFeatures.cpp, Guest/Rewards: these rupees are not a prize
 void Rewards_SuppressEnd();

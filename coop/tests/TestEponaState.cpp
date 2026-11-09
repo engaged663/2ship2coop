@@ -1,5 +1,6 @@
 #include "TestMain.h"
 
+#include "common/EponaRules.h"
 #include "common/EponaState.h"
 #include "common/StreamIds.h"
 
@@ -125,4 +126,22 @@ TEST_CASE(EponaStateOwnerStampWritesHeader) {
     CHECK(DecodeEponaState(bytes.data(), bytes.size(), decoded));
     CHECK_EQ(decoded.ownerPlayerId, (uint8_t)4);
     CHECK(!StampEponaOwnerId(bytes.data(), 1, 4));
+}
+
+// ---- Rules (common/EponaRules.h) ----
+
+TEST_CASE(EponaNeverMovesARiderOntoAnotherHorse) {
+    int ownHorse = 0, otherHorse = 0;
+    CHECK(EponaRules_MayMount(nullptr, &otherHorse));     // on foot: any horse that offers itself
+    CHECK(EponaRules_MayMount(&otherHorse, &otherHorse)); // already getting on that one
+    CHECK(!EponaRules_MayMount(&ownHorse, &otherHorse));  // riding ours into another player's: stays on ours
+}
+
+TEST_CASE(EponasSongCallsOurHorseInsteadOfAnotherOne) {
+    // Our horse is here already: every song calls that one (it used to make a new Epona each time)
+    CHECK(EponaRules_OnSong(true, false) == EponaSong::CallOurs);
+    CHECK(EponaRules_OnSong(true, true) == EponaSong::CallOurs);
+    // None of ours yet: the scene's resting Epona first, a new one only when there is none
+    CHECK(EponaRules_OnSong(false, true) == EponaSong::Wake);
+    CHECK(EponaRules_OnSong(false, false) == EponaSong::Spawn);
 }

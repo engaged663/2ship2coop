@@ -18,6 +18,7 @@
 #include "2s2h/Coop/Room/Room.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
+#include "common/ActivityTrips.h"
 #include "common/Protocol.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
@@ -246,7 +247,13 @@ void CheckFollow(PlayState* play) {
         }
         const ActivityDef* def = sRunning != nullptr ? sRunning : Activity_MinigameOfScene(play->sceneId);
         bool special = def != nullptr && Activity_IsSpecialEntrance(*def, play->nextEntrance);
-        if (special && RoomFirst(*def) && play->transitionMode == TRANS_MODE_OFF) {
+        // A trip a mate's "follow" took us on, or one of an activity we play as someone's guest, is ours alone
+        bool followed = Follow_TookUs(play->nextEntrance);
+        bool guest = def != nullptr && (Room_GuestOf(def->key) || Guest_Activity() == def);
+        if (def != nullptr && !ActivityTrip_TakesOthers(followed, guest)) {
+            def = nullptr;
+        }
+        if (def != nullptr && special && RoomFirst(*def) && play->transitionMode == TRANS_MODE_OFF) {
             if (!Room_DirectsRound(def->key)) {
                 OpenRoom(*def);
             }

@@ -48,6 +48,7 @@ void Coop_EponaOnActorDestroy(Actor* actor);
 s32 Coop_EponaIsProxy(const Actor* actor);
 s32 Coop_EponaIsProxyRideable(const Actor* actor);
 s32 Coop_EponaProxyHasLocalPassenger(const Actor* actor);
+s32 Coop_EponaMayMount(PlayState* play, const Actor* horse);
 void Coop_EponaBeforeProxyUpdate(struct EnHorse* horse, PlayState* play);
 void Coop_EponaAfterProxyUpdate(struct EnHorse* horse, PlayState* play);
 

@@ -13,6 +13,7 @@
 #include "2s2h/Coop/Room/Room.h"
 #include "2s2h/Coop/World/WorldSession.h"
 
+#include "common/ActivityTrips.h"
 #include "common/Protocol.h"
 
 #include "2s2h/GameInteractor/GameInteractor.h"
@@ -46,6 +47,12 @@ struct Trip {
 
 Trip sTrip;
 
+// The last trip a "follow" took us on (Director.cpp never passes it on: it would go back to whoever sent it, and both
+// games would reload that entrance forever)
+constexpr int64_t kTookUsMs = 2000;
+int64_t sTookUsMs = -kTookUsMs;
+uint16_t sTookUsEntrance = 0;
+
 bool CanGo(PlayState* play, bool force) {
     if (RoomHold_Active()) {
         return false; // our own activity waits for its room here: our trip goes first
@@ -77,7 +84,15 @@ void Go(PlayState* play) {
     play->transitionTrigger = TRANS_TRIGGER_START;
     play->transitionType = sTrip.trans;
     gSaveContext.nextTransitionType = sTrip.trans;
+    sTookUsMs = Group_NowMs();
+    sTookUsEntrance = sTrip.entrance;
     SPDLOG_INFO("[Coop] Following to entrance {:#x}", sTrip.entrance);
+}
+
+// We run that activity ourselves: its round is ours, or our own run of it
+bool WeRun(const std::string& key) {
+    const ActivityDef* running = Director_Running();
+    return Room_DirectsRound(key) || (running != nullptr && key == running->key);
 }
 
 void OnFollow(const json& ev) {
@@ -95,6 +110,10 @@ void OnFollow(const json& ev) {
     bool room = !key.empty() && Group_OptMinigames() && Room_IsMate(from) && Room_Get().key == key &&
                 (GetBool(ev, "all") || sameScene);
     if (!watching && !guest && !mate && !room) {
+        return;
+    }
+    // A mate's own trip into the activity we run (its false start, its retry) is not ours
+    if (!key.empty() && !watching && !ActivityTrip_Follows(WeRun(key), GetBool(ev, "all"))) {
         return;
     }
     uint16_t entrance = (uint16_t)GetInt(ev, "entrance");
@@ -128,6 +147,12 @@ void RegisterFollow() {
 }
 
 } // namespace
+
+bool Follow_TookUs(uint16_t entrance) {
+    bool took = sTookUsEntrance == entrance && Group_NowMs() - sTookUsMs < kTookUsMs;
+    sTookUsMs = -kTookUsMs; // asked once per trip
+    return took;
+}
 
 } // namespace coop::client
 
