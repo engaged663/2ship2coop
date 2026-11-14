@@ -42,8 +42,8 @@ namespace {
 struct SpawnCtx {
     bool tracked = false;
     uint32_t key = 0;
-    uint32_t parentKey = 0;
-    uint32_t rootKey = 0;
+    uint32_t parentKey = kNoParentKey;
+    uint32_t rootKey = 0; // always set for a tracked one (its own key, or its parent's root)
     int8_t room = -1;
     bool runtime = false;
     SpawnInfo spawn;
@@ -164,7 +164,7 @@ void BuildRegions(TrackedActor& t) {
         r.init.assign(r.ptr, r.ptr + r.size);
     }
     t.sentSlots.assign(t.regions.size(), {});
-    t.changedFrame.assign(t.regions.size(), {});
+    t.resendLeft.assign(t.regions.size(), {});
     t.fullPhase = (uint8_t)((t.key * 2654435761u) % 20);
     ActorMemory_BuildLocalMask(t);
 }
@@ -178,7 +178,7 @@ void Track(Actor* actor, const SpawnCtx& ctx) {
     t->actor = actor;
     t->key = ctx.key;
     t->parentKey = ctx.parentKey;
-    t->rootKey = ctx.rootKey != 0 ? ctx.rootKey : ctx.key;
+    t->rootKey = ctx.rootKey; // 0 is a real key (room 0's first actor): never "none"
     t->room = ctx.room;
     t->runtime = ctx.runtime;
     t->cinema = ctx.cinema;
@@ -302,7 +302,7 @@ uint32_t ActorRegistry_Version() {
 }
 
 bool ActorRegistry_IsCinemaSpawn(uint32_t parentKey, const SpawnInfo& s) {
-    TrackedActor* parent = parentKey != 0 ? ActorRegistry_Find(parentKey) : nullptr;
+    TrackedActor* parent = parentKey != kNoParentKey ? ActorRegistry_Find(parentKey) : nullptr;
     return Rules_IsCutsceneActor((int16_t)s.actorId) || (parent != nullptr && parent->cinema);
 }
 
@@ -430,7 +430,7 @@ extern "C" void Coop_OnActorSpawned(Actor* actor) {
             s.rot[1] = actor->home.rot.y;
             s.rot[2] = actor->home.rot.z;
             uint32_t key = kRuntimeKeyBit | ((uint32_t)(Session_LocalId() & 0x3F) << 24) | (++sRuntimeSeq & 0xFFFFFF);
-            SpawnCtx c{ true, key, 0, key, image_limits::kPlayerRoom, true, s };
+            SpawnCtx c{ true, key, kNoParentKey, key, image_limits::kPlayerRoom, true, s };
             c.owner = Session_LocalId();
             sSpawnCtx[actor] = c;
         }
@@ -484,7 +484,7 @@ static void InitBegin(Actor* actor) {
         return;
     }
     uint32_t key = ListKey(actor->room, index);
-    SpawnCtx c{ true, key, 0, key, actor->room, false, {} };
+    SpawnCtx c{ true, key, kNoParentKey, key, actor->room, false, {} };
     c.cinema = rule == Replication::Cinema;
     Track(actor, c);
 }
@@ -555,6 +555,19 @@ extern "C" void Coop_OnColliderRegistered(Collider* collider, s32 ac) {
         if (t->colliders[i] == collider) {
             (ac ? t->acMask : t->ocMask) |= (uint8_t)(1u << i);
             return;
+        }
+    }
+}
+
+// An effect index (EffectBlure, tire mark...) kept in a replicated actor, from its Init (every actor that keeps one
+// but En_Go adds it there): known before its local mask is built, in every game alike. One added later stays as before
+// (marking it in the owner only would send zeros, index 0 of another kind of effect, to copies that never knew).
+extern "C" void Coop_OnEffectAdd(s32* pIndex) {
+    TrackedActor* t = Current();
+    if (t != nullptr && Inside(t->actor, pIndex, sizeof(s32))) {
+        uint16_t off = (uint16_t)((uint8_t*)pIndex - (uint8_t*)t->actor);
+        if (std::find(t->effectSlots.begin(), t->effectSlots.end(), off) == t->effectSlots.end()) {
+            t->effectSlots.push_back(off);
         }
     }
 }

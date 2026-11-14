@@ -38,14 +38,39 @@ struct SlotSpan {
     std::vector<Slot> slots;
 };
 
+// "No parent" in a key field. Never 0: 0 is a real key, the first actor of room 0's list (Gyorg in its lair: with 0 as
+// "none" the copies of its small fish were created without their parent, set its static pointer to null, and the next
+// fish that went away crashed the game).
+constexpr uint32_t kNoParentKey = 0xFFFFFFFFu;
+
 // How a runtime-created actor is created on the other games (sent in every full frame of it, so a late one gets it).
 struct SpawnInfo {
     uint16_t actorId = 0;
     int16_t params = 0;
     float pos[3] = { 0.f, 0.f, 0.f };
     int16_t rot[3] = { 0, 0, 0 };
-    uint32_t parentKey = 0; // 0: none
+    uint32_t parentKey = kNoParentKey;
 };
+
+// A changed slot goes out in this many records that are really sent (a lost packet costs nothing).
+constexpr uint8_t kSlotResends = 3;
+
+// Whether this frame's record of an actor carries one of its slots. `left` = records that must still carry its last
+// change; it only counts down on frames whose record goes out (`sending`): far from every Link a record goes out once
+// every 4 frames, and counting frames instead let a change made between two sends never travel until the next full
+// frame (up to a second). Fields that change together but sit in different slots (an enemy's colorFilterParams and
+// colorFilterTimer, a Wizrobe's platforms and their count) then reached the copy apart: a timer with no duration was
+// a division by zero when it was drawn.
+inline bool SlotResend_Carry(uint8_t& left, bool changed, bool full, bool sending) {
+    if (changed) {
+        left = kSlotResends;
+    }
+    bool carry = full || left > 0;
+    if (carry && sending && left > 0) {
+        left--;
+    }
+    return carry;
+}
 
 struct ActorImageRecord {
     uint32_t key = 0;
@@ -93,9 +118,18 @@ class PointerResolver {
     virtual bool LinkRef(uint64_t address, uint64_t& value) const = 0;  // into a Link (ours or a puppet)
     virtual bool SceneOffset(uint64_t address, uint64_t& offset) const = 0; // into the loaded scene's memory
     virtual bool IsMapped(uint64_t address) const = 0; // any other memory of this process
+    // Bookkeeping each game's engine keeps for itself, even inside the exe (the light nodes of sLightsBuffer): a pointer
+    // into it means nothing in another game (the same index there is someone else's light).
+    virtual bool EngineOwned(uint64_t address) const {
+        return false;
+    }
 };
 
-// Zero, then pointers (exe, actor, Link, other mapped memory), else plain data.
+// Zero, then what the engine keeps for itself (Keep), then pointers (exe, actor, Link, other mapped memory), else
+// plain data.
 Slot ClassifySlot(uint64_t raw, const PointerResolver& resolver);
+// The receiver: true = this slot keeps what it has now (it holds one of our engine's own nodes, or what arrived would
+// put one there). A copy's Destroy removes the light its slot names: it must be the one its own Init added.
+bool KeepsOwnSlot(uint64_t current, uint64_t incoming, const PointerResolver& resolver);
 
 } // namespace coop

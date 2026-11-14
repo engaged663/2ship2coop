@@ -12,6 +12,7 @@
 #include "2s2h/BenGui/CosmeticEditor.h"
 #include "2s2h/BenGui/HudEditor.h"
 #include "assets/2s2h_assets.h"
+#include "2s2h/Coop/Features/CoopMinimap.h" // [COOP]
 #include <libultraship/bridge/consolevariablebridge.h>
 
 void MapDisp_DestroyMapI(PlayState* play);
@@ -449,7 +450,12 @@ void MapDisp_Minimap_DrawActorIcon(PlayState* play, Actor* actor) {
 
         OPEN_DISPS(play->state.gfxCtx);
 
-        if ((actor->category == ACTORCAT_PLAYER) && (actor->flags & ACTOR_FLAG_MINIMAP_ICON_ENABLED)) {
+        // [COOP] another player's Link: an arrow of their color; ours may take our color (Features/CoopMinimap.cpp)
+        Color_RGB8 arrowColor = { 200, 255, 0 };
+        s16 arrowYaw = actor->focus.rot.y;
+        s32 coopArrow = Coop_MinimapArrow(actor, &arrowColor, &arrowYaw);
+
+        if (coopArrow || ((actor->category == ACTORCAT_PLAYER) && (actor->flags & ACTOR_FLAG_MINIMAP_ICON_ENABLED))) {
             s16 compassRot;
 
             Gfx_SetupDL42_Overlay(play->state.gfxCtx);
@@ -462,7 +468,7 @@ void MapDisp_Minimap_DrawActorIcon(PlayState* play, Actor* actor) {
 
             Matrix_Translate(posX - 160.0f, 120.0f - posY, 0.0f, MTXMODE_NEW);
             Matrix_RotateXFApply(-1.6f);
-            compassRot = (s32)(0x7FFF - actor->focus.rot.y) / 1024;
+            compassRot = (s32)(0x7FFF - arrowYaw) / 1024; // [COOP] actor->focus.rot.y, or the puppet's
             if (MapDisp_IsDataRotated(play)) {
                 compassRot += 0x7FFF;
             }
@@ -478,7 +484,8 @@ void MapDisp_Minimap_DrawActorIcon(PlayState* play, Actor* actor) {
             }
             // #endregion
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
-            gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 200, 255, 0, play->interfaceCtx.minimapAlpha);
+            gDPSetPrimColor(OVERLAY_DISP++, 0, 0, arrowColor.r, arrowColor.g, arrowColor.b,
+                            play->interfaceCtx.minimapAlpha); // [COOP] 200, 255, 0
             gSPDisplayList(OVERLAY_DISP++, gCompassArrowDL);
         } else if ((actor->id == ACTOR_EN_BOX) && !Flags_GetTreasure(play, actor->params & 0x1F) &&
                    (MapDisp_GetStoreyY(player->actor.world.pos.y) == MapDisp_GetStoreyY(actor->world.pos.y))) {
@@ -525,6 +532,65 @@ void MapDisp_Minimap_DrawActorIcon(PlayState* play, Actor* actor) {
     }
 }
 
+// #region [COOP] Features/CoopMinimap.cpp: a point of the current room's minimap in its texture's own coordinates, so
+// a game in another scene that shows the same map draws it there (the five scenes of Clock Town share map 0x105).
+// The maths of MapDisp_Minimap_DrawActorIcon, without truncating.
+static s32 MapDisp_Coop_Room(PlayState* play, MapDataRoom** room, f32* scaleFrac, s32* texOffsetX, s32* texOffsetY) {
+    s32 scale;
+
+    if ((sMapDisp.mapDataScene == NULL) || (sMapDisp.curRoom < 0) || (sMapDisp.curRoom >= sSceneNumRooms)) {
+        return false;
+    }
+    *room = &sMapDisp.mapDataScene->rooms[sMapDisp.curRoom];
+    if ((*room)->mapId == MAP_DATA_NO_MAP) {
+        return false;
+    }
+    MapDisp_GetMapOffset(*room, texOffsetX, texOffsetY);
+    scale = sMapDisp.mapDataScene->scale;
+    if (scale == 0) {
+        scale = 20;
+    } else if (scale == -1) {
+        MapDisp_GetMapScale(*room, &scale);
+    }
+    if (scale == 0) {
+        return false;
+    }
+    *scaleFrac = 1.0f / scale;
+    return true;
+}
+
+s32 MapDisp_Coop_WorldToMap(PlayState* play, f32 x, f32 z, s32* mapId, f32* u, f32* v) {
+    MapDataRoom* room;
+    f32 scaleFrac;
+    s32 texOffsetX;
+    s32 texOffsetY;
+    f32 sign = MapDisp_IsDataRotated(play) ? -1.0f : 1.0f;
+
+    if (!MapDisp_Coop_Room(play, &room, &scaleFrac, &texOffsetX, &texOffsetY)) {
+        return false;
+    }
+    *mapId = room->mapId;
+    *u = sign * (x - room->centerX) * scaleFrac + texOffsetX;
+    *v = sign * (z - room->centerZ) * scaleFrac + texOffsetY;
+    return true;
+}
+
+s32 MapDisp_Coop_MapToWorld(PlayState* play, s32 mapId, f32 u, f32 v, f32* x, f32* z) {
+    MapDataRoom* room;
+    f32 scaleFrac;
+    s32 texOffsetX;
+    s32 texOffsetY;
+    f32 sign = MapDisp_IsDataRotated(play) ? -1.0f : 1.0f;
+
+    if (!MapDisp_Coop_Room(play, &room, &scaleFrac, &texOffsetX, &texOffsetY) || (room->mapId != mapId)) {
+        return false;
+    }
+    *x = room->centerX + sign * (u - texOffsetX) / scaleFrac;
+    *z = room->centerZ + sign * (v - texOffsetY) / scaleFrac;
+    return true;
+}
+// #endregion
+
 void MapDisp_Minimap_DrawActors(PlayState* play) {
     ActorContext* actorCtx;
     s32 i;
@@ -534,6 +600,8 @@ void MapDisp_Minimap_DrawActors(PlayState* play) {
 
         gDPLoadTextureBlock_4b(OVERLAY_DISP++, &sWhiteSquareTex, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                                G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+
+        Coop_MinimapDrawPlayers(play); // [COOP] the other players first: our own arrow goes over theirs
 
         actorCtx = &play->actorCtx;
         for (i = 0; i < ACTORCAT_MAX; i++) {

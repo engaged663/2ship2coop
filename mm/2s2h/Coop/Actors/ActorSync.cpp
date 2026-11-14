@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <cstring>
 #include <deque>
 #include <map>
 #include <set>
@@ -50,7 +51,6 @@ using Clock = std::chrono::steady_clock;
 constexpr float kKeepUpdatingDist = 1200.f; // an actor this close to a puppet updates even off our camera
 constexpr float kFarDist = 2000.f;          // farther than this from every Link: sent 5 times a second
 constexpr float kSwitchTargetRatio = 0.8f;  // another Link must be 20 % closer to become the target
-constexpr uint32_t kResendFrames = 3;       // a changed slot goes out this many frames (a lost packet costs nothing)
 constexpr uint32_t kFullEvery = 20;         // all of its memory once a second
 constexpr uint32_t kAliveEvery = 10;        // the list of what we simulate twice a second
 constexpr int64_t kGoneMemoryMs = 1000;     // an actor we destroyed is listed as gone for this long
@@ -163,7 +163,7 @@ TrackedActor* CreateCopy(const ActorImageRecord& r, int8_t room, uint8_t sender)
     }
     sCreateTried[r.key] = now;
     const SpawnInfo& s = r.spawn;
-    TrackedActor* parent = s.parentKey != 0 ? ActorRegistry_Find(s.parentKey) : nullptr;
+    TrackedActor* parent = s.parentKey != kNoParentKey ? ActorRegistry_Find(s.parentKey) : nullptr;
     uint32_t root = parent != nullptr ? parent->rootKey : r.key;
     ActorRegistry_ExpectReplica(r.key, s.parentKey, root, room, s, room == image_limits::kPlayerRoom ? sender : 0);
     Actor* a = parent != nullptr
@@ -185,7 +185,7 @@ bool MayCreate(const ActorImageRecord& r, int8_t room, uint8_t sender) {
     if (ActorRegistry_IsCinemaSpawn(r.spawn.parentKey, r.spawn)) {
         return Rules_CinemaActorsOn() && Cinema_WatchingFrom(sender);
     }
-    TrackedActor* parent = r.spawn.parentKey != 0 ? ActorRegistry_Find(r.spawn.parentKey) : nullptr;
+    TrackedActor* parent = r.spawn.parentKey != kNoParentKey ? ActorRegistry_Find(r.spawn.parentKey) : nullptr;
     uint8_t lessee = Leases_Holder(room, parent != nullptr ? parent->rootKey : r.key);
     return (lessee != 0 ? lessee : Authority_Owner(room)) == sender;
 }
@@ -417,7 +417,8 @@ bool FarFromEveryone(const TrackedActor& t) {
 }
 
 // What goes out for one of our actors this frame (false: nothing). Slots are classified every frame (a change is
-// remembered even when it is not sent); a changed slot goes out kResendFrames frames, all of them in a full frame.
+// remembered even when it is not sent); a changed slot goes out in kSlotResends sent records, all of them in a full
+// frame (SlotResend_Carry).
 bool MakeRecord(TrackedActor& t, ActorImageRecord& r) {
     bool full = (sFrame + t.fullPhase) % kFullEvery == 0;
     bool send = full || !FarFromEveryone(t) || sFrame % 4 == 0;
@@ -438,10 +439,10 @@ bool MakeRecord(TrackedActor& t, ActorImageRecord& r) {
     for (size_t rg = 0; rg < t.regions.size(); rg++) {
         size_t slots = (t.regions[rg].size + 7) / 8;
         auto& sent = t.sentSlots[rg];
-        auto& changed = t.changedFrame[rg];
+        auto& left = t.resendLeft[rg];
         if (sent.size() != slots) {
             sent.assign(slots, Slot{ SlotKind::Raw, 0xFFFFFFFFFFFFFFFFull }); // never matches: all "changed"
-            changed.assign(slots, 0);
+            left.assign(slots, 0);
         }
         SlotSpan span;
         for (size_t i = 0; i <= slots; i++) {
@@ -449,11 +450,11 @@ bool MakeRecord(TrackedActor& t, ActorImageRecord& r) {
             Slot now;
             if (i < slots && !ActorMemory_IsLocalSlot(t, rg, i)) {
                 now = ActorMemory_Capture(t, rg, i);
-                if (now != sent[i]) {
+                bool changed = now != sent[i];
+                if (changed) {
                     sent[i] = now;
-                    changed[i] = sFrame;
                 }
-                include = full || sFrame - changed[i] < kResendFrames ||
+                include = SlotResend_Carry(left[i], changed, full, send) ||
                           (rg == 0 && flagged && (i == kSfxSlot || i == kAudioFlagsSlot));
             }
             bool contiguous = !span.slots.empty() && span.first + span.slots.size() == i &&
@@ -525,10 +526,38 @@ void ActorSync_ForgetPointersTo(const Actor* actor) {
     }
     size_t size = actor->overlayEntry->profile->instanceSize;
     for (TrackedActor* t : ActorRegistry_All()) {
-        if (t->actor != actor && Leases_IsRemote(*t)) {
-            ActorMemory_ForgetPointersTo(*t, actor, size); // copies only: ours handle their own pointers
+        if (t->actor != actor) {
+            // copies: every slot; ours handle their own pointers (only what their Init found is forgotten)
+            ActorMemory_ForgetPointersTo(*t, actor, size, Leases_IsRemote(*t));
         }
     }
+}
+
+bool ActorSync_PointedAt(const Actor* actor) {
+    if (!Active() || actor->overlayEntry == nullptr || actor->overlayEntry->profile == nullptr) {
+        return false;
+    }
+    uintptr_t lo = (uintptr_t)actor;
+    uintptr_t hi = lo + actor->overlayEntry->profile->instanceSize;
+    for (TrackedActor* t : ActorRegistry_All()) {
+        if (t->actor == actor || t->actor->update == nullptr) {
+            continue;
+        }
+        for (size_t rg = 0; rg < t->regions.size(); rg++) {
+            const Region& r = t->regions[rg];
+            for (size_t off = 0; off + 8 <= r.size; off += 8) {
+                if (ActorMemory_IsLocalSlot(*t, rg, off / 8)) {
+                    continue; // the engine's own lists (prev/next: its neighbour in the actor list)
+                }
+                uint64_t v = 0;
+                std::memcpy(&v, r.ptr + off, 8);
+                if (v >= lo && v < hi) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 void ActorSync_FrameEnd() {

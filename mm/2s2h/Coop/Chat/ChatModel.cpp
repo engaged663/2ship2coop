@@ -3,6 +3,7 @@
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Features/PlayerColors.h"
 
 #include "common/Protocol.h"
 
@@ -32,7 +33,8 @@ ChatKind KindForLevel(const std::string& level) {
 }
 
 void OnChat(const json& ev) {
-    Chat_Add(ChatKind::Chat, "<" + GetString(ev, "from") + "> " + GetString(ev, "text"));
+    std::string from = GetString(ev, "from");
+    Chat_AddFrom(ChatKind::Chat, from, GetString(ev, "text"), PlayerColors_IdOfNick(from));
 }
 
 void OnPm(const json& ev) {
@@ -101,6 +103,23 @@ void Chat_Add(ChatKind kind, const std::string& text) {
             break;
         }
         start = end + 1;
+    }
+    while (sLines.size() > kMaxLines) {
+        sLines.pop_front();
+    }
+}
+
+void Chat_AddFrom(ChatKind kind, const std::string& nick, const std::string& text, uint8_t playerId) {
+    std::string prefix = "<" + nick + ">";
+    size_t newline = text.find('\n');
+    ChatLine line{ kind, prefix + " " + text.substr(0, newline), Chat_Now() };
+    if (playerId != 0) {
+        line.nickLen = prefix.size();
+        line.nickColor = PlayerColors_Of(playerId);
+    }
+    sLines.push_back(line);
+    if (newline != std::string::npos) {
+        Chat_Add(kind, text.substr(newline + 1)); // the rest as plain lines (it also trims the history)
     }
     while (sLines.size() > kMaxLines) {
         sLines.pop_front();

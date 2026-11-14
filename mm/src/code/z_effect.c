@@ -1,5 +1,6 @@
 #include "z64effect.h"
 #include "global.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 #define SPARK_COUNT 3
 #define BLURE_COUNT 25
@@ -165,6 +166,7 @@ void Effect_Add(PlayState* play, s32* pIndex, EffectType type, u8 arg3, u8 arg4,
     EffectStatus* status = NULL;
 
     *pIndex = TOTAL_EFFECT_COUNT;
+    Coop_OnEffectAdd(pIndex); // [COOP] this field of a replicated actor holds an index of our effects: never sent
 
     if (FrameAdvance_IsEnabled(play) != true) {
         slotFound = false;

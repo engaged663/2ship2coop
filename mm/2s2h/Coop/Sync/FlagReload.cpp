@@ -149,6 +149,9 @@ bool Eligible(const Actor* a) {
         (const Actor*)DynaPoly_GetActor(&gPlayState->colCtx, link->actor.floorBgId) == a) {
         return false;
     }
+    if (ActorSync_PointedAt(a)) {
+        return false; // a replicated actor still uses it (the Stalchildren opening its gravestone): later
+    }
     return !(a->csId != CS_ID_NONE && CutsceneManager_GetCurrentCsId() == a->csId);
 }
 

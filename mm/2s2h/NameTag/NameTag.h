@@ -33,6 +33,8 @@ void NameTag_RegisterForActor(Actor* actor, const char* text);
 void NameTag_RemoveAllForActor(Actor* actor);
 // Remove all name tags that share the same tag identifier
 void NameTag_RemoveAllByTag(const char* tag);
+// [COOP] Changes the text color of an actor's name tags with that tag identifier (alpha 0 = the global color)
+void NameTag_SetTextColor(Actor* actor, const char* tag, Color_RGBA8 color);
 
 #ifdef __cplusplus
 }

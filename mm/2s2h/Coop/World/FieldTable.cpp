@@ -249,6 +249,14 @@ void WriteEquipment(const uint8_t* in) {
         }
         SyncSwordButton();
     }
+    // Another player got the Mirror Shield (or a Like Like ate the shield): our Link carries it now, as Item_Give does,
+    // not only from the next scene (Player_Init is the only other place that reads it)
+    if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) != ((before & gEquipMasks[EQUIP_TYPE_SHIELD]) >> gEquipShifts[EQUIP_TYPE_SHIELD]) &&
+        PlayLive()) {
+        if (Player* link = (Player*)gPlayState->actorCtx.actorLists[ACTORCAT_PLAYER].first) {
+            Player_SetEquipmentData(gPlayState, link);
+        }
+    }
 }
 
 void ReadMagicFlags(uint8_t* out) {

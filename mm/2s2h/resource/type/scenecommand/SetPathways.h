@@ -15,6 +15,7 @@ class SetPathwaysMM : public SceneCommand<PathDataMM*> {
 
     uint32_t numPaths;
     std::vector<PathDataMM*> paths;
+    std::vector<uint32_t> pathCounts; // [COOP] entries of each list: the engine's Path* has no count
 };
 
 }; // namespace SOH

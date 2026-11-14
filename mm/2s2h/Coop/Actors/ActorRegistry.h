@@ -52,7 +52,7 @@ struct TrackedActor {
     Actor* actor = nullptr;
     uint32_t key = 0;
     uint32_t rootKey = 0;   // its list ancestor: a lent NPC takes its whole family along
-    uint32_t parentKey = 0; // 0: none
+    uint32_t parentKey = kNoParentKey;
     int8_t room = -1;       // the room it belongs to (its list room, or its parent's)
     bool runtime = false;   // created at run time by the game that simulates its parent
     bool cinema = false;    // Replication::Cinema: its owner is Cinema_ActorOwner() (Leases.cpp)
@@ -68,13 +68,16 @@ struct TrackedActor {
     std::vector<uint8_t> localMask; // region 0, one byte per byte: 1 = this game's own (never sent nor written): the
                                     // base Actor's engine fields and, for a DynaPolyActor, its bgId and interactFlags
     std::vector<std::pair<uint8_t*, uint32_t>> extraRegions; // tables its Init asked to travel (Coop_AddActorRegion)
+    std::vector<uint16_t> effectSlots; // offsets of the s32 effect indices it got from Effect_Add (local, like the
+                                       // light nodes: each game's own pool; Coop_OnEffectAdd)
     int32_t bgId = -1;        // its own dynamic collision here (a DynaPolyActor): its flags travel (kRecDyna)
     int16_t sentDyna = -1;    // sender: the collision flags last sent
     int16_t pendingDyna = -1; // receiver: its owner's collision flags, set before its next (skipped) update
 
     // Sender (we simulate it)
     std::vector<std::vector<Slot>> sentSlots;        // per region, per slot: the last classified value
-    std::vector<std::vector<uint32_t>> changedFrame; // per region, per slot: frame of its last change
+    std::vector<std::vector<uint8_t>> resendLeft;    // per region, per slot: sent records that must still carry its
+                                                     // last change (SlotResend_Carry)
     uint8_t acMask = 0; // colliders registered this frame (CollisionCheck_SetAC / SetOC)
     uint8_t ocMask = 0;
     uint8_t sentAc = 0; // the masks last sent (a change to "none" must be sent too)

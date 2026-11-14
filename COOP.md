@@ -22,6 +22,7 @@ copyrighted assets.
 - **Shared enemies, props, NPCs and Epona** (including multiple horses and passengers between scenes).
 - **Groups:** invite players into a group to share dialogues, cutscenes, minigames (together / each on their own /
   by turns), quests and boss cutscenes.
+- **Player colors and minimap:** every player has a color (F1 → Co-op → *Mi color y el minimapa*: a palette, any RGB color, and effects like pulse, two colors or rainbow). It colors their Link's tunic and cap (human form; switches *The others' tunics in their color* and *My tunic in my color*), their nick above their Link, in the chat and in the player list, and the other players show on your minimap as arrows of their colors.
 - **Chat and commands:** `/tp`, `/gift`, `/pm`, groups, moderation (`op`, `ban`, `kick`), world tools.
   Texts in English, Spanish, Chinese and Russian: the server's (`"language"` in `server.json`, or `/lang`) and the
   game's Co-op menu, windows and notices (F1 → Co-op → Language: automatic = the server's language).

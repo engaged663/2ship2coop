@@ -136,7 +136,7 @@ bool PlayerObjects_MayCreate(uint32_t key, uint32_t parentKey, uint8_t sender) {
     if ((key & kRuntimeKeyBit) == 0) {
         return false;
     }
-    if (parentKey == 0) {
+    if (parentKey == kNoParentKey) {
         return ((key >> 24) & 0x3F) == (uint32_t)(sender & 0x3F); // made by its Link: a key of its own
     }
     TrackedActor* parent = ActorRegistry_Find(parentKey);

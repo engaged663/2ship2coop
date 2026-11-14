@@ -122,6 +122,10 @@ struct Player* Coop_CsActionTarget(PlayState* play, Actor* csActor);
 // Limits fix (spec 2026-09-30-coop-grupos-limites §2.2): from a replicated actor's Init, a table of its own outside
 // its instance (static in its overlay) travels with its memory.
 void Coop_AddActorRegion(Actor* actor, void* table, u32 bytes);
+// Effect_Add (z_effect.c): pIndex receives an index into this game's effect pool. Inside a replicated actor (an
+// arrow's or an Iron Knuckle's trail) that field is each game's own: another game's index there made a copy draw into
+// (or destroy) one of our effects, or read a free one as NULL (EffectBlure_AddVertex crashed).
+void Coop_OnEffectAdd(s32* pIndex);
 
 // The values a mirrored text shows (Features/MessageVars.cpp): begin = 1 before Message_Decode, 0 after it.
 void Coop_OnMessageDecode(PlayState* play, s32 begin);

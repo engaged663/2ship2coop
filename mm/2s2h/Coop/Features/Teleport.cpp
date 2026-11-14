@@ -15,6 +15,8 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
 
+#include <spdlog/spdlog.h>
+
 extern "C" {
 #include "variables.h"
 }
@@ -39,7 +41,20 @@ void Travel(const WarpTarget& spot, s16 scene, const std::string& target) {
         Warp_MoveInsideRoom(spot);
         Chat_Add(ChatKind::Ok, target.empty() ? Tx(Txt::TpMoved) : Tx(Txt::TpNextTo, { target }));
     } else {
-        Warp_Go(spot);
+        // The room and position are of `scene`: the entrance that came with them may be of another one (a player in
+        // Stone Tower whose entrance still named the temple: Link was put at Stone Tower's coordinates inside the
+        // temple, a grey void). The scene the target reported decides what is loaded.
+        WarpTarget to = spot;
+        to.entrance = Warp_EntranceOfScene(spot.entrance, scene);
+        if (to.entrance == kNoWarpEntrance) {
+            Chat_Add(ChatKind::Error, target.empty() ? Tx(Txt::TpBad) : Tx(Txt::TpBadOf, { target }));
+            return;
+        }
+        if (to.entrance != spot.entrance) {
+            SPDLOG_INFO("[Coop] Teleport: entrance {:#x} does not lead to scene {}: {:#x} instead", spot.entrance,
+                        (int)scene, to.entrance);
+        }
+        Warp_Go(to);
         Chat_Add(ChatKind::Ok, target.empty() ? Tx(Txt::TpTravel) : Tx(Txt::TpTravelTo, { target }));
     }
 }

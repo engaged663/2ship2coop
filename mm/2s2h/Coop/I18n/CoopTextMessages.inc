@@ -56,6 +56,77 @@ X(StatusHandshaking, "Estado: identificándose...", "Status: identifying...", "�
 X(StatusConnected, "Estado: conectado a {0} como {1} (ping {2} ms)", "Status: connected to {0} as {1} (ping {2} ms)",
   "状态：已以 {1} 的身份连接到 {0}（延迟 {2} ms）", "Состояние: подключено к {0} как {1} (пинг {2} мс)")
 X(MenuPlayers, "Jugadores conectados", "Connected players", "在线玩家", "Игроки на сервере")
+// ---- Players' colors and the minimap (Features/PlayerColors.cpp, CoopMinimap.cpp) ----
+X(MenuColors, "Mi color y el minimapa", "My color and the minimap", "我的颜色与小地图", "Мой цвет и мини-карта")
+X(ColorPreview, "Así te ven los demás:", "This is how the others see you:", "其他人看到的你：", "Так вас видят другие:")
+X(ColorAuto, "Color automático (según tu número de jugador)", "Automatic color (by your player number)",
+  "自动颜色（按你的玩家编号）", "Автоматический цвет (по номеру игрока)")
+X(ColorAutoTip,
+  "Cada jugador recibe un color distinto según el orden en que entró al servidor (azul, rojo, naranja, morado...). "
+  "Elige un color o un efecto abajo para usar el tuyo.",
+  "Each player gets a different color by the order they joined the server (blue, red, orange, purple...). Pick a "
+  "color or an effect below to use your own.",
+  "每个玩家会按加入服务器的顺序获得不同的颜色（蓝、红、橙、紫……）。在下面选择颜色或效果即可使用你自己的。",
+  "Каждый игрок получает свой цвет по порядку входа на сервер (синий, красный, оранжевый, фиолетовый...). Выберите "
+  "цвет или эффект ниже, чтобы использовать свой.")
+X(ColorPalette, "Colores rápidos:", "Quick colors:", "快速颜色：", "Быстрые цвета:")
+X(ColorMain, "Color principal", "Main color", "主颜色", "Основной цвет")
+X(ColorSecond, "Segundo color", "Second color", "第二颜色", "Второй цвет")
+X(ColorEffect, "Efecto", "Effect", "效果", "Эффект")
+X(ColorFxSolid, "Sólido", "Solid", "纯色", "Сплошной")
+X(ColorFxPulse, "Pulso", "Pulse", "脉动", "Пульсация")
+X(ColorFxBlend, "Dos colores (suave)", "Two colors (smooth)", "双色（渐变）", "Два цвета (плавно)")
+X(ColorFxRainbow, "Arcoíris", "Rainbow", "彩虹", "Радуга")
+X(ColorFxBlink, "Dos colores (parpadeo)", "Two colors (blink)", "双色（闪烁）", "Два цвета (мигание)")
+X(ColorSpeed, "Velocidad del efecto", "Effect speed", "效果速度", "Скорость эффекта")
+X(ColorSpeedSlow, "Lenta", "Slow", "慢", "Медленно")
+X(ColorSpeedNormal, "Normal", "Normal", "正常", "Обычно")
+X(ColorSpeedFast, "Rápida", "Fast", "快", "Быстро")
+X(ColorRandom, "Color al azar", "Random color", "随机颜色", "Случайный цвет")
+X(ColorReset, "Volver al automático", "Back to automatic", "恢复自动", "Вернуть автоматический")
+X(ColorHelp,
+  "Tu color se ve en la túnica de tu Link, en tu nombre encima de él, en tu flecha del minimapa de los demás, en el "
+  "chat y en la lista de jugadores. Los demás lo ven al momento.",
+  "Your color shows in your Link's tunic, in your nick above it, in your arrow on the others' minimap, in the chat "
+  "and in the player list. The others see it right away.",
+  "你的颜色会显示在你林克的衣服、头上的昵称、其他人小地图上你的箭头、聊天和玩家列表中。其他人会立即看到。",
+  "Ваш цвет виден на тунике вашего Линка, в нике над ним, в вашей стрелке на мини-карте других, в чате и в списке "
+  "игроков. Другие видят его сразу.")
+X(MinimapPlayers, "Mostrar a los demás jugadores en el minimapa", "Show the other players on the minimap",
+  "在小地图上显示其他玩家", "Показывать других игроков на мини-карте")
+X(MinimapPlayersTip,
+  "Una flecha del color de cada jugador donde está su Link, apuntando hacia donde mira. Solo se ven los que están en "
+  "tu misma zona (dentro de un templo, en tu misma sala).",
+  "An arrow in each player's color where their Link is, pointing where it looks. Only those in your same area show "
+  "(inside a temple, in your same room).",
+  "在每个玩家的林克所在位置显示一个该玩家颜色的箭头，指向其面朝的方向。只显示与你在同一区域的玩家（在神殿内则为同一房间）。",
+  "Стрелка цвета каждого игрока там, где его Линк, указывающая, куда он смотрит. Видны только те, кто в той же зоне "
+  "(в храме — в той же комнате).")
+X(MinimapOwnColor, "Mi flecha del minimapa con mi color", "My minimap arrow in my color", "我的小地图箭头使用我的颜色",
+  "Моя стрелка на мини-карте моим цветом")
+X(MinimapOwnColorTip, "Desactivado: tu flecha sigue amarilla, como en el juego original.",
+  "Off: your arrow stays yellow, as in the original game.", "关闭：你的箭头保持黄色，与原版游戏相同。",
+  "Выключено: ваша стрелка остаётся жёлтой, как в оригинальной игре.")
+X(ColorNameTags, "Nombres de colores encima de los Links", "Colored nicks above the Links", "林克头上的昵称显示颜色",
+  "Цветные ники над Линками")
+X(ColorChat, "Nombres de colores en el chat", "Colored nicks in the chat", "聊天中的昵称显示颜色", "Цветные ники в чате")
+X(TunicPlayers, "Túnicas de los demás con su color", "The others' tunics in their color", "其他玩家的衣服使用他们的颜色",
+  "Туники других игроков их цветом")
+X(TunicPlayersTip,
+  "El Link de cada jugador lleva la túnica y el gorro de su color (forma humana). Desactivado: los ves con tu propia "
+  "túnica.",
+  "Each player's Link wears a tunic and cap of their color (human form). Off: you see them in your own tunic.",
+  "每个玩家的林克穿着他们颜色的衣服和帽子（人类形态）。关闭：你看到的他们穿着你自己的衣服。",
+  "Линк каждого игрока носит тунику и шапку его цвета (в облике человека). Выключено: вы видите их в своей тунике.")
+X(TunicMine, "Mi túnica con mi color", "My tunic in my color", "我的衣服使用我的颜色", "Моя туника моим цветом")
+X(TunicMineTip,
+  "Tu Link se ve en tu pantalla como te ven los demás. Desactivado: tu túnica de siempre (o la del editor de "
+  "cosméticos); los demás te siguen viendo con tu color.",
+  "Your Link looks on your screen as the others see it. Off: your usual tunic (or the cosmetic editor's); the others "
+  "still see you in your color.",
+  "你的林克在你的屏幕上与其他人看到的一样。关闭：使用你平常的衣服（或外观编辑器中的）；其他人仍会看到你的颜色。",
+  "Ваш Линк на вашем экране выглядит так, как его видят другие. Выключено: ваша обычная туника (или из редактора "
+  "внешнего вида); другие по-прежнему видят вас вашим цветом.")
 X(MenuWorld, "Partida del servidor", "The server's game", "服务器的游戏", "Игра сервера")
 X(WorldEnter, "Entrar en la partida del servidor", "Enter the server's game", "进入服务器的游戏", "Войти в игру сервера")
 X(WorldEnterTip,

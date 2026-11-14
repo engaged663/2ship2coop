@@ -310,6 +310,8 @@ X(InvSceneFlags, "banderas de la escena inválidas", "invalid scene flags", "无
 X(InvAmbient, "ambiente inválido (música o temblor)", "invalid ambient (music or quake)", "无效的环境数据(音乐或震动)",
   "недопустимое окружение (музыка или тряска)")
 X(InvSong, "canción inválida", "invalid song", "无效的乐曲", "недопустимая мелодия")
+X(InvColor, "color inválido", "invalid color", "无效的颜色", "недопустимый цвет")
+X(InvMapPos, "posición de mapa inválida", "invalid map position", "无效的地图位置", "недопустимая позиция на карте")
 X(InvWorldFlood, "demasiadas entradas y salidas de la partida del servidor",
   "too many entries and exits of the server's game", "进出服务器游戏过于频繁", "слишком много входов и выходов из игры сервера")
 X(InvWorldInitUnasked, "world_init sin haberlo pedido el servidor", "world_init that the server did not ask for",

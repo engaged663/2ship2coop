@@ -17,6 +17,9 @@
 extern "C" {
 #include "functions.h"
 #include "variables.h"
+extern LightsBuffer sLightsBuffer; // z_lights.c: the nodes of this game's light list
+extern const void* gCoopScenePathList; // z_scene_2SH.cpp: the list Scene_CommandPathList set last...
+extern uint32_t gCoopScenePathCount;    // ...and how many paths it has
 }
 
 namespace coop::client {
@@ -83,7 +86,7 @@ struct Range {
     uint8_t region;
 };
 
-// The scene's path list: a run of 8-byte Path entries starting at setupPathList. The same scene in every game of
+// The scene's path list: gCoopScenePathCount Path entries starting at setupPathList. The same scene in every game of
 // the world lays it out the same, so a Path* travels as its index in that run, and a pointer into a path's points
 // (what an actor walking it keeps: SubS ActorPathing, a lift's pathPoints) as that index and a byte offset (Slot.h).
 struct ScenePaths {
@@ -93,18 +96,12 @@ struct ScenePaths {
     void Rebuild() {
         base = nullptr;
         count = 0;
-        if (gPlayState == nullptr || gPlayState->setupPathList == nullptr) {
-            return;
+        if (gPlayState == nullptr || gPlayState->setupPathList == nullptr ||
+            gCoopScenePathList != (const void*)gPlayState->setupPathList) {
+            return; // not the list whose size we know: no path pointer travels
         }
-        // The list ends where an entry does not look like a Path (count beyond any path, a wild index).
-        for (size_t i = 0; i < 512; i++) {
-            const Path* p = gPlayState->setupPathList + i;
-            if (p->count == 0 || p->count > 100 ||
-                (p->additionalPathIndex != ADDITIONAL_PATH_INDEX_NONE && p->additionalPathIndex > 250)) {
-                break;
-            }
-            count = i + 1;
-        }
+        // The real count: the memory after the list is not paths (it used to be guessed from what "looked like" one)
+        count = std::min<size_t>(gCoopScenePathCount, (size_t)kMaxScenePath + 1);
         base = gPlayState->setupPathList;
     }
 
@@ -193,6 +190,11 @@ class GameResolver : public PointerResolver {
     }
     bool IsMapped(uint64_t a) const override {
         return ProcessMemory_IsMapped(a);
+    }
+    // An actor's LightNode* (spin attack, fairies, torches, Poes, the boss warp...): a node of our own light list.
+    bool EngineOwned(uint64_t a) const override {
+        uintptr_t start = (uintptr_t)&sLightsBuffer;
+        return a >= start && a < start + sizeof(sLightsBuffer);
     }
 };
 
@@ -359,6 +361,12 @@ void ActorMemory_BuildLocalMask(TrackedActor& t) {
     const Region& r = t.regions[0];
     t.localMask.assign(r.size, 0);
     std::copy(kLocalMask.begin(), kLocalMask.begin() + std::min<size_t>(r.size, sizeof(Actor)), t.localMask.begin());
+    // The indices of the effects its Init added (an arrow's trail): ours point into our pool, the owner's into its own
+    for (uint16_t off : t.effectSlots) {
+        for (size_t b = off; b < (size_t)off + sizeof(s32) && b < r.size; b++) {
+            t.localMask[b] = 1;
+        }
+    }
     if (r.size < sizeof(DynaPolyActor) || gPlayState == nullptr) {
         return;
     }
@@ -439,6 +447,9 @@ void ActorMemory_Apply(TrackedActor& t, const SlotSpan& span) {
                 break;
             }
         }
+        if (n == 8 && KeepsOwnSlot(ReadBytes(r.ptr + slot * 8, 8), value, sResolver)) {
+            continue; // the light its own Init added (Great Bay Temple crash: never another game's node)
+        }
         WriteSlot(t, span.region, slot, value);
     }
 }
@@ -468,10 +479,10 @@ uint8_t* ActorMemory_Resolve(const Slot& s) {
     return Resolve(s);
 }
 
-void ActorMemory_ForgetPointersTo(TrackedActor& copy, const void* start, size_t size) {
+void ActorMemory_ForgetPointersTo(TrackedActor& tracked, const void* start, size_t size, bool live) {
     uintptr_t lo = (uintptr_t)start;
     uintptr_t hi = lo + size;
-    TrackedActor* t = &copy;
+    TrackedActor* t = &tracked;
     {
         for (size_t rg = 0; rg < t->regions.size(); rg++) {
             Region& r = t->regions[rg];
@@ -480,9 +491,15 @@ void ActorMemory_ForgetPointersTo(TrackedActor& copy, const void* start, size_t 
                     continue; // the engine's own lists: it unlinks the actor itself
                 }
                 uint64_t v = ReadBytes(r.ptr + slot * 8, 8);
-                if (v >= lo && v < hi) {
-                    uint64_t init = ReadBytes(r.init.data() + slot * 8, 8);
-                    WriteSlot(*t, rg, slot, (init >= lo && init < hi) ? 0 : init);
+                uint64_t init = ReadBytes(r.init.data() + slot * 8, 8);
+                bool initThere = init >= lo && init < hi;
+                if (initThere) {
+                    // What its Init found is gone: a pointer that no longer resolves here (a list actor created again,
+                    // ours gone) would otherwise come back to this freed memory (the graveyard's Stalchildren)
+                    std::memset(r.init.data() + slot * 8, 0, 8);
+                }
+                if (live && v >= lo && v < hi) {
+                    WriteSlot(*t, rg, slot, initThere ? 0 : init);
                 }
             }
         }

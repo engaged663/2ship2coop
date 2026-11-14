@@ -304,6 +304,15 @@ extern "C" void NameTag_RemoveAllByTag(const char* tag) {
     NameTag_RegisterHooks();
 }
 
+// [COOP] Players' colors (Coop/Features/PlayerColors.cpp): every frame, so their effects move
+extern "C" void NameTag_SetTextColor(Actor* actor, const char* tag, Color_RGBA8 color) {
+    for (auto& nameTag : nameTags) {
+        if (nameTag.actor == actor && nameTag.tag != nullptr && tag != nullptr && strcmp(nameTag.tag, tag) == 0) {
+            nameTag.textColor = color;
+        }
+    }
+}
+
 void RemoveAllNameTags() {
     for (auto& nameTag : nameTags) {
         FreeNameTag(&nameTag);

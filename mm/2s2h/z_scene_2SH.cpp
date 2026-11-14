@@ -257,10 +257,21 @@ void Scene_CommandLightList(PlayState* play, SOH::ISceneCommand* cmd) {
     }
 }
 
+// [COOP] How many paths setupPathList has: the co-op translates pointers into them (ActorMemory.cpp ScenePaths). Valid
+// only while setupPathList is still that list. Guessing the count by reading past the end of the list (2Ship keeps it
+// in a std::vector) took uninitialized memory for paths, and a copy got a garbage pointer from it (Stone Tower's
+// rolling boulders crashed the game that took them over).
+extern "C" {
+const void* gCoopScenePathList = nullptr;
+uint32_t gCoopScenePathCount = 0;
+}
+
 void Scene_CommandPathList(PlayState* play, SOH::ISceneCommand* cmd) {
     SOH::SetPathwaysMM* paths = (SOH::SetPathwaysMM*)cmd;
 
     play->setupPathList = (Path*)paths->GetPointer()[0];
+    gCoopScenePathList = play->setupPathList;                                    // [COOP]
+    gCoopScenePathCount = paths->pathCounts.empty() ? 0 : paths->pathCounts[0]; // [COOP]
 }
 
 void Scene_CommandTransiActorList(PlayState* play, SOH::ISceneCommand* cmd) {

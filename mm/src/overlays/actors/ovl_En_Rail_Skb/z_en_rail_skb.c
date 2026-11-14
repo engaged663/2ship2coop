@@ -585,7 +585,21 @@ void func_80B71910(EnRailSkb* this) {
     this->actionFunc = func_80B71954;
 }
 
+// [COOP] Its gravestone is gone: another player's game opened that grave (its switch flag arrived and the gravestone
+// was created again without itself), and a Stalchild of that sequence became ours afterwards. Its work is done: it
+// leaves as it does into the open grave, instead of reading a null gravestone.
+s32 EnRailSkb_CoopGraveGone(EnRailSkb* this) {
+    if (this->unk_22C == NULL) {
+        Actor_Kill(&this->actor);
+        return true;
+    }
+    return false;
+}
+
 void func_80B71954(EnRailSkb* this, PlayState* play) {
+    if (EnRailSkb_CoopGraveGone(this)) { // [COOP]
+        return;
+    }
     s16 sp36 = Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_22C->dyna.actor.world.pos);
     f32 sp30 = Math_Vec3f_DistXZ(&this->actor.world.pos, &this->unk_22C->dyna.actor.world.pos);
 
@@ -604,6 +618,9 @@ void func_80B71A08(EnRailSkb* this) {
 }
 
 void func_80B71A58(EnRailSkb* this, PlayState* play) {
+    if (EnRailSkb_CoopGraveGone(this)) { // [COOP]
+        return;
+    }
     s16 sp36 = Math_Vec3f_Yaw(&this->actor.world.pos, &this->unk_22C->dyna.actor.world.pos);
 
     if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
@@ -638,6 +655,9 @@ void func_80B71B6C(EnRailSkb* this) {
 void func_80B71BB8(EnRailSkb* this, PlayState* play) {
     s32 pad;
     s32 i;
+    if (EnRailSkb_CoopGraveGone(this)) { // [COOP]
+        return;
+    }
     f32 sp34 = Math_Vec3f_DistXZ(&this->actor.world.pos, &this->unk_22C->dyna.actor.world.pos);
 
     if (this->unk_3F2 > 0) {

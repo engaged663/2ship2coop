@@ -437,6 +437,9 @@ Slot ClassifySlot(uint64_t raw, const PointerResolver& resolver) {
     if (raw == 0) {
         return { SlotKind::Zero, 0 };
     }
+    if (resolver.EngineOwned(raw)) {
+        return { SlotKind::Keep, 0 };
+    }
     uint64_t v = 0;
     if (resolver.ExeOffset(raw, v)) {
         return { SlotKind::Exe, v };
@@ -454,6 +457,10 @@ Slot ClassifySlot(uint64_t raw, const PointerResolver& resolver) {
         return { SlotKind::Keep, 0 };
     }
     return { SlotKind::Raw, raw };
+}
+
+bool KeepsOwnSlot(uint64_t current, uint64_t incoming, const PointerResolver& resolver) {
+    return (current != 0 && resolver.EngineOwned(current)) || (incoming != 0 && resolver.EngineOwned(incoming));
 }
 
 } // namespace coop

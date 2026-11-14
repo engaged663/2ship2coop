@@ -6,6 +6,7 @@
 
 #include "z_bg_dblue_waterfall.h"
 #include "objects/object_dblue_object/object_dblue_object.h"
+#include "2s2h/Coop/Actors/CoopEngine.h" // [COOP]
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
@@ -393,6 +394,19 @@ void func_80B84928(BgDblueWaterfall* this, PlayState* play) {
 
     if (sp2C) {
         this->collider.base.acFlags &= ~AC_HIT;
+    }
+
+    // [COOP] Another player froze or melted it (its switch flag arrived; it reads the flag every frame, so it is never
+    // created again): what it shows was set when it was created or after its own change, so it kept showing water
+    // under the ice of the others' game. It changes here the same way, without the cutscene.
+    if (Coop_InWorld() && !sp2C && (sp30 != (this->unk_19F == 255))) {
+        this->unk_1A3 = false;
+        if (sp30) {
+            func_80B84B9C(this, play);
+        } else {
+            func_80B84EF0(this, play);
+        }
+        return;
     }
 
     if ((sp30 == 0) && (this->collider.base.ocFlags2 & OC2_HIT_PLAYER)) {

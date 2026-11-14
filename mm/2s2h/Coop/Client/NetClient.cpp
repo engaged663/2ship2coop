@@ -25,13 +25,14 @@ NetClient::~NetClient() {
     StopThread();
 }
 
-void NetClient::Connect(const std::string& host, uint16_t port, const std::string& nick,
-                        const std::string& password) {
+void NetClient::Connect(const std::string& host, uint16_t port, const std::string& nick, const std::string& password,
+                        int64_t color) {
     json hello = MakeEvent(ev::kHello);
     hello["proto"] = kProtocolVersion;
     hello["nick"] = nick;
     hello["pass"] = password;
     hello["build"] = BuildId();
+    hello["color"] = color;
     Start(host, port, hello);
 }
 

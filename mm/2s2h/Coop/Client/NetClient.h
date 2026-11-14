@@ -28,7 +28,9 @@ class NetClient {
     static NetClient& Get();
     ~NetClient();
 
-    void Connect(const std::string& host, uint16_t port, const std::string& nick, const std::string& password);
+    // color: ours (common/PlayerColor.h packed; -1 = automatic), so everyone sees it from the welcome on
+    void Connect(const std::string& host, uint16_t port, const std::string& nick, const std::string& password,
+                 int64_t color = -1);
     // Sub-project D: this game is one of the server's headless hosts (the token proves it).
     void ConnectHost(const std::string& host, uint16_t port, const std::string& token);
     void Disconnect(const std::string& reason = ""); // reason: what the menu shows ("" = Txt::NetYouLeft)

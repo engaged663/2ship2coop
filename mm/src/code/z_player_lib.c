@@ -5,6 +5,7 @@
 
 #include "global.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Coop/Features/CoopTunics.h" // [COOP]
 
 #include "objects/gameplay_keep/gameplay_keep.h"
 
@@ -2118,7 +2119,10 @@ void Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dL
         lod = 0;
     }
     sPlayerLod = lod;
+    // [COOP] each Link's tunic in their player's color: ours and the co-op puppets (Coop/Features/CoopTunics.cpp)
+    overrideLimbDraw = Coop_TunicWrapOverride(play, actor, playerForm, overrideLimbDraw);
     SkelAnime_DrawFlexLod(play, skeleton, jointTable, dListCount, overrideLimbDraw, postLimbDraw, actor, lod);
+    Coop_TunicDrawDone(); // [COOP]
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

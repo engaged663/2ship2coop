@@ -17,6 +17,7 @@ std::shared_ptr<Ship::IResource> SetPathwaysMMFactory::ReadResource(std::shared_
         auto path = std::static_pointer_cast<PathMM>(
             Ship::Context::GetRawInstance()->GetResourceManager()->LoadResourceProcess(pathFileName.c_str()));
         setPathways->paths.push_back(path->GetPointer());
+        setPathways->pathCounts.push_back((uint32_t)path->pathData.size()); // [COOP]
     }
     return setPathways;
 }

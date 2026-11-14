@@ -1314,11 +1314,65 @@ void EnWiz_UpdateDamage(EnWiz* this, PlayState* play) {
     }
 }
 
+// [COOP] A Wizrobe another game simulated until now can bring a platform list that does not fit this game: a platform
+// pointer its owner had and this game could not resolve (null), or a count/index that arrived before the list it goes
+// with. Its moves and ghosts read platforms[i]->world.pos (Ikana Castle and Inverted Stone Tower Temple crashed). When
+// that happens the list is made again from this game's platforms, as EnWiz_SelectPlatform does.
+static s32 EnWiz_CoopIndexOk(s32 index, s32 count) {
+    return (count == 0) || ((index >= 0) && (index < count));
+}
+
+static void EnWiz_CoopCheckPlatforms(EnWiz* this, PlayState* play) {
+    s32 needed = false;
+    s32 count = 0;
+    s32 i;
+    Actor* prop;
+
+    if ((this->platformCount < 0) || (this->platformCount > ARRAY_COUNT(this->platforms))) {
+        needed = true;
+    }
+    for (i = 0; !needed && (i < this->platformCount); i++) {
+        if ((this->platforms[i] == NULL) || !EnWiz_CoopIndexOk(this->ghostNextPlatformIndex[i], this->platformCount)) {
+            needed = true;
+        }
+    }
+    if (!EnWiz_CoopIndexOk(this->curPlatformIndex, this->platformCount) ||
+        !EnWiz_CoopIndexOk(this->nextPlatformIndex, this->platformCount)) {
+        needed = true;
+    }
+    if (!needed) {
+        return;
+    }
+
+    for (i = 0; i < ARRAY_COUNT(this->platforms); i++) {
+        this->platforms[i] = NULL;
+    }
+    for (prop = play->actorCtx.actorLists[ACTORCAT_PROP].first; prop != NULL; prop = prop->next) {
+        if ((prop->id == ACTOR_EN_WIZ_BROCK) && (count < ARRAY_COUNT(this->platforms))) {
+            this->platforms[count++] = prop;
+        }
+    }
+    this->platformCount = CLAMP(this->platformCount, 0, count);
+    for (i = 0; i < ARRAY_COUNT(this->ghostNextPlatformIndex); i++) {
+        if (!EnWiz_CoopIndexOk(this->ghostNextPlatformIndex[i], this->platformCount)) {
+            this->ghostNextPlatformIndex[i] = this->platformCount - 1;
+        }
+    }
+    if (!EnWiz_CoopIndexOk(this->curPlatformIndex, this->platformCount)) {
+        this->curPlatformIndex = 0;
+    }
+    if (!EnWiz_CoopIndexOk(this->nextPlatformIndex, this->platformCount)) {
+        this->nextPlatformIndex = 0;
+    }
+}
+
 void EnWiz_Update(Actor* thisx, PlayState* play) {
     s32 pad;
     EnWiz* this = (EnWiz*)thisx;
     s32 i;
     s32 j;
+
+    EnWiz_CoopCheckPlatforms(this, play); // [COOP]
 
     if (this->action != EN_WIZ_ACTION_APPEAR) {
         SkelAnime_Update(&this->skelAnime);

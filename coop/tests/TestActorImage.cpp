@@ -106,6 +106,9 @@ class FakeResolver : public PointerResolver {
     bool IsMapped(uint64_t a) const override {
         return a >= 0x50000 && a < 0x60000;
     }
+    bool EngineOwned(uint64_t a) const override { // the light nodes: inside the exe, each game's own
+        return a >= 0x140080000ull && a < 0x140080188ull;
+    }
 };
 
 } // namespace
@@ -168,6 +171,60 @@ TEST_CASE(ActorImageRoundTrip) {
     CHECK_EQ(rb.spawn.pos[2], 3000.f);
     CHECK_EQ(rb.spawn.rot[2], (int16_t)0x4000);
     CHECK_EQ(rb.spawn.parentKey, 2u);
+}
+
+// Key 0 is room 0's first list actor (Gyorg in its lair): a child of it must arrive with that parent, and "no parent"
+// must stay distinct from it.
+TEST_CASE(SpawnParentKeyZeroIsAParent) {
+    ActorImagePacket f = Frame();
+    ActorImageRecord child = Rec(0x80010007u, { Span(0, 0, Raws(1)) });
+    child.hasSpawn = true;
+    child.spawn.actorId = 0x12A;
+    child.spawn.parentKey = 0; // Gyorg
+    ActorImageRecord orphan = Rec(0x80010008u, { Span(0, 0, Raws(1)) });
+    orphan.hasSpawn = true;
+    orphan.spawn.actorId = 0x12A; // parentKey left at its default
+    f.records = { child, orphan };
+    auto d = DecodeAll(EncodeActorImage(f))[0];
+    CHECK_EQ(d.records.size(), (size_t)2);
+    CHECK_EQ(d.records[0].spawn.parentKey, 0u);
+    CHECK_EQ(d.records[1].spawn.parentKey, kNoParentKey);
+    CHECK(SpawnInfo{}.parentKey != 0u);
+}
+
+// A changed slot goes out in kSlotResends records that are really sent: changes made on frames that send nothing (an
+// actor far from every Link sends once every 4 frames) still travel on the next sending frames.
+TEST_CASE(SlotResendCountsSentRecords) {
+    uint8_t left = 0;
+    // Changed on a frame that sends nothing: carried, but nothing counted down
+    CHECK(SlotResend_Carry(left, true, false, false));
+    CHECK_EQ(left, kSlotResends);
+    CHECK(SlotResend_Carry(left, false, false, false));
+    CHECK(SlotResend_Carry(left, false, false, false));
+    CHECK(SlotResend_Carry(left, false, false, false));
+    CHECK_EQ(left, kSlotResends);
+    // The next kSlotResends sending frames carry it, then it stops
+    for (int i = 0; i < kSlotResends; i++) {
+        CHECK(SlotResend_Carry(left, false, false, true));
+    }
+    CHECK_EQ(left, (uint8_t)0);
+    CHECK(!SlotResend_Carry(left, false, false, true));
+    // A full frame always carries everything
+    CHECK(SlotResend_Carry(left, false, true, true));
+    CHECK_EQ(left, (uint8_t)0);
+    // Two fields changed together on a silent frame (a hit's colorFilterParams and timer): the timer keeps changing,
+    // the params do not; both are carried by the same sending frames
+    uint8_t params = 0;
+    uint8_t timer = 0;
+    CHECK(SlotResend_Carry(params, true, false, false) && SlotResend_Carry(timer, true, false, false));
+    for (int frame = 1; frame <= 12; frame++) {
+        bool sending = frame % 4 == 0;
+        bool p = SlotResend_Carry(params, false, false, sending);
+        bool t = SlotResend_Carry(timer, true, false, sending);
+        if (sending && frame <= 4 * kSlotResends) {
+            CHECK(p && t);
+        }
+    }
 }
 
 TEST_CASE(ActorImageSplitsBigActors) {
@@ -346,6 +403,22 @@ TEST_CASE(SlotClassification) {
     CHECK(ClassifySlot(twoFloats, r) == (Slot{ SlotKind::Raw, twoFloats }));
     CHECK(ClassifySlot(0x0000000500000003ull, r) == (Slot{ SlotKind::Raw, 0x0000000500000003ull }));
     CHECK(ClassifySlot(0x70000, r) == (Slot{ SlotKind::Raw, 0x70000 }));
+}
+
+// Great Bay Temple crash (Lights_BindAll): another player's spin attack (EN_M_THUNDER) keeps a LightNode* into the
+// exe's sLightsBuffer. As an Exe slot our copy got the sender's node index: its Destroy removed someone else's light
+// and left its own in our list pointing at freed memory. Such a pointer never travels, and never replaces ours.
+TEST_CASE(EngineOwnedPointersStayLocal) {
+    FakeResolver r;
+    CHECK(ClassifySlot(0x140080000ull, r) == (Slot{ SlotKind::Keep, 0 }));
+    CHECK(ClassifySlot(0x140080170ull, r) == (Slot{ SlotKind::Keep, 0 }));
+    CHECK(ClassifySlot(0x140080188ull, r) == (Slot{ SlotKind::Exe, 0x80188 })); // past the pool: still the exe
+    // The receiver: a slot holding one of our nodes keeps it, and a node is never written over anything.
+    CHECK(KeepsOwnSlot(0x140080018ull, 0x140080030ull, r));
+    CHECK(KeepsOwnSlot(0x140080018ull, 0, r));
+    CHECK(KeepsOwnSlot(0, 0x140080018ull, r));
+    CHECK(!KeepsOwnSlot(0x20010, 0x20020, r));
+    CHECK(!KeepsOwnSlot(0, 0x140000123ull, r));
 }
 
 // A pointer into an actor of the room's list nobody replicates (Bomber Jim's balloon) travels as an Actor slot whose

@@ -2950,6 +2950,7 @@ extern void Player_Action_95(Player* this, PlayState* play);
 
 void Actor_Draw(PlayState* play, Actor* actor) {
     Lights* light;
+    s32 coopFilterOn; // [COOP]
 
     FrameInterpolation_RecordOpenChild(actor, 0);
     OPEN_DISPS(play->state.gfxCtx);
@@ -2991,7 +2992,11 @@ void Actor_Draw(PlayState* play, Actor* actor) {
     gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[actor->objectSlot].segment);
     gSPSegment(POLY_XLU_DISP++, 0x06, play->objectCtx.slots[actor->objectSlot].segment);
 
-    if (actor->colorFilterTimer != 0) {
+    // [COOP] A filter with no duration divides by zero in func_800AE434: a copy whose timer arrived before the
+    // colorFilterParams of the same hit (they sit in different 8-byte slots of its memory) is drawn without it.
+    coopFilterOn = (actor->colorFilterTimer != 0) && (COLORFILTER_GET_DURATION(actor->colorFilterParams) != 0);
+
+    if (coopFilterOn) {
         s32 colorFlag = COLORFILTER_GET_COLORFLAG(actor->colorFilterParams);
         Color_RGBA8 actorDefaultHitColor = { 0, 0, 0, 255 };
 
@@ -3022,7 +3027,7 @@ void Actor_Draw(PlayState* play, Actor* actor) {
         GameInteractor_ExecuteOnActorDraw(actor);
     }
 
-    if (actor->colorFilterTimer != 0) {
+    if (coopFilterOn) { // [COOP] the same test as above
         if (actor->colorFilterParams & COLORFILTER_BUFFLAG_XLU) {
             func_800AE8EC(play);
         } else {

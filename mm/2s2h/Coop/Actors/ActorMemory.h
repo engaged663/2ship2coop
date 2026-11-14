@@ -20,8 +20,10 @@ void ActorMemory_BuildLocalMask(TrackedActor& t);
 bool ActorMemory_IsLocalSlot(const TrackedActor& t, size_t region, size_t slot);
 // Writes a received slot into the copy (translating pointers; "keep" restores its value after Init).
 void ActorMemory_Apply(TrackedActor& t, const SlotSpan& span);
-// Restores every slot of this copy that points into that memory (an actor or a puppet being destroyed).
-void ActorMemory_ForgetPointersTo(TrackedActor& copy, const void* start, size_t size);
+// That memory is going away (an actor or a puppet being destroyed): its Init's values pointing there are forgotten
+// (a pointer that no longer resolves here falls back to them), and, in a copy (live), every slot pointing there is
+// restored. Our own actors' live memory is theirs to handle.
+void ActorMemory_ForgetPointersTo(TrackedActor& t, const void* start, size_t size, bool live);
 
 // For other things that travel like an actor's memory (an effect's init data: Features/EffectEcho.cpp).
 // A raw 8-byte value as it would travel (pointers into the exe, a replicated actor or a Link translated; one into an

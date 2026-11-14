@@ -2,6 +2,7 @@
 
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Features/PlayerColors.h"
 #include "2s2h/Coop/Group/Group.h"
 #include "2s2h/Coop/I18n/CoopText.h"
 #include "2s2h/Coop/O2r/O2r.h"
@@ -33,6 +34,11 @@ const ImVec4 kRed = ImVec4(1.0f, 0.45f, 0.45f, 1.0f);
 
 void SaveCVars() {
     Ship::Context::GetRawInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
+}
+
+ImVec4 ColorOf(uint8_t playerId) {
+    coop::Rgb c = PlayerColors_Shown(playerId);
+    return ImVec4(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, 1.0f);
 }
 
 void DrawConnection() {
@@ -94,12 +100,13 @@ void DrawPlayers() {
         return;
     }
     ImGui::SeparatorText(Tc(Txt::MenuPlayers));
-    ImGui::TextColored(kGreen, "%s %s", Session_LocalNick().c_str(), Tc(Txt::TagYou));
+    // [COOP] each nick in that player's color (Features/PlayerColors.h)
+    ImGui::TextColored(ColorOf(Session_LocalId()), "%s %s", Session_LocalNick().c_str(), Tc(Txt::TagYou));
     for (const auto& [id, player] : Session_Players()) {
-        if (player.sceneName.empty()) {
-            ImGui::Text("%s", player.nick.c_str());
-        } else {
-            ImGui::Text("%s - %s", player.nick.c_str(), player.sceneName.c_str());
+        ImGui::TextColored(ColorOf(id), "%s", player.nick.c_str());
+        if (!player.sceneName.empty()) {
+            ImGui::SameLine();
+            ImGui::Text("- %s", player.sceneName.c_str());
         }
     }
 }
@@ -170,6 +177,7 @@ void CoopMenu_Draw() {
     DrawConnection();
     O2rMenu_Draw();
     DrawPlayers();
+    PlayerColors_DrawMenu();
     DrawWorld();
     GroupMenu_Draw();
     RoomMenu_Draw();

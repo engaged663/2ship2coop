@@ -218,7 +218,7 @@ TEST_CASE(EventSizeLimitsDependOnDirection) {
     CHECK(GetBool(json{ { "b", true } }, "b"));
     CHECK(!GetBool(json{ { "b", 1 } }, "b"));
     CHECK(GetBool(json{ { "b", 1 } }, "c", true));
-    CHECK_EQ(kProtocolVersion, 21u); // v21: grabs; v20: held item scales in the pose, Scene slots into path points;
+    CHECK_EQ(kProtocolVersion, 22u); // v22: players' colors; v21: grabs; v20: held item scales in the pose, Scene slots into path points;
                                      // v19: shared drops;
                                      // v18: saving; v17: activity rooms; v16: continuous sounds, songs; v15: total sync;
                                      // v14: game mods (.o2r); v13: mods; v12: effects, results, talk values;

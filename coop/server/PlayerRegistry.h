@@ -1,5 +1,6 @@
 #pragma once
 // Every connected peer, from the moment ENet connects (handshaking) until it disconnects.
+#include "common/PlayerColor.h"
 #include "common/Protocol.h"
 
 #include <cstdint>
@@ -52,6 +53,17 @@ struct RemoteClient {
     TokenBucket streamBudget{ kStreamBurst, kStreamPerSecond };
     TokenBucket locBudget{ kLocBurst, kLocPerSecond };
     bool locDirty = false; // a location change is waiting for locBudget to be broadcast
+    // Its color (common/PlayerColor.h; Handlers/ColorHandlers.cpp): kNoColor = never picked (the games use its id's)
+    int64_t color = kNoColor;
+    bool colorDirty = false; // a change is waiting for colorBudget to be broadcast
+    TokenBucket colorBudget{ kColorBurst, kColorPerSecond };
+    // Where it is on its minimap (Handlers/MapHandlers.cpp): -1 = on no map
+    int32_t mapId = -1;
+    double mapX = 0.0;
+    double mapY = 0.0;
+    int16_t mapYaw = 0;
+    bool mapDirty = false; // a change is waiting for mapBudget to be broadcast
+    TokenBucket mapBudget{ kMapPosBurst, kMapPosPerSecond };
 
     // Shared world (sub-project B)
     bool inWorld = false;     // playing in the server's world: gets its clock and changes, counts for votes

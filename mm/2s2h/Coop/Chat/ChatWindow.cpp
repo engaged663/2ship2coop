@@ -3,6 +3,7 @@
 #include "ChatModel.h"
 
 #include "2s2h/Coop/Client/Session.h"
+#include "2s2h/Coop/Features/PlayerColors.h"
 
 #include "2s2h/ShipInit.hpp"
 
@@ -172,6 +173,18 @@ void ChatWindow::DrawLines(bool open) {
         ImVec4 color = ColorFor(line.kind);
         if (!open && age > kLineLifetime - kFadeTime) {
             color.w = (float)std::max(0.0, (kLineLifetime - age) / kFadeTime);
+        }
+        if (line.nickLen > 0 && line.nickLen < line.text.size() && PlayerColors_ChatOn()) {
+            // [COOP] "<nick>" in the sender's color (Features/PlayerColors.h), the rest as always
+            coop::Rgb nick = PlayerColors_ShownOf(line.nickColor);
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(nick.r / 255.0f, nick.g / 255.0f, nick.b / 255.0f, color.w));
+            ImGui::TextUnformatted(line.text.c_str(), line.text.c_str() + line.nickLen);
+            ImGui::PopStyleColor();
+            ImGui::SameLine(0.0f, 0.0f);
+            ImGui::PushStyleColor(ImGuiCol_Text, color);
+            ImGui::TextWrapped("%s", line.text.c_str() + line.nickLen);
+            ImGui::PopStyleColor();
+            continue;
         }
         ImGui::PushStyleColor(ImGuiCol_Text, color);
         ImGui::TextWrapped("%s", line.text.c_str());

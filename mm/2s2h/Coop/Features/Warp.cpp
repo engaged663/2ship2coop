@@ -7,6 +7,7 @@
 #include "common/PlayerState.h"
 
 #include <cmath>
+#include <cstdlib>
 
 extern "C" {
 #include "functions.h"
@@ -19,6 +20,22 @@ namespace coop::client {
 bool Warp_IsValidEntrance(uint16_t entrance) {
     uint32_t sceneIndex = entrance >> 9;
     return sceneIndex < ENTR_SCENE_MAX && sSceneEntranceTable[sceneIndex].table != nullptr;
+}
+
+uint16_t Warp_EntranceOfScene(uint16_t entrance, int16_t sceneId) {
+    if (sceneId < 0) {
+        return entrance;
+    }
+    if (Warp_IsValidEntrance(entrance) && Entrance_GetSceneIdAbsolute(Entrance_Create(entrance >> 9, 0, 0)) == sceneId) {
+        return entrance;
+    }
+    for (uint32_t i = 0; i < ENTR_SCENE_MAX; i++) {
+        EntranceTableEntry** table = sSceneEntranceTable[i].table;
+        if (table != nullptr && table[0] != nullptr && std::abs((int)table[0][0].sceneId) == sceneId) {
+            return (uint16_t)Entrance_Create(i, 0, 0);
+        }
+    }
+    return kNoWarpEntrance;
 }
 
 bool Warp_IsValid(const WarpTarget& t) {
@@ -132,6 +149,10 @@ void Warp_SetRespawn(const WarpTarget& t) {
     gSaveContext.respawn[RESPAWN_MODE_DOWN].tempSwitchFlags = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].unk_18 = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].tempCollectFlags = 0;
+    // Where this scene was entered: a game over (its "continue") and a Wallmaster go back there. Player_Init only
+    // copies it from DOWN on a normal entrance (respawnFlag 0), never on this one: after entering the world at the
+    // saved spot, or a teleport, it kept whatever the save had (the opening, where Link chases the Skull Kid).
+    gSaveContext.respawn[RESPAWN_MODE_TOP] = gSaveContext.respawn[RESPAWN_MODE_DOWN];
     gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK_FAST;
     gSaveContext.respawnFlag = -8;
 }

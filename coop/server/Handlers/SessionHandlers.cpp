@@ -3,6 +3,7 @@
 #include "server/Registry.h"
 #include "server/Server.h"
 
+#include "common/PlayerColor.h"
 #include "common/Text.h"
 
 namespace coop::server {
@@ -33,7 +34,7 @@ bool BuildAccepted(Server& server, RemoteClient& client, const std::string& buil
 }
 
 json PlayerSummary(const RemoteClient& c) {
-    return { { "id", c.id }, { "nick", c.nick }, { "scene", c.scene }, { "sceneName", c.sceneName } };
+    return { { "id", c.id }, { "nick", c.nick }, { "scene", c.scene }, { "sceneName", c.sceneName }, { "color", c.color } };
 }
 
 // The server's own headless game (sub-project D): it must show the server's secret. It is not a player: no slot,
@@ -114,6 +115,8 @@ void OnHello(Server& server, RemoteClient& client, const json& ev) {
     client.id = server.Players().AllocateId();
     client.nick = nick;
     client.welcomed = true;
+    int64_t color = GetInt(ev, "color", kNoColor); // its color (PlayerColor.h): a wrong one is just "none"
+    client.color = IsValidPackedColor(color) ? color : kNoColor;
 
     json players = json::array();
     for (RemoteClient* other : server.Players().Welcomed()) {
@@ -136,6 +139,7 @@ void OnHello(Server& server, RemoteClient& client, const json& ev) {
     json join = MakeEvent(ev::kJoin);
     join["id"] = client.id;
     join["nick"] = client.nick;
+    join["color"] = client.color;
     server.Broadcast(join, &client);
     server.Log().Info(Tr(Msg::PlayerJoined, { client.nick, client.ip, std::to_string(client.id) }));
     if (server.Mods().Wants(ModEvent::PlayerJoin)) {

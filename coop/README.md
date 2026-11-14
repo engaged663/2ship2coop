@@ -45,6 +45,8 @@ they carry, the scene's flags live, its machinery and the ocarina: see "Total sy
 | `I18n.h/.cpp` + `I18nMessages.inc` | languages (es/en/zh/ru): `Tr(Msg::X, {args})`; every server text, one line per text |
 | `Transport.h/.cpp` | ENet: channel 0 reliable (JSON), channel 1 unreliable (poses) |
 | `Hex.*` | bytes ↔ hex |
+| `PlayerColor.*` | players' colors: one packed integer on the wire (main, second, effect, speed; -1 = none), the palette and the default by id, the effects in time (`ShownPlayerColor`) |
+| `TunicSplit.*` | each Link's tunic in their color: the copy of a tunic display list with an end at every color, the color with the original's LOD/alpha |
 | `WorldFields.*` | world schema: name, size and type of each field |
 | `WorldOps.*` | world changes: differences, validated apply, JSON; server and game |
 | `Clock.*` | 3-day clock: abs ↔ day/hour, format, rule for following the game |
@@ -77,6 +79,8 @@ they carry, the scene's flags live, its machinery and the ocarina: see "Total sy
 | `Handlers/SessionHandlers.cpp` | `hello` → `welcome`/`reject`, `leave` |
 | `Handlers/ChatHandlers.cpp` | `chat`, `cmd` |
 | `Handlers/StateHandlers.cpp` | forwarding poses only to the same scene (rate-limited, impossible poses discarded), `loc` |
+| `Handlers/ColorHandlers.cpp` | `color`: a player's color to the others (rate-limited: the latest one waits for the budget) |
+| `Handlers/MapHandlers.cpp` | `map_pos`: where a player is on their minimap, to the others (same rate rule) |
 | `Handlers/GiftHandlers.cpp` | `gift_paid`, `gift_recv`, refunds, expiry |
 | `Commands/*.cpp` | one file per command or group: help, list, pm, tp, gift, kick/ban/unban/banlist, op/deop, say/stop, stats |
 | `World/SharedWorld.h` + `SharedWorld.cpp` | enter, create, leave, forwarding changes, inventories, saving, when the clock runs |
@@ -173,6 +177,9 @@ Outside `server/`: `sdk/` (what whoever writes a plugin needs: `coop_plugin.h`, 
 | `Features/Warp.*` | respawn warp: /tp and entering the world |
 | `Features/Gift.cpp` | pay / receive / refund rupees |
 | `Features/SelfNameTag.cpp` | optional own nick |
+| `Features/PlayerColors.*` | players' colors: the menu section, sending ours (`hello`, `color`), the nicks above the Links painted every frame (`NameTag_SetTextColor`), chat and player list |
+| `Features/CoopMinimap.*` | the other players on the minimap: an arrow of their color, from their puppet or, in another scene with the same map (Clock Town), from `map_pos` (`z_map_disp.c` calls it) |
+| `Features/CoopTunics.*` | each Link's tunic in their player's color: per-frame copies of the tunic pieces with that Link's color, through `Player_DrawImpl`'s limb callback (`z_player_lib.c` calls it) |
 | `Features/DebugBoot.cpp` | quick test: starts in Clock Town with the debug save; field test (`Debug.FieldSelfTest`) |
 | `World/FieldTable.*` | field ↔ save memory (`static_assert`), player data ↔ `SaveLayout.h kPlayerFields`, every `SaveLayout.h` constant checked |
 | `World/ImportCheck.cpp` | `gCoop.Debug.FieldSelfTest`: the live save through 2 Ship's JSON and `SaveImport` must equal `FieldTable` |
@@ -519,7 +526,7 @@ Spec `docs/superpowers/specs/2026-10-02-coop-mods-api-design.md`. Guide for mod 
 
 ## Client CVars (`2ship2harkinian.json` → `CVars.gCoop`)
 `Nick`, `Host`, `Port`, `Password`, `AutoConnect`, `AutoEnter` (enter the server's world on connecting),
-`ShowOwnNameTag`, `Chat.Scale`, `Chat.Opacity`, `Debug.BootToClockTown`, `Debug.BootEntrance` (entrance; 55296 =
+`ShowOwnNameTag`, `Chat.Scale`, `Chat.Opacity`, colors (`Color.Custom` 0 = automatic by id, `Color.Main` / `Color.Second` 0xRRGGBB, `Color.Fx` 0 solid / 1 pulse / 2 two colors / 3 rainbow / 4 blink, `Color.Speed` 0-2, `Color.NameTags` and `Color.Chat` 1 by default), minimap (`Minimap.Players` 1, `Minimap.OwnColor` 0), tunics (`Tunic.Players` 1, `Tunic.Mine` 1), `Debug.BootToClockTown`, `Debug.BootEntrance` (entrance; 55296 =
 South Clock Town, 54784 = North), `Debug.GrantHeartOnEnter` (test: +1 container on entering, once per run),
 `Debug.FieldSelfTest` (test: reading and rewriting all the fields must not change anything). Group (1 = yes, the default):
 `Group.Dialogues`, `Group.Cutscenes`, `Group.Minigames`, `Group.Rewards`, `Group.CinemaActors` (follow the cutscene
@@ -621,6 +628,15 @@ drops it (props, grass, enemies, bosses, NPCs, the scene), is **one item for the
 - Switch: `gCoop.Sync.Drops` / `server.json` `drops` (off = each game its own enemy drops, as before). Menu: "Ver los
   objetos que caen cerca". Protocol v19 (`item`, `item_take`, `item_gone`, `item_rest`, `items`; `prop` child -3 is
   invalid now). Limits: `kItemBurst/PerSecond`, `kMaxItemsPerStage`, `kMaxTakenItemsPerStage`.
+
+## Players' colors and the minimap
+
+Each player has a color (F1 → Co-op → *Mi color y el minimapa*): a palette, any RGB color, and an effect (pulse, two colors smooth or blinking, rainbow) with its speed. Who never picks one gets their id's (blue, red, orange, purple...: `DefaultPlayerColor`). It paints their Link's tunic, their nick above their Link, their arrow on the others' minimap, their nick in the chat and in the player list.
+
+- **Wire** (`common/PlayerColor.h`): one integer, `main | second << 24 | fx << 48 | speed << 51` (under 2^53), -1 = none. **Protocol v22**: `hello` gains `color`; `welcome.players[]` and `join` carry it; `color` C→S `{color}`, S→C `{id, color}` to everyone else. The server checks it (`IsValidPackedColor`: a wrong one in the hello is just none) and keeps the last one (`RemoteClient::color`); over `kColorBurst`/`kColorPerSecond` only the latest waits. The game sends at most 4 a second while a picker is dragged.
+- **Game**: `Features/PlayerColors.cpp` (menu, `FrameEnd`: send + `NameTag_SetTextColor` on the puppets' `coop` tags and our `coop-self` one), `Features/CoopMinimap.cpp` (`Coop_MinimapDrawPlayers` before the actor lists of `MapDisp_Minimap_DrawActors`: each visible puppet through `MapDisp_Minimap_DrawActorIcon`, where `Coop_MinimapArrow` turns it into an arrow of its color pointing at `shape.rot.y`; our own arrow keeps 200,255,0 unless `Minimap.OwnColor`). Players without a visible puppet (another scene, another room) are drawn from `map_pos` instead: each game sends where its Link is on its own minimap (`MapDisp_Coop_WorldToMap`: the room's texture id + texture coordinates; at most 5 a second while moving, every 2 s anyway, -1 on no map) and a game whose current room shows the same texture (`MapDisp_Coop_MapToWorld`; Clock Town's five scenes share map 0x105) draws it, smoothed, through a stand-in actor. Server `Handlers/MapHandlers.cpp` (`kMapPosBurst`/`kMapPosPerSecond`, latest wins).
+- **Tunics** (game only, no protocol): `Features/CoopTunics.cpp`. The tunic's color is one `SetPrimColor` (30,105,27) inside 9 display lists of `object_link_child` (the 11 places 2Ship's *Human Tunic* cosmetic patches), shared by every Link. We keep a copy of each list with an end-of-list at every color (`common/TunicSplit.h`, `BuildTunicCopy`) and, while `Player_DrawImpl` draws a Link (`Coop_TunicWrapOverride` wraps its limb callback), swap each tunic piece for a list made in that frame's graphics memory: `call(copy) · SetPrimColor(color) · call(copy after the place) · end`, the color with the original's LOD fraction and alpha (`TunicPrimColor`). The shared lists are never patched, so 2Ship's cosmetics (its call at the place is read for its LOD) and .o2r mods keep working; a list that changes (cosmetic toggled, .o2r loaded) is copied again (the previous copy lives one frame more). Human form only (Deku/Goron/Zora/Fierce Deity have the green in their textures); custom models and Play as Kafei are left alone. Switches `gCoop.Tunic.Players` (puppets) and `gCoop.Tunic.Mine` (our Link), 1 by default, only while connected.
+- **Tests**: `coop/tests/TestPlayerColor.cpp` (packing, defaults, effects, hello/welcome/join, flood), `TestMapPos.cpp` (relay, validation, flood), `TestTunicSplit.cpp` (the copy and the color).
 
 ## Server security
 - Malformed or unknown packets are logged (cleaned, only the first 3) and at 50 the client is kicked.

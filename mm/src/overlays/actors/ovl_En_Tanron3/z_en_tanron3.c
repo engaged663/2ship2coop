@@ -121,10 +121,23 @@ void EnTanron3_Init(Actor* thisx, PlayState* play) {
     this->currentRotationAngle = Rand_ZeroFloat(500000.0f);
     this->waterSurfaceYPos = 430.0f;
     sGyorg = (Boss03*)this->actor.parent;
+    if (sGyorg == NULL) {
+        // [COOP] A fish another game created may come without its parent: it is still this game's Gyorg (with a null
+        // here, the next fish that went away crashed the game in Gyorg's Lair)
+        Actor* boss;
+        for (boss = play->actorCtx.actorLists[ACTORCAT_BOSS].first; boss != NULL; boss = boss->next) {
+            if ((boss->id == ACTOR_BOSS_03) && (boss->params == GYORG_PARAM_DEFAULT) && (boss->update != NULL)) {
+                sGyorg = (Boss03*)boss;
+                break;
+            }
+        }
+    }
 }
 
 void EnTanron3_Destroy(Actor* thisx, PlayState* play) {
-    sGyorg->numSpawnedSmallFish--;
+    if (sGyorg != NULL) { // [COOP]
+        sGyorg->numSpawnedSmallFish--;
+    }
 }
 
 void EnTanron3_SpawnBubbles(EnTanron3* this, PlayState* play) {
@@ -394,6 +407,10 @@ void EnTanron3_Update(Actor* thisx, PlayState* play) {
     EnTanron3* this = (EnTanron3*)thisx;
     s16 i;
     Vec3f splashPos;
+
+    if (sGyorg == NULL) { // [COOP] no Gyorg in this game to swim around (see EnTanron3_Init)
+        return;
+    }
 
     if (KREG(63) == 0) {
         this->timer++;

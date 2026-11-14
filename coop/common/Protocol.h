@@ -6,7 +6,9 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 21; // v21: grabs ("grab"; "hurt" kind "pain"; the pose carries "held");
+constexpr uint32_t kProtocolVersion = 22; // v22: players' colors (hello/welcome/join "color", event "color":
+                                          // common/PlayerColor.h) and "map_pos" (the minimap in other scenes);
+                                          // v21: grabs ("grab"; "hurt" kind "pain"; the pose carries "held");
                                           // v20: the pose ends with unk_B08/unk_B0C (bow string, Deku stick);
                                           // a Scene slot may point into a path's points (Slot.h);
                                           // v19: shared drops (item, item_take, item_gone, item_rest, items;
@@ -152,6 +154,15 @@ constexpr int kRoomCountdownMs = 3000;    // everyone is ready: the room runs th
 constexpr int kRoomLobbyMs = 600000;      // a room waiting this long for its confirmations closes (its director's
                                           // game waits meanwhile)
 constexpr int kRoomLingerMs = 120000;     // a room whose activity ended stays this long: prizes, chat, another round
+// Players' colors (common/PlayerColor.h, server Handlers/ColorHandlers.cpp)
+constexpr int kColorBurst = 6;            // color broadcasts per player: burst...
+constexpr double kColorPerSecond = 2.0;   // ...and sustained rate (the menu sends at most 4 a second; only the
+                                          // latest one waits for the budget)
+// Where each player is on their minimap (server Handlers/MapHandlers.cpp, game Features/CoopMinimap.cpp)
+constexpr int kMapPosBurst = 10;          // map_pos broadcasts per player: burst...
+constexpr double kMapPosPerSecond = 6.0;  // ...and sustained rate (games send at most 5 a second; the latest one waits)
+constexpr int kMaxMapId = 0xFFFF;         // MapDataRoom.mapId is a u16 (0xFFFF = MAP_DATA_NO_MAP)
+constexpr double kMaxMapCoord = 4096.0;   // texture coordinates of a minimap (the biggest texture is 1024 wide)
 
 enum Channel : uint8_t {
     kChannelEvents = 0, // reliable + ordered, JSON events
@@ -162,8 +173,10 @@ enum Channel : uint8_t {
 
 // Event names (JSON field "t"). Direction and fields are documented in coop/README.md.
 namespace ev {
-inline constexpr const char* kHello = "hello";             // C->S proto, nick, pass, build (+ host, token: the server's own game)
-inline constexpr const char* kWelcome = "welcome";         // S->C id, nick, motd, players[], o2r[{name, size, sha256}]
+inline constexpr const char* kHello = "hello";             // C->S proto, nick, pass, build, color (PlayerColor.h; -1 =
+                                                           // none) (+ host, token: the server's own game)
+inline constexpr const char* kWelcome = "welcome";         // S->C id, nick, motd, players[{id, nick, scene, sceneName,
+                                                           // color}], o2r[{name, size, sha256}]
                                                            // (the game mods to have first: only if there are some),
                                                            // sync{sounds, ambient, playerObjects, sceneFlags,
                                                            // sceneObjects, ocarina} (what this server shares),
@@ -171,7 +184,12 @@ inline constexpr const char* kWelcome = "welcome";         // S->C id, nick, mot
 inline constexpr const char* kLang = "lang";               // S->C lang (/lang changed the server's language)
 inline constexpr const char* kReject = "reject";           // S->C reason
 inline constexpr const char* kKicked = "kicked";           // S->C reason
-inline constexpr const char* kJoin = "join";               // S->C id, nick
+inline constexpr const char* kJoin = "join";               // S->C id, nick, color
+inline constexpr const char* kColor = "color";             // C->S color (PlayerColor.h packed; -1 = none); S->C id, color
+inline constexpr const char* kMapPos = "map_pos";          // C->S map (minimap texture id; -1 = on no map), x, y (point on
+                                                           // that texture), yaw; S->C + id, to everyone else: a game
+                                                           // in another scene that shows the same map (the five scenes
+                                                           // of Clock Town share one) draws the arrow there
 inline constexpr const char* kLeave = "leave";             // S->C id, nick, reason
 inline constexpr const char* kLoc = "loc";                 // C->S scene, room, layer, entrance, sceneName, timeStopped, busy; S->C id, scene, sceneName, entrance
 inline constexpr const char* kChat = "chat";               // C->S text; S->C from, text
