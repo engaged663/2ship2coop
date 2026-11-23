@@ -6,6 +6,7 @@
 #include "2s2h/Coop/Client/Session.h"
 #include "2s2h/Coop/Features/Cinema.h"
 #include "2s2h/Coop/Features/Ending.h"
+#include "2s2h/Coop/Features/Warp.h"
 #include "2s2h/Coop/Puppet/PoseCapture.h"
 #include "2s2h/Coop/Room/Room.h"
 
@@ -81,6 +82,10 @@ void LocationTick() {
     ev["sceneName"] = name != nullptr ? name : "";
     ev["timeStopped"] = timeStopped;
     ev["busy"] = busy;
+    coop::GrottoReturn grotto;
+    if (coop::client::Warp_CurrentGrotto(grotto)) {
+        ev["grotto"] = coop::GrottoReturnToJson(grotto); // a teleport to us needs our way out (Teleport.cpp)
+    }
     coop::client::NetClient::Get().SendEvent(ev);
 }
 

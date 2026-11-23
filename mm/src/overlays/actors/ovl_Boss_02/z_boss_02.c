@@ -1324,28 +1324,39 @@ void Boss02_Twinmold_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void Boss02_BattleHandler_Update(Actor* thisx, PlayState* play) {
-    Boss02* this = (Boss02*)thisx;
-
-    this->giantModeScaleFactor = sGiantModeScaleFactor;
+// [COOP] The arena's sandstorm, sky and light for its mode (warpOut: the boss is beaten). Also run by a game that
+// follows another game's Twinmold (Boss02_CoopFollow), whose battle handler is a copy that never updates.
+void Boss02_SetArenaEnv(Boss02* this, PlayState* play, s32 warpOut) {
     play->envCtx.sandstormState = SANDSTORM_D;
 
-    if (sBlueWarp != NULL) {
-        this->fogNear = KREG(23) + -15.0f;
+    if (warpOut) {
         D_801F4E30 = 0;
         play->envCtx.lightSettingOverride = 1;
         play->skyboxId = SKYBOX_NORMAL_SKY;
     } else if (!sIsInGiantMode) {
-        this->fogNear = 0.0f;
         D_801F4E30 = this->unk_1D7C;
         play->envCtx.lightSettingOverride = 0;
         play->skyboxId = SKYBOX_2;
     } else {
-        this->fogNear = KREG(23) + -15.0f;
         D_801F4E30 = ((KREG(24) * 0.1f) + 1.0f) * this->unk_1D7C;
         play->envCtx.lightSettingOverride = 1;
         play->skyboxId = SKYBOX_NORMAL_SKY;
     }
+}
+
+void Boss02_BattleHandler_Update(Actor* thisx, PlayState* play) {
+    Boss02* this = (Boss02*)thisx;
+
+    this->giantModeScaleFactor = sGiantModeScaleFactor;
+
+    if (sBlueWarp != NULL) {
+        this->fogNear = KREG(23) + -15.0f;
+    } else if (!sIsInGiantMode) {
+        this->fogNear = 0.0f;
+    } else {
+        this->fogNear = KREG(23) + -15.0f;
+    }
+    Boss02_SetArenaEnv(this, play, sBlueWarp != NULL); // [COOP]
 
     Math_ApproachS(&this->unk_1D7C, this->unk_1D7E, 1, 3);
 
@@ -1365,6 +1376,141 @@ void Boss02_BattleHandler_Update(Actor* thisx, PlayState* play) {
     Boss02_UpdateEffects(play);
     func_809DEAC4(this, play);
     Boss02_HandleGiantsMaskCutscene(this, play);
+}
+
+// [COOP] A point of the normal arena in the giant one (giant), or back: the giant arena sits 3150 units above the
+// normal one at a tenth of its size (as Boss02_HandleGiantsMaskCutscene moves everything).
+void Boss02_CoopToArena(Vec3f* pos, u8 giant) {
+    if (giant) {
+        pos->x *= 0.1f;
+        pos->y = (pos->y * 0.1f) + 3150.0f;
+        pos->z *= 0.1f;
+    } else {
+        pos->x *= 10.0f;
+        pos->y = (pos->y - 3150.0f) * 10.0f;
+        pos->z *= 10.0f;
+    }
+}
+
+// [COOP] This game's own things to the arena of the other size, as Boss02_HandleGiantsMaskCutscene moves them: our
+// Link (and the camera with him), the boss warp, the arena itself, our heart container. Twinmold and the arena's props
+// are copies: their game sends them already moved.
+void Boss02_CoopSwitchArena(PlayState* play, u8 giant) {
+    Player* player = GET_PLAYER(play);
+    Camera* camera = Play_GetCamera(play, CAM_ID_MAIN);
+    DoorWarp1* warp = sBlueWarp;
+    Actor* actorIter;
+    f32 scale = giant ? 0.1f : 10.0f;
+    s32 cat;
+
+    sIsInGiantMode = giant;
+    sGiantModeScaleFactor = giant ? 0.1f : 1.0f;
+
+    if (warp == NULL) { // made by the game that beat Twinmold (an echo of its warp): no static points at ours
+        for (actorIter = play->actorCtx.actorLists[ACTORCAT_ITEMACTION].first; actorIter != NULL;
+             actorIter = actorIter->next) {
+            if ((actorIter->id == ACTOR_DOOR_WARP1) && !Coop_IsCopy(actorIter)) {
+                warp = (DoorWarp1*)actorIter;
+                break;
+            }
+        }
+    }
+    if (warp != NULL) {
+        warp->unk_203 = giant ? 1 : 0;
+        warp->unk_204 = giant ? 0.1f : 1.0f;
+        warp->dyna.actor.world.pos.y = giant ? 3155.0f : 60.0f;
+    }
+
+    Boss02_CoopToArena(&player->actor.world.pos, giant);
+    if (!giant && (warp != NULL) &&
+        ((SQ(player->actor.world.pos.z) + SQ(player->actor.world.pos.x)) < SQ(60.0f))) {
+        player->actor.world.pos.z = 60.0f; // not right on the warp
+        player->actor.world.pos.x = 60.0f;
+    }
+    player->fallStartHeight = player->actor.world.pos.y;
+    player->actor.home.pos = player->actor.world.pos;
+    player->actor.prevPos = player->actor.world.pos;
+    player->stateFlags1 &= ~PLAYER_STATE1_100; // our Link waited on the mask: its game answered
+
+    if (camera != NULL) {
+        Vec3f at = camera->at;
+        Vec3f eye = camera->eye;
+
+        Boss02_CoopToArena(&at, giant);
+        Boss02_CoopToArena(&eye, giant);
+        Play_SetCameraAtEye(play, CAM_ID_MAIN, &at, &eye);
+    }
+
+    for (actorIter = play->actorCtx.actorLists[ACTORCAT_BG].first; actorIter != NULL; actorIter = actorIter->next) {
+        if (actorIter->id == ACTOR_BG_INIBS_MOVEBG) {
+            Actor_Kill(actorIter);
+        }
+    }
+    Actor_Spawn(&play->actorCtx, play, ACTOR_BG_INIBS_MOVEBG, 0, giant ? 3150.0f : 0.0f, 0, 0, 0, 0, giant);
+
+    for (cat = 0; cat < ACTORCAT_MAX; cat++) {
+        for (actorIter = play->actorCtx.actorLists[cat].first; actorIter != NULL; actorIter = actorIter->next) {
+            if (((actorIter->id != ACTOR_EN_TANRON5) && (actorIter->id != ACTOR_ITEM_B_HEART)) ||
+                Coop_IsCopy(actorIter)) {
+                continue;
+            }
+            if (giant) {
+                actorIter->world.pos.y = (actorIter->world.pos.y * 0.1f) + 3150.0f;
+                actorIter->floorHeight = (actorIter->floorHeight * 0.1f) + 3150.0f;
+            } else {
+                actorIter->world.pos.y = (actorIter->world.pos.y - 3150.0f) * 10.0f;
+                actorIter->floorHeight = (actorIter->floorHeight - 3150.0f) * 10.0f;
+            }
+            actorIter->world.pos.x *= scale;
+            actorIter->world.pos.z *= scale;
+            actorIter->speed *= scale;
+            actorIter->velocity.x *= scale;
+            actorIter->velocity.y *= scale;
+            actorIter->velocity.z *= scale;
+            actorIter->gravity *= scale;
+            actorIter->terminalVelocity *= scale;
+            actorIter->scale.x *= scale;
+            actorIter->scale.y *= scale;
+            actorIter->scale.z *= scale;
+            if (actorIter->id == ACTOR_ITEM_B_HEART) {
+                ((ItemBHeart*)actorIter)->baseScale *= scale;
+            }
+        }
+    }
+}
+
+// [COOP] Every frame in Twinmold's Lair (Features/BossArenas.cpp). When another game runs Twinmold our battle handler is
+// its copy and never updates: the Giant's Mask waited forever there (only that game's Link grew; ours stayed in the
+// "putting it on" animation). The arena is one for everyone: its size is the one that game has (it serves our mask:
+// Coop_GiantMaskRequested), and we follow it with our own Link, sky and light; during its cutscene our Link grows or
+// shrinks with its Link.
+static u8 sCoopFollowsScale = false;
+
+void Boss02_CoopFollow(PlayState* play) {
+    Boss02* handler = sTwinmoldBattleHandler;
+    Player* player = GET_PLAYER(play);
+    u8 giant;
+
+    if ((handler == NULL) || !Coop_IsCopy(&handler->actor)) {
+        sCoopFollowsScale = false;
+        return; // ours (the original code runs), or none
+    }
+    giant = handler->giantModeScaleFactor < 0.5f; // its sGiantModeScaleFactor: 0.1 giant, 1 normal
+    if (giant != sIsInGiantMode) {
+        Boss02_CoopSwitchArena(play, giant);
+    }
+    // Beaten there: its fog says so too (0 only in the normal arena during the fight)
+    Boss02_SetArenaEnv(handler, play, (sBlueWarp != NULL) || (!sIsInGiantMode && (handler->fogNear != 0.0f)));
+    play->envCtx.adjLightSettings.fogNear = handler->fogNear;
+
+    if (handler->giantsMaskCsState != GIANTS_MASK_CS_STATE_WAITING_FOR_MASK) {
+        Actor_SetScale(&player->actor, handler->playerScale *
+                                           ((player->transformation == PLAYER_FORM_FIERCE_DEITY) ? 1.5f : 1.0f));
+        sCoopFollowsScale = true;
+    } else if (sCoopFollowsScale) {
+        Actor_SetScale(&player->actor, (player->transformation == PLAYER_FORM_FIERCE_DEITY) ? 0.015f : 0.01f);
+        sCoopFollowsScale = false;
+    }
 }
 
 Gfx* D_809DFA9C[] = {
@@ -1701,7 +1847,9 @@ void Boss02_HandleGiantsMaskCutscene(Boss02* this, PlayState* play) {
 
     switch (this->giantsMaskCsState) {
         case GIANTS_MASK_CS_STATE_WAITING_FOR_MASK:
-            if (player->stateFlags1 & PLAYER_STATE1_100) {
+            // [COOP] or another player's Link (a puppet) put the Giant's Mask on or took it off: this game runs
+            // Twinmold, so the arena's size changes here, and the other games follow it (Boss02_CoopFollow)
+            if ((player->stateFlags1 & PLAYER_STATE1_100) || Coop_GiantMaskRequested(play)) {
                 Cutscene_StartManual(play, &play->csCtx);
                 this->subCamId = Play_CreateSubCamera(play);
                 Play_ChangeCameraStatus(play, CAM_ID_MAIN, CAM_STATUS_WAIT);
@@ -1854,6 +2002,7 @@ void Boss02_HandleGiantsMaskCutscene(Boss02* this, PlayState* play) {
     // Switches from the "normal" variation of the arena to the "giant" variation (or vice versa)
     // at the appropriate point in the Giant's Mask cutscene.
     if (switchArena) {
+        Coop_GiantMaskModeChanged(); // [COOP] the requests of the puppets that asked for it are answered
         sIsInGiantMode = true - sIsInGiantMode;
         if (!sIsInGiantMode) {
             sGiantModeScaleFactor = 1.0f;

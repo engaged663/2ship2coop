@@ -1580,6 +1580,12 @@ void Play_DrawMain(PlayState* this) {
                 }
             }
 
+            // [COOP] The ending's next shot waits for a player still loading it: black until it starts (the
+            // gameplay camera on Link showed meanwhile)
+            if (Coop_EndingCover(this)) {
+                Environment_FillScreen(gfxCtx, 0, 0, 0, 255, FILL_SCREEN_OPA | FILL_SCREEN_XLU);
+            }
+
             if (this->worldCoverAlpha != 0) {
                 Environment_FillScreen(gfxCtx, 0, 0, 0, this->worldCoverAlpha, FILL_SCREEN_OPA | FILL_SCREEN_XLU);
             }

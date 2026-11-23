@@ -1,4 +1,5 @@
 // Mod API: players.* (who is connected, where, and what an admin would do to them).
+#include "server/Groups.h"
 #include "server/Mods/GameIds.h"
 #include "server/Mods/ModApi.h"
 #include "server/Mods/ModHost.h"
@@ -185,12 +186,7 @@ json PlayersTeleport(ApiCall& call) {
         if (!target.hasState || target.scene < 0) {
             call.Fail(Tr(Msg::TpNotInGame, { target.nick }));
         }
-        tp["scene"] = target.scene;
-        tp["entrance"] = target.entrance;
-        tp["room"] = target.room;
-        tp["pos"] = { target.pos[0], target.pos[1], target.pos[2] };
-        tp["rot"] = target.rotY;
-        tp["target"] = target.nick;
+        tp = Groups_TpTo(target);
     }
     call.server.SendEvent(mover, tp);
     return nullptr;

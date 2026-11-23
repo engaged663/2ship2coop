@@ -5,6 +5,7 @@
 #include "server/Registry.h"
 #include "server/Server.h"
 
+#include "common/GrottoReturn.h"
 #include "common/PlayerState.h"
 #include "common/Text.h"
 
@@ -100,6 +101,10 @@ void OnLoc(Server& server, RemoteClient& client, const json& ev) {
         client.entrance = entrance; // used by /tp: never store an entrance the game lacks
     }
     client.sceneName = sceneName;
+    // In a grotto: the way out a "tp" to it needs (a teleport never jumps into the hole that sets it)
+    GrottoReturn grotto;
+    auto g = ev.find("grotto");
+    client.grotto = (g != ev.end() && GrottoReturnFromJson(*g, grotto)) ? GrottoReturnToJson(grotto) : json();
     bool timeStopped = GetBool(ev, "timeStopped");
     if (timeStopped != client.timeStopped) {
         client.timeStopped = timeStopped;

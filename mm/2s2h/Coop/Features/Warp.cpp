@@ -165,6 +165,59 @@ void Warp_Go(const WarpTarget& t) {
     Warp_SetRespawn(t);
 }
 
+bool Warp_CurrentGrotto(GrottoReturn& out) {
+    if (!PoseCapture_InGameplay() || gPlayState->sceneId != SCENE_KAKUSIANA) {
+        return false;
+    }
+    const RespawnData& r = gSaveContext.respawn[RESPAWN_MODE_UNK_3];
+    GrottoReturn g;
+    g.entrance = r.entrance;
+    g.room = r.roomIndex;
+    g.pos[0] = r.pos.x;
+    g.pos[1] = r.pos.y;
+    g.pos[2] = r.pos.z;
+    g.yaw = r.yaw;
+    g.playerParams = r.playerParams;
+    g.data = r.data;
+    // Through the json check: what we send is what the others would accept (and nothing that would trap them)
+    return GrottoReturnFromJson(GrottoReturnToJson(g), out) && Warp_IsValidEntrance(out.entrance);
+}
+
+void Warp_SetGrottoReturn(const GrottoReturn& g) {
+    RespawnData& r = gSaveContext.respawn[RESPAWN_MODE_UNK_3];
+    r.entrance = g.entrance;
+    r.roomIndex = g.room;
+    r.pos = { g.pos[0], g.pos[1], g.pos[2] };
+    r.yaw = g.yaw;
+    r.playerParams = g.playerParams;
+    r.data = g.data;
+    r.tempSwitchFlags = 0;
+    r.unk_18 = 0;
+    r.tempCollectFlags = 0;
+}
+
+void Warp_PrepareGrottoExit(const GrottoReturn* way) {
+    if (way != nullptr && Warp_IsValidEntrance(way->entrance)) {
+        Warp_SetGrottoReturn(*way);
+        return;
+    }
+    if (!PoseCapture_InGameplay() || gPlayState->sceneId == SCENE_KAKUSIANA) {
+        return; // in a grotto already: its way out is still good
+    }
+    // As a hole does (Play_SetupRespawnPoint), with where we stand now: the exit brings us back here
+    Player* player = GET_PLAYER(gPlayState);
+    GrottoReturn g;
+    g.entrance = (uint16_t)Entrance_Create(gSaveContext.save.entrance >> 9, 0, gSaveContext.save.entrance & 0xF);
+    g.room = gPlayState->roomCtx.curRoom.num;
+    g.pos[0] = player->actor.world.pos.x;
+    g.pos[1] = player->actor.world.pos.y;
+    g.pos[2] = player->actor.world.pos.z;
+    g.yaw = player->actor.shape.rot.y;
+    g.playerParams = (uint16_t)PLAYER_PARAMS(0xFF, PLAYER_START_MODE_GROTTO);
+    g.data = 0;
+    Warp_SetGrottoReturn(g);
+}
+
 void Warp_MoveInsideRoom(const WarpTarget& t) {
     Player* player = GET_PLAYER(gPlayState);
     Vec3f pos = { t.pos[0], t.pos[1], t.pos[2] };

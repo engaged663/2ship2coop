@@ -7,6 +7,10 @@
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
+extern "C" {
+#include "variables.h"
+}
+
 #include <algorithm>
 #include <initializer_list>
 
@@ -32,6 +36,10 @@ bool NeverReplicated(int16_t id) {
         ACTOR_EN_JS, // the Moon's children: the masks given to them are each player's own (masksGivenOnMoon)
         ACTOR_OBJ_ETCETERA, // Deku flowers: who launches from one needs their own (also on a replicated lift, whose
                             // copy carries them: SceneObjects.cpp kCarriers; a dead Mad Scrub's: Leftovers.cpp)
+        ACTOR_EN_TEST3, // Kafei: a whole Player (like the puppets) that takes the controls in Sakon's Hideout. A copy got
+                        // another game's Player state (drawn with that Link's bow, the camera left on him, its Link
+                        // moved): each game runs its own, as without co-op; the quest's flags are the world's
+        ACTOR_BG_INIBS_MOVEBG, // Twinmold's arena: each game spawns the one of its own size (giant or not: Boss02)
     });
 }
 
@@ -107,10 +115,19 @@ bool IsPropEnemy(int16_t id) {
     });
 }
 
+// In a private scene (Rules_PrivateScene) every actor is each game's own.
+bool InPrivateScene() {
+    return gPlayState != nullptr && Rules_PrivateScene(gPlayState->sceneId);
+}
+
 } // namespace
 
+bool Rules_PrivateScene(int16_t sceneId) {
+    return sceneId == SCENE_SECOM; // Sakon's Hideout
+}
+
 Replication Rules_ListActor(int16_t actorId, uint8_t category) {
-    if (NeverReplicated(actorId) || SceneObjects_ForcedLocal(actorId)) {
+    if (InPrivateScene() || NeverReplicated(actorId) || SceneObjects_ForcedLocal(actorId)) {
         return Replication::Local;
     }
     if (IsCutsceneActor(actorId)) {
@@ -133,6 +150,9 @@ int16_t Rules_PartnerNpc(int16_t propId) {
 }
 
 Replication Rules_RuntimeChild(int16_t actorId, uint8_t category) {
+    if (InPrivateScene()) {
+        return Replication::Local;
+    }
     if (IsEcho(actorId)) {
         return Replication::Echo;
     }
@@ -155,7 +175,7 @@ Replication Rules_RuntimeChild(int16_t actorId, uint8_t category) {
 }
 
 bool Rules_Leasable(int16_t actorId, uint8_t category) {
-    return category == ACTORCAT_NPC && !NeverReplicated(actorId) && !IsCutsceneActor(actorId);
+    return category == ACTORCAT_NPC && !InPrivateScene() && !NeverReplicated(actorId) && !IsCutsceneActor(actorId);
 }
 
 bool Rules_IsCutsceneActor(int16_t actorId) {

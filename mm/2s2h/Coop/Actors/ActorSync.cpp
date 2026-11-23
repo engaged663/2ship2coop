@@ -298,6 +298,7 @@ void ApplyPending(TrackedActor& t) {
     for (const SlotSpan& s : t.pendingSpans) {
         ActorMemory_Apply(t, s);
     }
+    ObjectSlots_Refresh(t); // ours, ready for the moment it becomes ours (ObjectSlots.cpp)
     t.pendingSpans.clear();
     HitSync_ClearMarks(t);
     for (size_t i = 0; i < t.colliders.size() && t.owner == 0; i++) { // a player's object is only seen here
@@ -590,10 +591,17 @@ void ActorSync_FrameEnd() {
         gone.erase(std::remove_if(gone.begin(), gone.end(),
                                   [&](const auto& g) { return now - g.second > kGoneMemoryMs; }),
                    gone.end());
-        if (gone.empty() || !(room == image_limits::kPlayerRoom || Authority_IsMine(room)) || !frames.count(room)) {
-            continue; // only with a frame: the alive list says the rest
+        if (gone.empty() || !(room == image_limits::kPlayerRoom || Authority_IsMine(room))) {
+            continue;
         }
+        // The last of our actors there just died (a magic spin attack: nothing else of our Link's this frame): the
+        // frame goes with the lists alone. It used to go only with a frame, so nothing said it was gone and the others
+        // kept its copy frozen on screen.
+        bool onlyLists = frames.count(room) == 0;
         ActorImagePacket& f = frames[room];
+        if (onlyLists && alive) {
+            f.hasAlive = true; // nothing of ours is left there
+        }
         for (const auto& g : gone) {
             if (f.gone.size() < (size_t)image_limits::kKeys) {
                 f.gone.push_back(g.first);
@@ -661,6 +669,11 @@ extern "C" Player* Coop_ActorUpdateBegin(PlayState* play, Actor* actor, s32* for
         sFormSwapped = true;
     }
     return target;
+}
+
+extern "C" s32 Coop_IsCopy(Actor* actor) {
+    const TrackedActor* t = actor != nullptr && Active() ? ActorRegistry_Get(actor) : nullptr;
+    return (t != nullptr && Leases_IsRemote(*t)) ? 1 : 0;
 }
 
 extern "C" void Coop_ActorUpdateEnd(PlayState* play, Actor* actor) {

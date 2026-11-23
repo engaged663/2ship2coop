@@ -1,6 +1,7 @@
 // /tp <jugador>: sends the caller the target's last known location; the game does the warp.
 // /tp <jugador> <destino> (ops and console): moves another player to <destino>.
 #include "server/CommandRegistry.h"
+#include "server/Groups.h"
 #include "server/Server.h"
 
 #include "common/Events.h"
@@ -39,14 +40,7 @@ static void Run(CommandContext& ctx, const std::vector<std::string>& args) {
         ctx.Reply(Tr(Msg::TpNotInGame, { target->nick }), level::kError);
         return;
     }
-    json tp = MakeEvent(ev::kTp);
-    tp["scene"] = target->scene;
-    tp["entrance"] = target->entrance;
-    tp["room"] = target->room;
-    tp["pos"] = { target->pos[0], target->pos[1], target->pos[2] };
-    tp["rot"] = target->rotY;
-    tp["target"] = target->nick;
-    ctx.server.SendEvent(*mover, tp);
+    ctx.server.SendEvent(*mover, Groups_TpTo(*target));
     ctx.Reply(Tr(Msg::TpTeleporting, { mover->nick, target->nick }));
     ctx.server.SendSystem(target, Tr(Msg::TpNotifyTarget, { mover->nick }));
 }

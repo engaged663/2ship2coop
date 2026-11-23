@@ -6,7 +6,9 @@
 
 namespace coop {
 
-constexpr uint32_t kProtocolVersion = 22; // v22: players' colors (hello/welcome/join "color", event "color":
+constexpr uint32_t kProtocolVersion = 23; // v23: a grotto's way out ("loc"/"tp" "grotto": common/GrottoReturn.h),
+                                          // the pose carries the Giant's Mask transformation (state bit 8);
+                                          // v22: players' colors (hello/welcome/join "color", event "color":
                                           // common/PlayerColor.h) and "map_pos" (the minimap in other scenes);
                                           // v21: grabs ("grab"; "hurt" kind "pain"; the pose carries "held");
                                           // v20: the pose ends with unk_B08/unk_B0C (bow string, Deku stick);
@@ -191,13 +193,15 @@ inline constexpr const char* kMapPos = "map_pos";          // C->S map (minimap 
                                                            // in another scene that shows the same map (the five scenes
                                                            // of Clock Town share one) draws the arrow there
 inline constexpr const char* kLeave = "leave";             // S->C id, nick, reason
-inline constexpr const char* kLoc = "loc";                 // C->S scene, room, layer, entrance, sceneName, timeStopped, busy; S->C id, scene, sceneName, entrance
+inline constexpr const char* kLoc = "loc";                 // C->S scene, room, layer, entrance, sceneName, timeStopped, busy,
+                                                           // grotto (v23, in a grotto: its way out); S->C id, scene, sceneName, entrance
 inline constexpr const char* kChat = "chat";               // C->S text; S->C from, text
 inline constexpr const char* kPm = "pm";                   // S->C from, to, text
 inline constexpr const char* kCmd = "cmd";                 // C->S line
 inline constexpr const char* kSys = "sys";                 // S->C text, level
 inline constexpr const char* kTp = "tp";                   // S->C scene, entrance, room, pos[3], rot, target,
-                                                           // roomTrip (an activity room's trip: retried)
+                                                           // roomTrip (an activity room's trip: retried),
+                                                           // grotto (v23: the target's way out of its grotto)
 inline constexpr const char* kGiftDebit = "gift_debit";    // S->C gid, to, amount
 inline constexpr const char* kGiftPaid = "gift_paid";      // C->S gid, paid
 inline constexpr const char* kGiftCredit = "gift_credit";  // S->C gid, from, amount

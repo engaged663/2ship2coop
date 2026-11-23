@@ -367,6 +367,7 @@ void ActorMemory_BuildLocalMask(TrackedActor& t) {
             t.localMask[b] = 1;
         }
     }
+    ObjectSlots_MarkLocal(t); // its object slots name our objects (Anju's, Gorman's: ObjectSlots.cpp)
     if (r.size < sizeof(DynaPolyActor) || gPlayState == nullptr) {
         return;
     }

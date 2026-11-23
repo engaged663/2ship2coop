@@ -19,6 +19,8 @@ bool Groups_InWorld(const RemoteClient& c);    // a player (not a host) playing 
 std::vector<RemoteClient*> Groups_Mates(Server& server, const RemoteClient& c);        // its group, in the world
 std::vector<RemoteClient*> Groups_MatesInScene(Server& server, const RemoteClient& c); // ...and in its scene
 json Groups_Event(Server& server, const Group* g); // "group" (id 0 when g is null)
+// "tp" to where target is (scene, entrance, room, spot; in a grotto, its way out too).
+json Groups_TpTo(const RemoteClient& target);
 // mover appears where target is ("tp": the game warps as for /tp). roomTrip: an activity room's trip (the game retries
 // it while it cannot travel).
 void Groups_SendTrip(Server& server, RemoteClient& mover, const RemoteClient& target, bool roomTrip = false);

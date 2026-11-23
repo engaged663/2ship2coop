@@ -63,7 +63,7 @@ json Groups_Event(Server& server, const Group* g) {
     return ev;
 }
 
-void Groups_SendTrip(Server& server, RemoteClient& mover, const RemoteClient& target, bool roomTrip) {
+json Groups_TpTo(const RemoteClient& target) {
     json tp = MakeEvent(ev::kTp);
     tp["scene"] = target.scene;
     tp["entrance"] = target.entrance;
@@ -71,6 +71,14 @@ void Groups_SendTrip(Server& server, RemoteClient& mover, const RemoteClient& ta
     tp["pos"] = { target.pos[0], target.pos[1], target.pos[2] };
     tp["rot"] = target.rotY;
     tp["target"] = target.nick;
+    if (!target.grotto.is_null()) {
+        tp["grotto"] = target.grotto; // its way out of the grotto it is in
+    }
+    return tp;
+}
+
+void Groups_SendTrip(Server& server, RemoteClient& mover, const RemoteClient& target, bool roomTrip) {
+    json tp = Groups_TpTo(target);
     if (roomTrip) {
         tp["roomTrip"] = true;
     }

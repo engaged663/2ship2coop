@@ -2,6 +2,7 @@
 // Puts Link at an exact spot of any scene, loading it if needed (the respawn trick of DeveloperTools/WarpPoint.cpp).
 // Used by /tp (Teleport.cpp) and by the shared world (entering at the saved spot, reloading after a time jump).
 #include "common/Events.h"
+#include "common/GrottoReturn.h"
 
 #include <cstdint>
 #include <string>
@@ -28,5 +29,11 @@ std::string Warp_BlockedReason();                   // "" = Link can be moved no
 void Warp_SetRespawn(const WarpTarget& t);          // the next scene load puts Link there
 void Warp_Go(const WarpTarget& t);                  // loads t's scene now and puts Link there
 void Warp_MoveInsideRoom(const WarpTarget& t);      // same scene and room: moves Link directly
+// A grotto's way out (common/GrottoReturn.h): ours now (false outside a grotto), and the one its exit will take.
+bool Warp_CurrentGrotto(GrottoReturn& out);
+void Warp_SetGrottoReturn(const GrottoReturn& g);
+// Before a warp into a grotto (Warp_Go to a target in one): its exit takes the target's way out when the "tp" brought
+// it (`way` non-null), else back to where we are now; already in a grotto with nothing new, ours stays.
+void Warp_PrepareGrottoExit(const GrottoReturn* way);
 
 } // namespace coop::client

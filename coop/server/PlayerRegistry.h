@@ -1,5 +1,6 @@
 #pragma once
 // Every connected peer, from the moment ENet connects (handshaking) until it disconnects.
+#include "common/Events.h"
 #include "common/PlayerColor.h"
 #include "common/Protocol.h"
 
@@ -44,6 +45,7 @@ struct RemoteClient {
     std::string sceneName;
     float pos[3] = { 0.f, 0.f, 0.f };
     int16_t rotY = 0;
+    json grotto; // in a grotto (from "loc"): its way out (common/GrottoReturn.h), sent with a "tp" to it; null otherwise
     bool hasState = false;
     uint32_t streamsIn = 0;      // pose packets received (stats command)
     uint32_t streamsRelayed = 0; // pose packets forwarded to others

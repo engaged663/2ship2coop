@@ -6,6 +6,7 @@
 #include "Sync.h"
 
 #include "2s2h/Coop/Actors/LiveFlags.h"
+#include "2s2h/Coop/Actors/ReplicationRules.h"
 #include "2s2h/Coop/Client/Dispatcher.h"
 #include "2s2h/Coop/Client/NetClient.h"
 #include "2s2h/Coop/Client/Session.h"
@@ -54,7 +55,8 @@ void Write(PlayState* play, const Words& w) {
 
 bool Ready(const PlayState* play) {
     return play != nullptr && Sync_On(SyncPart::SceneFlags) && !EndingMode_Active() && PoseCapture_InGameplay() &&
-           play->transitionTrigger == TRANS_TRIGGER_OFF && Session_IsConnected();
+           play->transitionTrigger == TRANS_TRIGGER_OFF && Session_IsConnected() &&
+           !Rules_PrivateScene(play->sceneId); // each player's own (Sakon's Hideout: ReplicationRules.h)
 }
 
 // What another player changed reaches what only reads its flag once (spec §5.1). live: also tell LiveFlags.cpp (the

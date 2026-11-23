@@ -108,6 +108,9 @@ void Coop_LiveMenuClose(PlayState* play);
 s32 Coop_InEnding(void);
 s32 Coop_CutsceneHold(PlayState* play);
 void Coop_OnFinale(PlayState* play);
+// 1 = the ending's cutscene of this scene waits at its very start (not one frame of it ran): the screen stays black
+// (Play_Draw), or the gameplay camera showed Link standing at the entrance until it started.
+s32 Coop_EndingCover(PlayState* play);
 
 // Groups (Activities/Rewards.cpp, Features/Cinema.cpp). Coop_OnGetItem: the local Link gets this GetItem now (before
 // its Item_Give; giver = the actor that offered it); Coop_OnGetItemEnd: after it. Coop_OnRupeesChanged: every
@@ -126,6 +129,17 @@ void Coop_AddActorRegion(Actor* actor, void* table, u32 bytes);
 // arrow's or an Iron Knuckle's trail) that field is each game's own: another game's index there made a copy draw into
 // (or destroy) one of our effects, or read a free one as NULL (EffectBlure_AddVertex crashed).
 void Coop_OnEffectAdd(s32* pIndex);
+
+// 1 = another game simulates this actor (our copy only shows it).
+s32 Coop_IsCopy(Actor* actor);
+
+// Twinmold's Giant's Mask (Features/BossArenas.cpp, z_boss_02.c): the arena's size is the one of the game that runs
+// Twinmold, for everyone. Coop_GiantMaskRequested: in that game, 1 = another player's Link (a puppet) puts the mask on
+// or takes it off now (each use answered once); Coop_GiantMaskModeChanged: the arena switched (the requests waiting are
+// answered). Boss02_CoopFollow: every frame in the lair; in the other games it follows that game's arena.
+s32 Coop_GiantMaskRequested(PlayState* play);
+void Coop_GiantMaskModeChanged(void);
+void Boss02_CoopFollow(PlayState* play);
 
 // The values a mirrored text shows (Features/MessageVars.cpp): begin = 1 before Message_Decode, 0 after it.
 void Coop_OnMessageDecode(PlayState* play, s32 begin);

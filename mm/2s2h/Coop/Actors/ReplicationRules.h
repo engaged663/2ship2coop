@@ -17,6 +17,11 @@ enum class Replication : uint8_t {
     Cinema,     // a cutscene actor: ours, except while we watch another game's shared cutscene (that game drives it)
 };
 
+// A scene that is each player's own, as without co-op: no actor is shared there and its flags do not travel
+// (Sync/SceneFlags.cpp). A puzzle made for one Link: Sakon's Hideout (the controls go from Link to Kafei and back; its
+// switches and belts are one player's). Several players can do it at once, each in their own game; what it gives
+// (the Sun's Mask, the quest's flags) is the world's as everywhere. ADD A SCENE in ReplicationRules.cpp.
+bool Rules_PrivateScene(int16_t sceneId);
 // An actor of the room's actor list (profile category, id).
 Replication Rules_ListActor(int16_t actorId, uint8_t category);
 // An actor created while a replicated actor of this game updates.

@@ -34,7 +34,7 @@ static_assert(limits::kFormCount == PLAYER_FORM_MAX && limits::kMaskCount == PLA
               "coop::pose_limits out of date with the engine enums");
 static_assert(limits::kStateFlags1 ==
                   (u32)(PLAYER_STATE1_8000000 | PLAYER_STATE1_400000 | PLAYER_STATE1_ZORA_BOOMERANG_THROWN |
-                        PLAYER_STATE1_800000) &&
+                        PLAYER_STATE1_800000 | PLAYER_STATE1_100) &&
                   limits::kStateFlags2 == (u32)(PLAYER_STATE2_20000000 | PLAYER_STATE2_80) &&
                   limits::kStateFlags3 == (u32)(PLAYER_STATE3_1000 | PLAYER_STATE3_8000),
               "coop::pose_limits state masks out of date");
@@ -48,7 +48,8 @@ namespace {
 // Only state bits whose draw code is safe on a puppet (nothing that dereferences held actors etc.).
 // The same masks are re-applied on receive (coop::SanitizePlayerState).
 constexpr u32 kSyncedStateFlags1 = PLAYER_STATE1_8000000 /* swimming */ | PLAYER_STATE1_400000 /* shield up */ |
-                                   PLAYER_STATE1_ZORA_BOOMERANG_THROWN | PLAYER_STATE1_800000 /* riding Epona */;
+                                   PLAYER_STATE1_ZORA_BOOMERANG_THROWN | PLAYER_STATE1_800000 /* riding Epona */ |
+                                   PLAYER_STATE1_100 /* Giant's Mask on/off: Features/BossArenas.cpp */;
 // Not drawn; held by an enemy (the enemy that holds us in another game sees us escape: Actors/GrabSync.cpp)
 constexpr u32 kSyncedStateFlags2 = PLAYER_STATE2_20000000 | PLAYER_STATE2_80;
 constexpr u32 kSyncedStateFlags3 = PLAYER_STATE3_1000 /* goron ball */ | PLAYER_STATE3_8000 /* zora fast swim */;

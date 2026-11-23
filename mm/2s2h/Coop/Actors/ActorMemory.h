@@ -16,6 +16,10 @@ Slot ActorMemory_Capture(const TrackedActor& t, size_t region, size_t slot);
 // After its regions exist: which bytes of its instance are this game's own (the base Actor's engine fields, and a
 // DynaPolyActor's collision index and "who stands on it", which belong to each game's collision context).
 void ActorMemory_BuildLocalMask(TrackedActor& t);
+// ObjectSlots.cpp: the object slots (play->objectCtx indices) an actor keeps in its own fields are this game's. MarkLocal
+// (from ActorMemory_BuildLocalMask): they never travel; Refresh (a copy, every frame): the fixed ones looked up here.
+void ObjectSlots_MarkLocal(TrackedActor& t);
+void ObjectSlots_Refresh(TrackedActor& t);
 // True if the whole slot is the engine's own (never sent).
 bool ActorMemory_IsLocalSlot(const TrackedActor& t, size_t region, size_t slot);
 // Writes a received slot into the copy (translating pointers; "keep" restores its value after Init).

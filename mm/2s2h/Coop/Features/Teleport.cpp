@@ -18,6 +18,7 @@
 #include <spdlog/spdlog.h>
 
 extern "C" {
+#include "functions.h"
 #include "variables.h"
 }
 
@@ -33,10 +34,13 @@ struct PendingTrip {
     s16 scene = -1;
     std::string target;
     int64_t untilMs = 0;
+    bool hasGrotto = false;
+    GrottoReturn grotto;
 };
 PendingTrip sPendingTrip;
 
-void Travel(const WarpTarget& spot, s16 scene, const std::string& target) {
+// grotto: the target's way out of the grotto it is in (null: none came)
+void Travel(const WarpTarget& spot, s16 scene, const std::string& target, const GrottoReturn* grotto) {
     if (scene == gPlayState->sceneId && spot.room == gPlayState->roomCtx.curRoom.num) {
         Warp_MoveInsideRoom(spot);
         Chat_Add(ChatKind::Ok, target.empty() ? Tx(Txt::TpMoved) : Tx(Txt::TpNextTo, { target }));
@@ -54,6 +58,10 @@ void Travel(const WarpTarget& spot, s16 scene, const std::string& target) {
             SPDLOG_INFO("[Coop] Teleport: entrance {:#x} does not lead to scene {}: {:#x} instead", spot.entrance,
                         (int)scene, to.entrance);
         }
+        // Into a grotto: its exit goes where the hole that leads there is (it led to the Mayor's Residence)
+        if (Entrance_GetSceneIdAbsolute(Entrance_Create(to.entrance >> 9, 0, 0)) == SCENE_KAKUSIANA) {
+            Warp_PrepareGrottoExit(grotto);
+        }
         Warp_Go(to);
         Chat_Add(ChatKind::Ok, target.empty() ? Tx(Txt::TpTravel) : Tx(Txt::TpTravelTo, { target }));
     }
@@ -67,10 +75,13 @@ void OnTp(const json& ev) {
         return;
     }
     s16 scene = (s16)GetInt(ev, "scene", -1);
+    GrottoReturn grotto;
+    auto way = ev.find("grotto");
+    bool hasGrotto = way != ev.end() && GrottoReturnFromJson(*way, grotto);
     std::string blocked = Warp_BlockedReason();
     if (!blocked.empty()) {
         if (GetBool(ev, "roomTrip")) {
-            sPendingTrip = PendingTrip{ true, spot, scene, target, Group_NowMs() + kRoomTripMs };
+            sPendingTrip = PendingTrip{ true, spot, scene, target, Group_NowMs() + kRoomTripMs, hasGrotto, grotto };
             Chat_Add(ChatKind::Info, Tx(Txt::TpLater, { target, blocked }));
             return;
         }
@@ -78,7 +89,7 @@ void OnTp(const json& ev) {
         return;
     }
     sPendingTrip.active = false;
-    Travel(spot, scene, target);
+    Travel(spot, scene, target, hasGrotto ? &grotto : nullptr);
 }
 
 // A room's trip that had to wait goes as soon as this game can travel.
@@ -92,7 +103,8 @@ void FrameEnd() {
     }
     if (Warp_BlockedReason().empty()) {
         sPendingTrip.active = false;
-        Travel(sPendingTrip.spot, sPendingTrip.scene, sPendingTrip.target);
+        Travel(sPendingTrip.spot, sPendingTrip.scene, sPendingTrip.target,
+               sPendingTrip.hasGrotto ? &sPendingTrip.grotto : nullptr);
     }
 }
 

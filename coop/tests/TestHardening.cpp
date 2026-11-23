@@ -82,6 +82,18 @@ TEST_CASE(SanitizeMasksStateFlagsAndSword) {
     CHECK_EQ(s.sword, (uint8_t)0);
 }
 
+// v23: a puppet putting the Giant's Mask on (PLAYER_STATE1_100) reaches the game that runs Twinmold, which answers it
+TEST_CASE(GiantMaskFlagTravelsInThePose) {
+    coop::PlayerState s = ValidState();
+    s.stateFlags1 = 1u << 8;
+    CHECK(coop::SanitizePlayerState(s));
+    CHECK_EQ(s.stateFlags1, 1u << 8);
+    coop::PlayerState back;
+    std::vector<uint8_t> bytes = coop::EncodePlayerState(s);
+    CHECK(coop::DecodePlayerState(bytes.data(), bytes.size(), back));
+    CHECK_EQ(back.stateFlags1, 1u << 8);
+}
+
 TEST_CASE(ImplausibleStreamNotRelayed) {
     TestServer s;
     auto a = Join(s, "Alice");

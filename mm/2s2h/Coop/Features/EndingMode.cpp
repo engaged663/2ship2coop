@@ -60,6 +60,7 @@ int64_t sSegStartMs = 0;
 int sFrames = 0;
 int64_t sFinaleSinceMs = 0;
 bool sDoneSent = false;
+bool sHeldAtStart = false; // the last Coop_CutsceneHold held this scene's cutscene before its first frame
 std::map<uint8_t, Peer> sPeers;
 
 int64_t NowMs() {
@@ -149,6 +150,7 @@ void EndingMode_End() {
         return;
     }
     sActive = false;
+    sHeldAtStart = false;
     sPeers.clear();
     WorldSession_SetEndingCVars(false);
     SPDLOG_INFO("[Coop] The ending is over");
@@ -183,8 +185,27 @@ extern "C" s32 Coop_InEnding(void) {
     return EndingMode_Active() ? 1 : 0;
 }
 
+namespace {
+
+s32 Hold(PlayState* play);
+
+} // namespace
+
 // A player behind in the ending: this game's cutscene does not advance this frame (the slowest sets the pace).
 extern "C" s32 Coop_CutsceneHold(PlayState* play) {
+    s32 held = Hold(play);
+    sHeldAtStart = held && play->csCtx.curFrame == 0;
+    return held;
+}
+
+extern "C" s32 Coop_EndingCover(PlayState* play) {
+    return sActive && sHeldAtStart && play->csCtx.state != CS_STATE_IDLE && play->csCtx.curFrame == 0 &&
+           gSaveContext.save.cutsceneIndex >= 0xFFF0;
+}
+
+namespace {
+
+s32 Hold(PlayState* play) {
     if (!sActive) {
         return 0;
     }
@@ -211,6 +232,8 @@ extern "C" s32 Coop_CutsceneHold(PlayState* play) {
     }
     return 0;
 }
+
+} // namespace
 
 extern "C" void Coop_OnFinale(PlayState* play) {
     if (sActive && sFinaleSinceMs == 0) {
